@@ -163,6 +163,9 @@ func buildProvisionedImage(ctx context.Context) (string, error) {
 	if err := waitForSystemd(buildCtx, builder, budget.Boot); err != nil {
 		return "", fmt.Errorf("provision: %w", err)
 	}
+	if err := requireHostBrNetfilter(buildCtx, builder); err != nil {
+		return "", fmt.Errorf("provision: %w", err)
+	}
 	if err := builder.Copy(buildCtx, pub, LoginHome+"/.ssh/authorized_keys"); err != nil {
 		return "", fmt.Errorf("provision: %w", err)
 	}

@@ -49,6 +49,19 @@ func (d *dockerDriver) image(ctx context.Context) (string, error) {
 	return EnsureImage(ctx, ImageMachine)
 }
 
+const brNetfilterProbe = "test -d /sys/module/br_netfilter || test -e /proc/sys/net/bridge/bridge-nf-call-iptables"
+
+func requireHostBrNetfilter(ctx context.Context, m *Machine) error {
+	res, err := m.RunAsRoot(ctx, brNetfilterProbe)
+	if err != nil {
+		return fmt.Errorf("probe br_netfilter from %s: %w", m.Alias, err)
+	}
+	if res.ExitCode != 0 {
+		return fmt.Errorf("br_netfilter is not available in the docker host kernel (neither /sys/module/br_netfilter nor /proc/sys/net/bridge/bridge-nf-call-iptables): %s shares that kernel and cannot load a module for it, so server setup stops at host-config (on a Linux docker host: sudo modprobe br_netfilter)", m.Alias)
+	}
+	return nil
+}
+
 func (d *dockerDriver) start(ctx context.Context) error {
 	m := d.m
 	l := m.lab
@@ -103,6 +116,9 @@ func (d *dockerDriver) start(ctx context.Context) error {
 			return err
 		}
 		if err := waitForSystemd(ctx, m, l.budget.Boot); err != nil {
+			return err
+		}
+		if err := requireHostBrNetfilter(ctx, m); err != nil {
 			return err
 		}
 	}

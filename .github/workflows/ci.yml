@@ -36,6 +36,15 @@ jobs:
           go-version-file: go.mod
       - name: allow unprivileged user namespaces
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      - name: load br_netfilter
+        run: |
+          sudo modprobe br_netfilter || true
+          if ! test -d /sys/module/br_netfilter && ! test -e /proc/sys/net/bridge/bridge-nf-call-iptables; then
+            sudo apt-get update
+            sudo apt-get install -y linux-modules-extra-$(uname -r)
+            sudo modprobe br_netfilter
+          fi
+          test -d /sys/module/br_netfilter || test -e /proc/sys/net/bridge/bridge-nf-call-iptables
       - name: integration
         run: make integration
       - name: logs
