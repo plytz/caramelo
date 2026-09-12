@@ -52,13 +52,17 @@ results but the human experience will be tuned to work through a coding agent.
 ## Development
 
 Docker is required. The integration tests run caramelo inside containers that stand in for real
-machines, so they need a Linux container host with cgroup v2 and privileged containers (Docker
-Desktop on macOS works, as does Docker on Linux). `make check` is everything that must pass before a
-commit and touches no container. `make integration` runs the whole integration tier, `SUITE=`
-narrows it to one suite, and `make integration-clean` removes every container, network and volume a
-run left behind. The machine state each suite asserts is described by the goss specs in
-`test/integration/goss/`, which goss renders as Go templates, so a double opening brace may appear
-in them only as `.Vars.user`, `.Vars.home`, `.Vars.uid` or `.Vars.arch`.
+machines, so they need a Linux container host with cgroup v2, privileged containers, and
+`br_netfilter` available in the host kernel, either built in (as in Docker Desktop's VM) or loaded
+as a module (`sudo modprobe br_netfilter` on a Linux host that has not loaded it). A container
+shares the host kernel and cannot load a module for it, so a machine's `server setup` needs the host
+to have it; the suites check it once the first container is up and stop there if it is missing.
+`make check` is everything that must pass before a commit and touches no container. `make
+integration` runs the whole integration tier, `SUITE=` narrows it to one suite, and `make
+integration-clean` removes every container, network and volume a run left behind. The machine state
+each suite asserts is described by the goss specs in `test/integration/goss/`, which goss renders as
+Go templates, so a double opening brace may appear in them only as `.Vars.user`, `.Vars.home`,
+`.Vars.uid` or `.Vars.arch`.
 
 ```sh
 make check
