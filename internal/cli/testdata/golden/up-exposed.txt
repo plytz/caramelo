@@ -1,0 +1,16 @@
+shop/feat-x  ready
+
+SERVICE  STATUS   HEALTH  CHANGE     URL                     IMAGE
+web      running  ok      recreated  http://127.0.0.1:20002  -
+
+REPLICA  STATE   STATUS   HEALTH  PORT   IN-FLIGHT  RESTARTS  SINCE
+web/3    active  running  ok      20004  0          0         -
+web/4    active  running  ok      20005  2          0         -
+
+ROLLOUT  HOST              REPLICAS  STEPS  RESULT
+web      feat-x.shop.test  2         3      ok
+
+URL                       SERVICE  ACTIVE  IN-FLIGHT  SINCE
+https://feat-x.shop.test  web      2/2     2          2026-09-09T10:00:00Z
+
+https://feat-x.shop.test

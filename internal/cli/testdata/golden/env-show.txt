@@ -1,0 +1,26 @@
+shop/feat-x  ready
+  mode        dev
+  branch      feat-x at 0123456
+  worktree    /mnt/caramelo/apps/shop/envs/feat-x/src
+  ports       20000-20015  (PORT=20000)
+  deps        db, cache
+  created by  alex@laptop
+  created     2026-09-08T12:00:00Z
+
+DEP    STATUS   PORT   CONTAINER
+db     running  20001  caramelo-shop-feat-x-db
+cache  running  20002  caramelo-shop-feat-x-cache
+
+2 variables; see `caramelo env export feat-x`
+
+SERVICE  STATUS   HEALTH  CHANGE  URL                     IMAGE
+web      running  ok      -       http://127.0.0.1:20003  node:22-alpine
+
+URL                       SERVICE  ACTIVE  IN-FLIGHT  SINCE
+https://feat-x.shop.test  web      1/1     0          2026-09-09T10:00:00Z
+
+network caramelo-shop-feat-x
+
+WHEN                  ACTION  STATUS   BY           DETAIL
+2026-09-08T12:00:00Z  create  ok       alex@laptop  worktree at feat-x
+2026-09-08T12:01:00Z  up      changed  alex@laptop  web started

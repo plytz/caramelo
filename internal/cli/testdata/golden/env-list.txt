@@ -1,0 +1,3 @@
+NAME        APP   MODE      BRANCH      COMMIT   STATUS  PORTS        DEPS      CREATED               BY
+feat-x      shop  dev       feat-x      0123456  ready   20000-20015  db,cache  2026-09-08T12:00:00Z  alex@laptop
+production  shop  release*  production  0123456  ready   20032-20063  db,cache  2026-09-08T12:00:00Z  ci

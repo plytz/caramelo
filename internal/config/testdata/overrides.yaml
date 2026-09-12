@@ -1,0 +1,11 @@
+# every known-image default overridden, including turning the check off
+name: shop
+deps:
+  db:
+    image: postgres:16-alpine
+    port: 5433
+    ready: []
+    data: ""
+    env:
+      POSTGRES_PASSWORD: hunter2
+      POSTGRES_DB: shop

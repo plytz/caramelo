@@ -1,0 +1,20 @@
+# The plan's example, and what the lab's sample app looks like.
+name: shop
+deps:
+  db: postgres:16                # string form: image only, the rest is known
+  cache:
+    image: redis:7
+    port: 6379
+    env: {}
+    ready: [redis-cli, ping]
+    data: /data
+  queue:
+    image: nats:2                # unknown image: port required, no ready, no volume
+    port: 4222
+env:
+  DATABASE_URL: postgres://postgres:caramelo@${deps.db.host}:${deps.db.port}/postgres
+  REDIS_URL: redis://${deps.cache.host}:${deps.cache.port}
+  NATS_URL: nats://${deps.queue.host}:${deps.queue.port}
+  SELF: http://127.0.0.1:${port}
+  TAG: ${app.name}-${env.name}
+  PRICE: $$5

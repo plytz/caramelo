@@ -1,0 +1,5 @@
+{
+  "name": "scratch",
+  "engines": { "node": "^22.1.0" },
+  "scripts": { "start": "node index.js" }
+}

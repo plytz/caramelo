@@ -1,0 +1,12 @@
+worker1  1a1025b42a75  gauged 2026-09-08T16:32:00Z
+  os        debian 13 (trixie), kernel 6.12.86+deb13-amd64, x86_64, kvm
+  cpu       1 vCPU  AMD Opteron 63xx class CPU
+  memory    1.4 GiB total, 1.1 GiB available, no swap
+  data dir  /mnt/caramelo  91.4 GiB free of 97.9 GiB  (ext4 on /dev/vda1)
+  disks     vda 100.0 GiB hdd
+  network   192.168.121.135 on eth0  also 192.168.56.12
+  cgroup    v2  cpuset cpu io memory pids
+  docker    29.8.0 rootless, overlayfs, slirp4netns/builtin, data /mnt/caramelo/docker
+  reserved  256.0 MiB, 0.25 CPU
+  caramelo  v0.1.0, user caramelo(999), ssh port 4022, SHA256:abc
+  paths     config /etc/caramelo, state /var/lib/caramelo, data /mnt/caramelo

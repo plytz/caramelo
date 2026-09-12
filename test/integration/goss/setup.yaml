@@ -1,0 +1,209 @@
+package:
+  docker-ce:
+    installed: true
+  docker-ce-cli:
+    installed: true
+  containerd.io:
+    installed: true
+  docker-buildx-plugin:
+    installed: true
+  docker-compose-plugin:
+    installed: true
+  docker-ce-rootless-extras:
+    installed: true
+  uidmap:
+    installed: true
+  dbus-user-session:
+    installed: true
+  slirp4netns:
+    installed: true
+  passt:
+    installed: false
+  git:
+    installed: true
+
+group:
+  caramelo:
+    exists: true
+
+user:
+  caramelo:
+    exists: true
+    home: /var/lib/caramelo
+    shell: /bin/sh
+    groups:
+      - caramelo
+      - systemd-journal
+
+file:
+  /etc/caramelo:
+    exists: true
+    filetype: directory
+    owner: root
+    group: caramelo
+    mode: "0750"
+  /etc/caramelo/config.yaml:
+    exists: true
+    filetype: file
+    owner: root
+    group: caramelo
+    mode: "0640"
+    contents:
+      - "ssh_port: 4022"
+      - "vpn_subnet: 10.86.0.0/16"
+      - "vpn_listen: 0.0.0.0:4021"
+      - "api_listen: vpn"
+      - "edge: false"
+      - "tls: acme"
+      - "http3: true"
+
+  /var/lib/caramelo:
+    exists: true
+    filetype: directory
+    owner: caramelo
+    group: caramelo
+    mode: "0750"
+  /var/lib/caramelo/caramelo.db:
+    exists: true
+    filetype: file
+    owner: caramelo
+  /var/lib/caramelo/ssh:
+    exists: true
+    filetype: directory
+    owner: caramelo
+  /var/lib/caramelo/ssh/host_ed25519:
+    exists: true
+    filetype: file
+    owner: caramelo
+    mode: "0600"
+  /var/lib/caramelo/ssh/authorized_keys:
+    exists: true
+    filetype: file
+    owner: caramelo
+    mode: "0600"
+
+  /var/lib/caramelo/vpn:
+    exists: true
+    filetype: directory
+    owner: caramelo
+    group: caramelo
+    mode: "0700"
+  /var/lib/caramelo/vpn/private.key:
+    exists: true
+    filetype: file
+    owner: caramelo
+    mode: "0600"
+
+  /var/lib/caramelo/vault.key:
+    exists: true
+    filetype: file
+    owner: caramelo
+    group: caramelo
+    mode: "0600"
+
+  /mnt/caramelo:
+    exists: true
+    filetype: directory
+    owner: caramelo
+    group: caramelo
+    mode: "0750"
+  /mnt/caramelo/apps:
+    exists: true
+    filetype: directory
+    owner: caramelo
+  /mnt/caramelo/docker:
+    exists: true
+    filetype: directory
+    owner: caramelo
+    mode: "0710"
+
+  /run/caramelo:
+    exists: true
+    filetype: directory
+    owner: caramelo
+    group: caramelo
+  /run/caramelo/caramelod.sock:
+    exists: true
+    filetype: socket
+    owner: caramelo
+    group: caramelo
+    mode: "0660"
+
+  /etc/sysctl.d/80-caramelo-lowports.conf:
+    exists: false
+
+  /etc/modules-load.d/caramelo.conf:
+    exists: true
+    filetype: file
+    contents:
+      - br_netfilter
+  /etc/systemd/system/user@.service.d/caramelo-delegate.conf:
+    exists: true
+    filetype: file
+    contents:
+      - "Delegate=cpu cpuset io memory pids"
+  /etc/subuid:
+    exists: true
+    contents:
+      - "caramelo:"
+  /etc/subgid:
+    exists: true
+    contents:
+      - "caramelo:"
+
+  /usr/local/bin/caramelo:
+    exists: true
+    filetype: file
+    owner: root
+    mode: "0755"
+
+service:
+  caramelo-edge.socket:
+    enabled: false
+    running: false
+  caramelo-edge.service:
+    enabled: false
+    running: false
+  docker:
+    enabled: false
+    running: false
+  docker.socket:
+    enabled: false
+    running: false
+  containerd:
+    enabled: false
+    running: false
+
+port:
+  udp:4021:
+    listening: true
+  tcp:4022:
+    listening: false
+  tcp:80:
+    listening: false
+  tcp6:80:
+    listening: false
+  tcp:443:
+    listening: false
+  tcp6:443:
+    listening: false
+  udp:443:
+    listening: false
+  udp6:443:
+    listening: false
+
+command:
+  systemctl --user -M caramelo@ is-active caramelod:
+    exit-status: 0
+    stdout:
+      - /^active$/
+  systemctl --user -M caramelo@ is-active docker:
+    exit-status: 0
+    stdout:
+      - /^active$/
+  sudo -u caramelo env XDG_RUNTIME_DIR=/run/user/$(id -u caramelo) DOCKER_HOST=unix:///run/user/$(id -u caramelo)/docker.sock docker info:
+    exit-status: 0
+    stdout:
+      - rootless
+  test -d /sys/module/br_netfilter || test -e /proc/sys/net/bridge/bridge-nf-call-iptables:
+    exit-status: 0

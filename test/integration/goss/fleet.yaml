@@ -1,0 +1,54 @@
+file:
+  /etc/caramelo/config.yaml:
+    exists: true
+    filetype: file
+    owner: root
+    group: caramelo
+    mode: "0640"
+
+  /var/lib/caramelo/caramelo.db:
+    exists: true
+    filetype: file
+    owner: caramelo
+    mode: "0600"
+
+  /var/lib/caramelo/vault.key:
+    exists: true
+    filetype: file
+    owner: caramelo
+    group: caramelo
+    mode: "0600"
+
+service:
+  caramelo-edge.socket:
+    enabled: true
+    running: true
+  caramelo-edge.service:
+    running: true
+
+port:
+  udp:4021:
+    listening: true
+  tcp6:80:
+    listening: true
+  tcp6:443:
+    listening: true
+  udp6:443:
+    listening: true
+
+command:
+  sudo -u caramelo env XDG_RUNTIME_DIR=/run/user/$(id -u caramelo) systemctl --user is-active caramelod:
+    exit-status: 0
+    stdout:
+      - /^active$/
+
+  sudo -u caramelo env XDG_RUNTIME_DIR=/run/user/$(id -u caramelo) /usr/local/bin/caramelo machine list --json:
+    exit-status: 0
+    stdout:
+      - '"role":"hub"'
+      - '"role":"member"'
+      - /"subnet":"10\.(8[0-9]|9[01])\./
+      - '"envs"'
+
+  'test -z "$(ls -A /run/caramelo/secrets)"':
+    exit-status: 0

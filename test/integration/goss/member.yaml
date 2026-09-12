@@ -1,0 +1,57 @@
+file:
+  /etc/caramelo/config.yaml:
+    exists: true
+    filetype: file
+    mode: "0640"
+    contents:
+      - "fleet:"
+      - "role: member"
+      - "hub:"
+
+  /var/lib/caramelo/caramelo.db:
+    exists: true
+    filetype: file
+    owner: caramelo
+    mode: "0600"
+  /run/caramelo/secrets:
+    exists: true
+    filetype: directory
+    owner: caramelo
+    group: caramelo
+    mode: "0700"
+  /mnt/caramelo/apps:
+    exists: true
+    filetype: directory
+    owner: caramelo
+
+service:
+  caramelo-edge.socket:
+    enabled: true
+    running: true
+
+port:
+  udp:4021:
+    listening: false
+  tcp:4022:
+    listening: false
+
+command:
+  sudo -u caramelo env XDG_RUNTIME_DIR=/run/user/$(id -u caramelo) systemctl --user is-active caramelod:
+    exit-status: 0
+    stdout:
+      - /^active$/
+
+  sudo -u caramelo env XDG_RUNTIME_DIR=/run/user/$(id -u caramelo) /usr/local/bin/caramelo machine list --json:
+    exit-status: 0
+    stdout:
+      - '"role":"member"'
+      - /"subnet":"10\.(8[0-9]|9[01])\./
+
+  sudo -u caramelo env XDG_RUNTIME_DIR=/run/user/$(id -u caramelo) /usr/local/bin/caramelo status --json:
+    exit-status: 0
+    stdout:
+      - '"vpn"'
+      - /"subnet":"10\.(8[0-9]|9[01])\./
+
+  'test -z "$(ls -A /run/caramelo/secrets)"':
+    exit-status: 0

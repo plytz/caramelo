@@ -1,0 +1,5 @@
+{
+  "name": "shop",
+  "engines": { "node": ">=20.11" },
+  "scripts": { "start": "node server.js", "test": "node --test" }
+}

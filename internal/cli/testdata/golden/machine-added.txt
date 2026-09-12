@@ -1,0 +1,4 @@
+nx2 joined the fleet
+
+NAME  ROLE     ARCH   SUBNET        ENVS  FREE       SEEN
+nx2   member*  arm64  10.87.0.0/16  2     540.0 MiB  never

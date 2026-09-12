@@ -1,0 +1,238 @@
+[
+ {
+  "Id": "331f3eff0e50a604d15864c9c9f6c6f786333b40ce507526af503580c50e4215",
+  "Created": "2026-09-08T22:22:22.389560685Z",
+  "Path": "sleep",
+  "Args": [
+   "60"
+  ],
+  "State": {
+   "Status": "exited",
+   "Running": false,
+   "Paused": false,
+   "Restarting": false,
+   "OOMKilled": false,
+   "Dead": false,
+   "Pid": 0,
+   "ExitCode": 137,
+   "Error": "",
+   "StartedAt": "2026-09-08T22:22:22.551575257Z",
+   "FinishedAt": "2026-09-08T22:23:01.770852074Z"
+  },
+  "Image": "sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b",
+  "ResolvConfPath": "/var/lib/docker/containers/331f3eff0e50a604d15864c9c9f6c6f786333b40ce507526af503580c50e4215/resolv.conf",
+  "HostnamePath": "/var/lib/docker/containers/331f3eff0e50a604d15864c9c9f6c6f786333b40ce507526af503580c50e4215/hostname",
+  "HostsPath": "/var/lib/docker/containers/331f3eff0e50a604d15864c9c9f6c6f786333b40ce507526af503580c50e4215/hosts",
+  "LogPath": "/var/lib/docker/containers/331f3eff0e50a604d15864c9c9f6c6f786333b40ce507526af503580c50e4215/331f3eff0e50a604d15864c9c9f6c6f786333b40ce507526af503580c50e4215-json.log",
+  "Name": "/caramelo-demo-feat-x-db",
+  "RestartCount": 0,
+  "Driver": "overlayfs",
+  "Platform": "linux",
+  "MountLabel": "",
+  "ProcessLabel": "",
+  "AppArmorProfile": "docker-default",
+  "ExecIDs": null,
+  "HostConfig": {
+   "Binds": [
+    "caramelo-demo-feat-x-db:/data"
+   ],
+   "ContainerIDFile": "",
+   "LogConfig": {
+    "Type": "json-file",
+    "Config": {}
+   },
+   "NetworkMode": "bridge",
+   "PortBindings": {
+    "5432/tcp": [
+     {
+      "HostIp": "127.0.0.1",
+      "HostPort": "20001"
+     }
+    ],
+    "9001/udp": [
+     {
+      "HostIp": "127.0.0.1",
+      "HostPort": "20005"
+     }
+    ]
+   },
+   "RestartPolicy": {
+    "Name": "unless-stopped",
+    "MaximumRetryCount": 0
+   },
+   "AutoRemove": false,
+   "VolumeDriver": "",
+   "VolumesFrom": null,
+   "ConsoleSize": [
+    0,
+    0
+   ],
+   "CapAdd": null,
+   "CapDrop": null,
+   "CgroupnsMode": "private",
+   "Dns": null,
+   "DnsOptions": [],
+   "DnsSearch": [],
+   "ExtraHosts": null,
+   "GroupAdd": null,
+   "IpcMode": "private",
+   "Cgroup": "",
+   "Links": null,
+   "OomScoreAdj": 0,
+   "PidMode": "",
+   "Privileged": false,
+   "PublishAllPorts": false,
+   "ReadonlyRootfs": false,
+   "SecurityOpt": null,
+   "UTSMode": "",
+   "UsernsMode": "",
+   "ShmSize": 67108864,
+   "Runtime": "runc",
+   "Isolation": "",
+   "CpuShares": 0,
+   "Memory": 0,
+   "NanoCpus": 0,
+   "CgroupParent": "",
+   "BlkioWeight": 0,
+   "BlkioWeightDevice": [],
+   "BlkioDeviceReadBps": [],
+   "BlkioDeviceWriteBps": [],
+   "BlkioDeviceReadIOps": [],
+   "BlkioDeviceWriteIOps": [],
+   "CpuPeriod": 0,
+   "CpuQuota": 0,
+   "CpuRealtimePeriod": 0,
+   "CpuRealtimeRuntime": 0,
+   "CpusetCpus": "",
+   "CpusetMems": "",
+   "Devices": [],
+   "DeviceCgroupRules": null,
+   "DeviceRequests": null,
+   "MemoryReservation": 0,
+   "MemorySwap": 0,
+   "MemorySwappiness": null,
+   "OomKillDisable": null,
+   "PidsLimit": null,
+   "Ulimits": null,
+   "CpuCount": 0,
+   "CpuPercent": 0,
+   "IOMaximumIOps": 0,
+   "IOMaximumBandwidth": 0,
+   "MaskedPaths": [
+    "/proc/acpi",
+    "/proc/asound",
+    "/proc/interrupts",
+    "/proc/kcore",
+    "/proc/keys",
+    "/proc/latency_stats",
+    "/proc/sched_debug",
+    "/proc/scsi",
+    "/proc/timer_list",
+    "/proc/timer_stats",
+    "/sys/devices/virtual/powercap",
+    "/sys/firmware"
+   ],
+   "ReadonlyPaths": [
+    "/proc/bus",
+    "/proc/fs",
+    "/proc/irq",
+    "/proc/sys",
+    "/proc/sysrq-trigger"
+   ]
+  },
+  "Storage": {
+   "RootFS": {
+    "Snapshot": {
+     "Name": "overlayfs"
+    }
+   }
+  },
+  "Mounts": [
+   {
+    "Type": "volume",
+    "Name": "caramelo-demo-feat-x-db",
+    "Source": "/var/lib/docker/volumes/caramelo-demo-feat-x-db/_data",
+    "Destination": "/data",
+    "Driver": "local",
+    "Mode": "z",
+    "RW": true,
+    "Propagation": ""
+   }
+  ],
+  "Config": {
+   "Hostname": "331f3eff0e50",
+   "Domainname": "",
+   "User": "",
+   "AttachStdin": false,
+   "AttachStdout": false,
+   "AttachStderr": false,
+   "ExposedPorts": {
+    "5432/tcp": {},
+    "9001/udp": {}
+   },
+   "Tty": false,
+   "OpenStdin": false,
+   "StdinOnce": false,
+   "Env": [
+    "FOO=bar",
+    "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+   ],
+   "Cmd": [
+    "sleep",
+    "60"
+   ],
+   "Image": "alpine",
+   "Volumes": null,
+   "WorkingDir": "/",
+   "Entrypoint": null,
+   "Labels": {
+    "caramelo.app": "demo",
+    "caramelo.dep": "db",
+    "caramelo.env": "feat-x",
+    "caramelo.version": "0.1.0"
+   }
+  },
+  "NetworkSettings": {
+   "SandboxID": "",
+   "SandboxKey": "",
+   "Ports": {},
+   "Networks": {
+    "bridge": {
+     "IPAMConfig": null,
+     "Links": null,
+     "Aliases": null,
+     "DriverOpts": null,
+     "GwPriority": 0,
+     "NetworkID": "1ffc047d1a9507b6f6e3e1de55490447755c4f327dbab8ec6414bab30b14a74f",
+     "EndpointID": "",
+     "Gateway": "",
+     "IPAddress": "",
+     "MacAddress": "",
+     "IPPrefixLen": 0,
+     "IPv6Gateway": "",
+     "GlobalIPv6Address": "",
+     "GlobalIPv6PrefixLen": 0,
+     "DNSNames": null
+    }
+   }
+  },
+  "ImageManifestDescriptor": {
+   "mediaType": "application/vnd.oci.image.manifest.v1+json",
+   "digest": "sha256:79ff19e9084a00eece421b2523fb93e22d730e2c0e525905de047e848e56d95f",
+   "size": 1022,
+   "annotations": {
+    "com.docker.official-images.bashbrew.arch": "amd64",
+    "org.opencontainers.image.base.name": "scratch",
+    "org.opencontainers.image.created": "2026-06-16T00:01:04Z",
+    "org.opencontainers.image.revision": "398ff0c866d27e9f46f53e48184fe36c674b8897",
+    "org.opencontainers.image.source": "https://github.com/alpinelinux/docker-alpine.git#398ff0c866d27e9f46f53e48184fe36c674b8897:x86_64",
+    "org.opencontainers.image.url": "https://hub.docker.com/_/alpine",
+    "org.opencontainers.image.version": "3.24.1"
+   },
+   "platform": {
+    "architecture": "amd64",
+    "os": "linux"
+   }
+  }
+ }
+]

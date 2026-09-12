@@ -1,0 +1,16 @@
+caramelod v0.1.0 on worker1 (via socket)
+  uptime    1h 33m  (since 2026-09-08T14:00:00Z)
+  docker    running, rootless, 29.8.0
+  ssh port  4022
+  host key  SHA256:2Z9x0abcdefghijklmnopqrstuvwxyz0123456789ABC
+  identity  alex@laptop
+  fleet     hub of 3 machines, 2 member(s), 1 unreachable
+  config    /etc/caramelo
+  state     /var/lib/caramelo
+  data      /mnt/caramelo
+  socket    /run/caramelo/caramelod.sock
+
+NAME  ROLE     ARCH   SUBNET        ENVS  FREE       SEEN
+hub   hub      amd64  10.86.0.0/16  3     1.1 GiB    -
+nx2   member*  arm64  10.87.0.0/16  2     540.0 MiB  4s ago
+nx3   member   arm64  10.88.0.0/16  0     -          unreachable (5m0s ago)

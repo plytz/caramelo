@@ -1,0 +1,87 @@
+file:
+  /var/lib/caramelo/vault.key:
+    exists: true
+    filetype: file
+    owner: caramelo
+    group: caramelo
+    mode: "0600"
+
+  /run/caramelo/secrets:
+    exists: true
+    filetype: directory
+    owner: caramelo
+    group: caramelo
+    mode: "0700"
+
+  /mnt/caramelo/apps/sampleapp/envs/production:
+    exists: true
+    filetype: directory
+    owner: caramelo
+    group: caramelo
+  /mnt/caramelo/apps/sampleapp/envs/production/src/caramelo.yaml:
+    exists: true
+    filetype: file
+    owner: caramelo
+    contents:
+      - "deploy:"
+      - "before: python migrate.py"
+      - "watch: 10s"
+      - "hosts: [shop.test, www.shop.test]"
+
+  /mnt/caramelo/apps/sampleapp/envs/feat-x:
+    exists: true
+    filetype: directory
+    owner: caramelo
+  /mnt/caramelo/apps/sampleapp/envs/pr-41:
+    exists: true
+    filetype: directory
+    owner: caramelo
+
+  /var/lib/caramelo/caramelo.db:
+    exists: true
+    filetype: file
+    owner: caramelo
+    mode: "0600"
+
+service:
+  caramelo-edge.socket:
+    enabled: true
+    running: true
+  caramelo-edge.service:
+    running: true
+
+port:
+  tcp6:80:
+    listening: true
+  tcp6:443:
+    listening: true
+  udp6:443:
+    listening: true
+
+command:
+  'test -z "$(ls -A /run/caramelo/secrets)"':
+    exit-status: 0
+
+  grep -c -a -F chosen-by-the-operator /var/lib/caramelo/caramelo.db:
+    exit-status: 1
+    stdout:
+      - /^0$/
+
+  sudo -u caramelo env XDG_RUNTIME_DIR=/run/user/$(id -u caramelo) DOCKER_HOST=unix:///run/user/$(id -u caramelo)/docker.sock docker ps --filter name=caramelo-sampleapp-production:
+    exit-status: 0
+    stdout:
+      - caramelo-sampleapp-production-db
+      - "127.0.0.1:"
+      - "!0.0.0.0"
+
+  sudo -u caramelo env XDG_RUNTIME_DIR=/run/user/$(id -u caramelo) DOCKER_HOST=unix:///run/user/$(id -u caramelo)/docker.sock docker exec caramelo-sampleapp-production-db printenv POSTGRES_PASSWORD:
+    exit-status: 0
+    stdout:
+      - /^chosen-by-the-operator$/
+
+  sudo -u caramelo git -C /mnt/caramelo/apps/sampleapp/repo.git worktree list:
+    exit-status: 0
+    stdout:
+      - /mnt/caramelo/apps/sampleapp/envs/production/src
+      - /mnt/caramelo/apps/sampleapp/envs/feat-x/src
+      - /mnt/caramelo/apps/sampleapp/envs/pr-41/src

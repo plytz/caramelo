@@ -1,0 +1,32 @@
+# caramelo.yaml v3: the M7 plan's example, everything written down.
+name: shop
+domain: shop.example.com
+deps:
+  db: postgres:16
+services:
+  web:
+    run: npm start
+    port: 3000
+    replicas: 2
+    health: /healthz
+    resources: { memory: 512m, cpu: 1 }
+    env:
+      DATABASE_URL: postgres://postgres:${deps.db.password}@${deps.db.host}:${deps.db.port}/postgres
+      STRIPE_KEY: ${secrets.STRIPE_KEY}
+  worker:
+    run: npm run worker
+    port: none
+deploy:
+  before: npm run migrate
+  check: npm run smoke
+  watch: 60s
+  max_errors: 5%
+  promote: auto
+  keep: 5
+envs:
+  production:
+    hosts: [shop.example.com, www.shop.example.com]
+    services: { web: { replicas: 3, resources: { memory: 1g } } }
+    deploy: { watch: 5m, promote: manual }
+  staging:
+    hosts: [staging.shop.example.com]

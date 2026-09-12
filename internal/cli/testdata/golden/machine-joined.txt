@@ -1,0 +1,7 @@
+nx2 is now a member of hub
+
+  subnet   10.87.0.0/16
+  address  10.87.0.1
+  hub      hub.example.com:4021
+  door     private: no public listener; the hub serves its names
+this machine dials the hub and keeps the tunnel alive; nothing ever dials it

@@ -1,0 +1,3 @@
+NAME         TYPE         FINGERPRINT    ADDED                 OPTIONS
+alex@laptop  ssh-ed25519  SHA256:abc123  2026-09-08T09:00:00Z  -
+ci           ssh-ed25519  SHA256:def456  2026-09-08T10:00:00Z  caramelo-role=admin

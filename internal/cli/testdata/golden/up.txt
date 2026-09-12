@@ -1,0 +1,8 @@
+shop/feat-x  ready
+  stack    node
+  image    node:22-alpine
+  network  caramelo-shop-feat-x
+
+SERVICE  STATUS   HEALTH  CHANGE     URL                     IMAGE
+web      running  ok      created    http://127.0.0.1:20003  node:22-alpine
+worker   running  -       unchanged  -                       node:22-alpine

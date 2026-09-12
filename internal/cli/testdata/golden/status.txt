@@ -1,0 +1,10 @@
+caramelod v0.1.0 on worker1 (via socket)
+  uptime    1h 33m  (since 2026-09-08T14:00:00Z)
+  docker    running, rootless, 29.8.0
+  ssh port  4022
+  host key  SHA256:2Z9x0abcdefghijklmnopqrstuvwxyz0123456789ABC
+  identity  alex@laptop
+  config    /etc/caramelo
+  state     /var/lib/caramelo
+  data      /mnt/caramelo
+  socket    /run/caramelo/caramelod.sock

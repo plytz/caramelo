@@ -1,0 +1,12 @@
+name: sampleapp
+
+deps:
+  db: postgres:16-alpine
+  cache:
+    image: redis:7-alpine
+    ready: [redis-cli, ping]
+
+env:
+  DATABASE_URL: postgres://postgres:caramelo@${deps.db.host}:${deps.db.port}/postgres
+  REDIS_URL: redis://${deps.cache.host}:${deps.cache.port}
+  GREETING: hello from ${env.name} of ${app.name}

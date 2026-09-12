@@ -1,0 +1,81 @@
+file:
+  /etc/caramelo:
+    exists: false
+  /var/lib/caramelo:
+    exists: false
+  /usr/local/bin/caramelo:
+    exists: false
+  "{{.Vars.home}}":
+    exists: true
+    filetype: directory
+    owner: "{{.Vars.user}}"
+  "{{.Vars.home}}/.ssh":
+    exists: true
+    filetype: directory
+    owner: "{{.Vars.user}}"
+    mode: "0700"
+
+user:
+  caramelo:
+    exists: false
+  "{{.Vars.user}}":
+    exists: true
+    home: "{{.Vars.home}}"
+
+group:
+  caramelo:
+    exists: false
+
+package:
+  docker-ce:
+    installed: false
+  docker-ce-cli:
+    installed: false
+  containerd.io:
+    installed: false
+  docker-ce-rootless-extras:
+    installed: false
+  uidmap:
+    installed: false
+  git:
+    installed: false
+  curl:
+    installed: true
+  sudo:
+    installed: true
+  openssh-server:
+    installed: true
+  systemd:
+    installed: true
+
+port:
+  tcp:80:
+    listening: false
+  tcp6:80:
+    listening: false
+  tcp:443:
+    listening: false
+  tcp6:443:
+    listening: false
+  tcp:4022:
+    listening: false
+  tcp6:4022:
+    listening: false
+  udp:4021:
+    listening: false
+  udp:443:
+    listening: false
+
+service:
+  caramelod:
+    enabled: false
+    running: false
+  ssh:
+    enabled: true
+    running: true
+
+command:
+  "runuser -u {{.Vars.user}} -- sudo -n true":
+    exit-status: 0
+  "id -u caramelo":
+    exit-status: 1

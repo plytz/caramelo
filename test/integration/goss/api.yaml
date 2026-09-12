@@ -1,0 +1,43 @@
+file:
+  /run/caramelo/caramelod.sock:
+    exists: true
+    filetype: socket
+    owner: caramelo
+    group: caramelo
+    mode: "0660"
+  /var/lib/caramelo/ssh/host_ed25519:
+    exists: true
+    filetype: file
+    owner: caramelo
+    mode: "0600"
+  /var/lib/caramelo/ssh/authorized_keys:
+    exists: true
+    filetype: file
+    owner: caramelo
+    mode: "0600"
+  /var/lib/caramelo/caramelo.db:
+    exists: true
+    filetype: file
+    owner: caramelo
+  /usr/local/bin/caramelo:
+    exists: true
+    filetype: file
+    owner: root
+    mode: "0755"
+  /var/lib/caramelo/vpn/private.key:
+    exists: true
+    filetype: file
+    owner: caramelo
+    mode: "0600"
+
+port:
+  udp:4021:
+    listening: true
+  tcp:4022:
+    listening: true
+
+command:
+  systemctl --user -M caramelo@ is-active caramelod:
+    exit-status: 0
+    stdout:
+      - /^active$/

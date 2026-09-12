@@ -1,0 +1,5 @@
+source "https://rubygems.org"
+
+# A Rails application that bundles its JavaScript: it has a package.json too,
+# and it is still a Rails application.
+gem 'rails'

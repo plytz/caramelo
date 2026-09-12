@@ -1,0 +1,9 @@
+# The single-service shorthand: one process, no `services:` block.
+name: shop
+deps:
+  db: postgres:16
+install: go mod download
+run: go run .
+test: go test ./...
+env:
+  DATABASE_URL: postgres://postgres:caramelo@${deps.db.host}:${deps.db.port}/postgres

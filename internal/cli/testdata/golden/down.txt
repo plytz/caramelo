@@ -1,0 +1,3 @@
+SERVICE  STATUS   HEALTH  CHANGE   URL  IMAGE
+web      stopped  -       removed  -    -
+worker   stopped  -       removed  -    -

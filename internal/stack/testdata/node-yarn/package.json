@@ -1,0 +1,5 @@
+{
+  "name": "legacy",
+  "engines": { "node": "lts/*" },
+  "scripts": {}
+}

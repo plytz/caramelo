@@ -1,0 +1,7 @@
+  mode         transparent
+  address      10.86.255.2
+  subnet       10.86.0.0/16
+  endpoint     192.168.56.11:4021
+  resolver     10.86.0.1:53
+  handshake    never
+  transparent  installed

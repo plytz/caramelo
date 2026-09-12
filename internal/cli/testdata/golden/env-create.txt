@@ -1,0 +1,10 @@
+shop/feat-x  ready
+  mode        dev
+  branch      feat-x at 0123456
+  worktree    /mnt/caramelo/apps/shop/envs/feat-x/src
+  ports       20000-20015  (PORT=20000)
+  deps        db, cache
+  created by  alex@laptop
+  created     2026-09-08T12:00:00Z
+
+2 variables; see `caramelo env export feat-x`

@@ -1,0 +1,21 @@
+name: sampleapp
+
+deps:
+  db: postgres:16-alpine
+
+services:
+  web:
+    image: python:3.12-alpine
+    run: python app.py
+    health: /healthz
+    resources:
+      memory: 128m
+      cpu: 0.5
+    env:
+      DATABASE_URL: postgres://postgres:${deps.db.password}@${deps.db.host}:${deps.db.port}/postgres
+
+deploy:
+  before: python migrate.py
+  check: python smoke.py
+  watch: 5s
+  keep: 3

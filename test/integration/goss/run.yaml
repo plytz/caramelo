@@ -1,0 +1,67 @@
+package:
+  curl:
+    installed: true
+  nodejs:
+    installed: false
+  golang-go:
+    installed: false
+
+file:
+  /mnt/caramelo/apps/sampleapp/envs/feat-x/src/app.py:
+    exists: true
+    filetype: file
+    owner: caramelo
+    group: caramelo
+
+command:
+  sudo -u caramelo env XDG_RUNTIME_DIR=/run/user/$(id -u caramelo) DOCKER_HOST=unix:///run/user/$(id -u caramelo)/docker.sock docker network inspect caramelo-sampleapp-feat-x:
+    exit-status: 0
+    stdout:
+      - '/"Driver": "bridge"/'
+      - '/"caramelo.app": "sampleapp"/'
+      - '/"caramelo.env": "feat-x"/'
+      - caramelo-sampleapp-feat-x-db
+      - caramelo-sampleapp-feat-x-cache
+      - caramelo-sampleapp-feat-x-web-1
+      - caramelo-sampleapp-feat-x-echo-1
+
+  sudo -u caramelo env XDG_RUNTIME_DIR=/run/user/$(id -u caramelo) DOCKER_HOST=unix:///run/user/$(id -u caramelo)/docker.sock docker inspect caramelo-sampleapp-feat-x-web-1:
+    exit-status: 0
+    stdout:
+      - '/"Status": "running"/'
+      - '/"caramelo.app": "sampleapp"/'
+      - '/"caramelo.env": "feat-x"/'
+      - '/"caramelo.service": "web"/'
+      - '/"Name": "unless-stopped"/'
+      - '/"HostIp": "127.0.0.1"/'
+      - '/"Image": "python:3.12-alpine"/'
+      - '/"Source": "\/mnt\/caramelo\/apps\/sampleapp\/envs\/feat-x\/src"/'
+      - '/"Destination": "\/app"/'
+
+  sudo -u caramelo env XDG_RUNTIME_DIR=/run/user/$(id -u caramelo) DOCKER_HOST=unix:///run/user/$(id -u caramelo)/docker.sock docker inspect caramelo-sampleapp-feat-x-echo-1:
+    exit-status: 0
+    stdout:
+      - '/"Status": "running"/'
+      - '/"caramelo.service": "echo"/'
+      - '/"Name": "unless-stopped"/'
+      - '/"HostIp": "127.0.0.1"/'
+      - '/"9001\/udp"/'
+
+  sudo -u caramelo env XDG_RUNTIME_DIR=/run/user/$(id -u caramelo) DOCKER_HOST=unix:///run/user/$(id -u caramelo)/docker.sock docker ps --filter label=caramelo.env=feat-x:
+    exit-status: 0
+    stdout:
+      - "127.0.0.1:"
+      - /udp
+      - "!0.0.0.0"
+
+  sudo -u caramelo env XDG_RUNTIME_DIR=/run/user/$(id -u caramelo) DOCKER_HOST=unix:///run/user/$(id -u caramelo)/docker.sock docker volume ls -q --filter label=caramelo.env=feat-x:
+    exit-status: 0
+    stdout:
+      - caramelo-sampleapp-feat-x--cache
+      - caramelo-sampleapp-feat-x-db
+      - caramelo-sampleapp-feat-x-cache
+
+  sudo -u caramelo env XDG_RUNTIME_DIR=/run/user/$(id -u caramelo) DOCKER_HOST=unix:///run/user/$(id -u caramelo)/docker.sock docker image ls -q python:3.12-alpine:
+    exit-status: 0
+    stdout:
+      - /\S/

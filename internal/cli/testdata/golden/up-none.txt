@@ -1,0 +1,3 @@
+shop/feat-x  ready
+
+no services: caramelo.yaml describes none and nothing was detected

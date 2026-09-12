@@ -1,0 +1,9 @@
+name: sampleapp
+
+services:
+  hog:
+    image: python:3.12-alpine
+    run: python hog.py
+    port: none
+    resources:
+      memory: 32m

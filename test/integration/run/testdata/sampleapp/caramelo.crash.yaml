@@ -1,0 +1,6 @@
+name: sampleapp
+
+services:
+  web:
+    image: python:3.12-alpine
+    run: python crash.py

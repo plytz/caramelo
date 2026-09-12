@@ -1,0 +1,9 @@
+name: sampleapp
+
+deps:
+  db:
+    image: postgres:16-alpine
+    ready: [sh, -c, "exit 1"]
+
+env:
+  DATABASE_URL: postgres://postgres:caramelo@${deps.db.host}:${deps.db.port}/postgres

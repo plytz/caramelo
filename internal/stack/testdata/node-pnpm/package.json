@@ -1,0 +1,4 @@
+{
+  "name": "front",
+  "scripts": { "dev": "vite", "test": "vitest run" }
+}

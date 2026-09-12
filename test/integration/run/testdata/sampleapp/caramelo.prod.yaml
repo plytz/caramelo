@@ -1,0 +1,36 @@
+name: sampleapp
+
+domain: shop.test
+
+deps:
+  db: postgres:16-alpine
+
+services:
+  web:
+    image: python:3.12-alpine
+    run: python app.py
+    health: /healthz
+    replicas: 2
+    expose: https
+    drain: 5s
+    resources:
+      memory: 64m
+      cpu: 0.5
+    env:
+      DATABASE_URL: postgres://postgres:${deps.db.password}@${deps.db.host}:${deps.db.port}/postgres
+      SMOKE_URL: http://web:${services.web.port}/
+      GREETING_REF: ${secrets.GREETING}
+
+deploy:
+  before: python migrate.py
+  check: python smoke.py
+  watch: 10s
+  max_errors: 5%
+  promote: auto
+  keep: 5
+
+envs:
+  production:
+    hosts: [shop.test, www.shop.test]
+  staging:
+    hosts: [staging.shop.test]

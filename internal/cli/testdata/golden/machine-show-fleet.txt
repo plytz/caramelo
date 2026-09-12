@@ -1,0 +1,16 @@
+nx2  member*  arm64/linux
+  subnet         10.87.0.0/16
+  address        10.87.0.1
+  last endpoint  192.168.0.74:41820
+  door           private: no public listener; the hub serves its names
+  joined         2026-09-09T12:00:00Z
+  last seen      never
+  memory         540.0 MiB free of 905.3 MiB
+  cpu            4 vCPU
+  os             debian 13 (trixie), kernel 6.18.34+rpt-rpi-v8, aarch64
+  environments   2
+  public key     aGVsbG8gcGkyIGtleQ==
+
+ENV      APP   MODE     ADDRESS    OWNER    VIA
+feat-x   shop  dev      10.87.1.7  agent-a  hub
+staging  shop  release  10.87.1.8  ci       hub

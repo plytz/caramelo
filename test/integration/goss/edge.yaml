@@ -1,0 +1,114 @@
+file:
+  /etc/systemd/system/caramelo-edge.socket:
+    exists: true
+    filetype: file
+    owner: root
+    group: root
+    mode: "0644"
+    contents:
+      - "ListenStream=80"
+      - "ListenStream=443"
+      - "ListenDatagram=443"
+      - "Service=caramelo-edge.service"
+      - "!PartOf"
+      - "!BindsTo"
+      - "TriggerLimitIntervalSec=0"
+
+  /etc/systemd/system/caramelo-edge.service:
+    exists: true
+    filetype: file
+    owner: root
+    group: root
+    mode: "0644"
+    contents:
+      - "User=caramelo"
+      - "ExecStart=/usr/local/bin/caramelo edge"
+      - "Requires=caramelo-edge.socket"
+      - "StartLimitIntervalSec=0"
+      - "ReadWritePaths=/var/lib/caramelo/edge /run/caramelo"
+
+  /etc/caramelo/config.yaml:
+    exists: true
+    filetype: file
+    contents:
+      - "edge: true"
+      - "tls: acme"
+      - "http3: true"
+
+  /etc/sysctl.d/60-caramelo-edge.conf:
+    exists: true
+    filetype: file
+    contents:
+      - "net.core.rmem_max = 7500000"
+      - "net.core.wmem_max = 7500000"
+
+  /etc/sysctl.d/80-caramelo-lowports.conf:
+    exists: false
+
+  /var/lib/caramelo/edge:
+    exists: true
+    filetype: directory
+    owner: caramelo
+    group: caramelo
+  /var/lib/caramelo/edge/certs:
+    exists: true
+    filetype: directory
+    owner: caramelo
+  /var/lib/caramelo/edge/routes.json:
+    exists: true
+    filetype: file
+    owner: caramelo
+    contents:
+      - feat-x.shop.test
+
+  /run/caramelo/edge.sock:
+    exists: true
+    filetype: socket
+    owner: caramelo
+    group: caramelo
+    mode: "0600"
+
+service:
+  caramelo-edge.socket:
+    enabled: true
+    running: true
+  caramelo-edge.service:
+    running: true
+
+port:
+  tcp6:80:
+    listening: true
+  tcp6:443:
+    listening: true
+  udp6:443:
+    listening: true
+
+command:
+  systemctl show -p User --value caramelo-edge.service:
+    exit-status: 0
+    stdout:
+      - /^caramelo$/
+
+  systemctl show -p CapabilityBoundingSet --value caramelo-edge.service:
+    exit-status: 0
+    stdout:
+      - "!cap_net_bind_service"
+
+  find /var/lib/caramelo/edge/certs -name feat-x.shop.test.crt:
+    exit-status: 0
+    stdout:
+      - feat-x.shop.test.crt
+
+  sudo -u caramelo env XDG_RUNTIME_DIR=/run/user/$(id -u caramelo) DOCKER_HOST=unix:///run/user/$(id -u caramelo)/docker.sock docker ps --filter label=caramelo.env=feat-x:
+    exit-status: 0
+    stdout:
+      - caramelo-sampleapp-feat-x-web-1
+      - caramelo-sampleapp-feat-x-web-2
+      - "127.0.0.1:"
+      - "!0.0.0.0"
+
+  sudo -u caramelo env XDG_RUNTIME_DIR=/run/user/$(id -u caramelo) DOCKER_HOST=unix:///run/user/$(id -u caramelo)/docker.sock docker ps --filter name=pebble:
+    exit-status: 0
+    stdout:
+      - pebble
+      - "127.0.0.1:14000"

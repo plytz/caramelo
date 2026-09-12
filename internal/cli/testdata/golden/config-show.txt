@@ -1,0 +1,9 @@
+APP    shop
+ENV    feat-x
+STACK  node
+
+KEY                    VALUE      SOURCE    WHY
+services.web.run       npm start  file      -
+services.web.port      3000       file      -
+install                npm ci     detected  package-lock.json
+services.web.protocol  tcp        default   -

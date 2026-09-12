@@ -1,0 +1,4 @@
+feat-x.shop.test no longer exposed
+
+URL                       SERVICE  ACTIVE  IN-FLIGHT  SINCE
+https://feat-x.shop.test  web      1/1     0          2026-09-09T10:00:00Z

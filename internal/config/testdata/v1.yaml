@@ -1,0 +1,34 @@
+# caramelo.yaml v1: the plan's example, everything written down.
+name: shop
+deps:
+  db: postgres:16
+  cache: redis:7
+
+services:
+  web:
+    image: node:22
+    install: npm ci
+    run: npm start
+    port: 3000
+    health: /healthz
+    env:
+      LOG_LEVEL: debug
+      SELF: http://${services.web.host}:${services.web.port}
+  echo:
+    run: node echo.js
+    port: 4000
+    protocol: udp
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    run: npm run worker
+    port: none
+    health: [node, healthcheck.js]
+
+test: npm test
+
+env:
+  DATABASE_URL: postgres://postgres:caramelo@${deps.db.host}:${deps.db.port}/postgres
+  REDIS_URL: redis://${deps.cache.host}:${deps.cache.port}
+  WEB_URL: http://${services.web.host}:${services.web.port}

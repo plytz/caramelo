@@ -1,0 +1,5 @@
+NAME  ROLE     ARCH   SUBNET        ENVS  FREE       SEEN
+hub   hub      amd64  10.86.0.0/16  3     1.1 GiB    -
+nx2   member*  arm64  10.87.0.0/16  2     540.0 MiB  4s ago
+nx3   member   arm64  10.88.0.0/16  0     -          unreachable (5m0s ago)
+* private: no public listener at all; the hub is its door

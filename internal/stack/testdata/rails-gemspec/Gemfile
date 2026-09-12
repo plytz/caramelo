@@ -1,0 +1,7 @@
+source "https://rubygems.org"
+
+gem "rails", "~> 7.1"
+
+# A Gemfile built around the project's own gemspec, which is what makes
+# `bundle install` need the repository itself and not only the manifests.
+gemspec

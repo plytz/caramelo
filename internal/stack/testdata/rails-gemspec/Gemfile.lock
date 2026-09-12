@@ -1,0 +1,19 @@
+PATH
+  remote: .
+  specs:
+    widget (0.1.0)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    rails (7.1.0)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  rails (~> 7.1)
+  widget!
+
+BUNDLED WITH
+   2.5.3

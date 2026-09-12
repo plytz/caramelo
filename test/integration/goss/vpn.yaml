@@ -1,0 +1,94 @@
+file:
+  /usr/local/bin/caramelo:
+    exists: true
+    filetype: file
+    owner: root
+    mode: "0755"
+  /usr/local/lib/caramelo/caramelo-vpn:
+    exists: true
+    filetype: file
+    owner: root
+    mode: "0750"
+  {{.Vars.home}}/.config/systemd/user/caramelo-vpn.service:
+    exists: true
+    filetype: file
+    owner: {{.Vars.user}}
+    contents:
+      - "/usr/local/lib/caramelo/caramelo-vpn"
+  /etc/polkit-1/rules.d/50-caramelo-vpn.rules:
+    exists: true
+    filetype: file
+    owner: root
+    contents:
+      - "{{.Vars.user}}"
+      - "org.freedesktop.resolve1.set-domains"
+
+package:
+  systemd-resolved:
+    installed: true
+  polkitd:
+    installed: true
+
+service:
+  systemd-resolved:
+    enabled: true
+    running: true
+
+command:
+  loginctl show-user {{.Vars.user}} --property=Linger:
+    exit-status: 0
+    stdout:
+      - /Linger=yes/
+  sudo -u {{.Vars.user}} env XDG_RUNTIME_DIR=/run/user/{{.Vars.uid}} systemctl --user is-active caramelo-vpn:
+    exit-status: 0
+    stdout:
+      - /^active$/
+  sudo -u {{.Vars.user}} env XDG_RUNTIME_DIR=/run/user/{{.Vars.uid}} systemctl --user is-enabled caramelo-vpn:
+    exit-status: 0
+    stdout:
+      - /^enabled$/
+  getcap /usr/local/lib/caramelo/caramelo-vpn:
+    exit-status: 0
+    stdout:
+      - /cap_net_admin/
+  sh -c 'getcap /usr/local/bin/caramelo; true':
+    exit-status: 0
+    stdout:
+      - "!/cap_net_admin/"
+  ip -o link show caramelo0:
+    exit-status: 0
+  ip -4 -o addr show caramelo0:
+    exit-status: 0
+    stdout:
+      - /inet 10\.86\./
+  sh -c 'stat -c %a {{.Vars.home}}/.config/caramelo/vpn/*.key':
+    exit-status: 0
+    stdout:
+      - /^600$/
+  getent hosts db.feat-x.sampleapp.internal:
+    exit-status: 0
+    stdout:
+      - /^10\.86\./
+  getent hosts feat-x.sampleapp.internal:
+    exit-status: 0
+    stdout:
+      - /^10\.86\./
+  getent hosts web.feat-x.sampleapp.internal:
+    exit-status: 0
+    stdout:
+      - /^10\.86\./
+  getent hosts echo.feat-x.sampleapp.internal:
+    exit-status: 0
+    stdout:
+      - /^10\.86\./
+  resolvectl domain caramelo0:
+    exit-status: 0
+    stdout:
+      - /internal/
+  getent hosts nope.sampleapp.internal:
+    exit-status: 2
+  sudo -u {{.Vars.user}} env HOME={{.Vars.home}} XDG_RUNTIME_DIR=/run/user/{{.Vars.uid}} /usr/local/bin/caramelo vpn status --json:
+    exit-status: 0
+    stdout:
+      - /"mode":\s*"transparent"/
+      - /"installed":\s*true/
