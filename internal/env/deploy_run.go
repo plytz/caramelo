@@ -141,6 +141,7 @@ func (m *Manager) runDeploy(ctx context.Context, rec *state.EnvRecord, rel *rele
 	if err := m.Store.SetEnvDeploy(ctx, rec.ID, d.ID); err != nil {
 		return nil, fmt.Errorf("record the deploy of env %q: %w", rec.Name, err)
 	}
+	rec.DeployID = d.ID
 	m.register(d.ID, r.wait)
 
 	if err := r.build(ctx, rel, req); err != nil {
@@ -254,6 +255,9 @@ func (r *deployRun) plan(ctx context.Context) error {
 	}
 	r.cfg, r.layout, r.up = p.cfg, p.layout, p
 	r.policy = p.cfg.Deploy
+	if err := r.m.saveEnv(ctx, r.rec, p.cfg, p.vars, r.rec.Status); err != nil {
+		return r.fail(ctx, StepBuild, err)
+	}
 	return nil
 }
 

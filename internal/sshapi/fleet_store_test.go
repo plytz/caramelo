@@ -120,6 +120,9 @@ func TestAnnouncedViaHostsSurviveTheStoreAndBecomeARoute(t *testing.T) {
 	if via.Host != "feat-p.shop.test" || via.Via != "m1" || via.Service != "web" {
 		t.Fatalf("via route = %+v, want feat-p.shop.test served via m1", via)
 	}
+	if via.Drain != 5*time.Second {
+		t.Fatalf("via route drain = %s, want the announced 5s", via.Drain)
+	}
 	if len(via.Targets) != 1 {
 		t.Fatalf("targets = %+v, want the one relay port", via.Targets)
 	}

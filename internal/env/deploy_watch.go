@@ -379,6 +379,9 @@ func (r *deployRun) restorePrevious(ctx context.Context) {
 		progressf(r.progress, "warning", "deploy", "put the previous release back: %v", err)
 		return
 	}
+	if err := r.m.saveEnv(ctx, r.rec, p.cfg, p.vars, r.rec.Status); err != nil {
+		progressf(r.progress, "warning", "deploy", "record the previous release's config again: %v", err)
+	}
 	for _, pool := range r.pools {
 		s, err := p.svc(pool.service)
 		if err != nil {

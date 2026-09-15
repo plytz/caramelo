@@ -112,6 +112,44 @@ func TestAnnounceAllIsTheWholeTruthAboutThisMachine(t *testing.T) {
 	}
 }
 
+func TestARestartedMemberAnnouncesTheConfiguredDrain(t *testing.T) {
+	h, _ := edgeHarness(t, 1)
+	_, rec := h.onFleet("nx2", hub("hub", "amd64", 0, nil), member("nx2", "arm64", 0, nil))
+	h.wire(func(w *FleetWiring) { w.Role = fleet.RoleMember })
+	h.cfg.Services[0].Drain = 7 * time.Second
+	ctx := context.Background()
+
+	h.mustCreate(CreateRequest{App: "shop", Name: "feat-x", From: "main"})
+	h.mustUp(UpRequest{App: "shop", Name: "feat-x"})
+	if _, err := h.m.Expose(ctx, ExposeRequest{
+		App: "shop", Name: "feat-x", Host: webHost, Via: config.ViaHub,
+	}, &h.out); err != nil {
+		t.Fatalf("Expose via the hub: %v\n%s", err, h.out.String())
+	}
+
+	before := rec.count()
+	next := h.restart()
+	if err := next.AnnounceAll(ctx); err != nil {
+		t.Fatalf("AnnounceAll after a restart: %v\n%s", err, h.out.String())
+	}
+	if rec.count() == before {
+		t.Fatalf("the restarted manager announced nothing: the assertion below would read a stale announcement")
+	}
+	a, ok := rec.last()
+	if !ok {
+		t.Fatalf("nothing was announced after the restart\n%s", h.out.String())
+	}
+	if len(a.Envs) == 0 {
+		t.Fatalf("announcement = %+v, want the one environment", a)
+	}
+	if len(a.Envs[0].Hosts) == 0 {
+		t.Fatalf("announced entry = %+v, want the name it serves via the hub", a.Envs[0])
+	}
+	if got := a.Envs[0].Hosts[0].Drain; got != 7*time.Second {
+		t.Errorf("announced drain = %s, want the configured 7s", got)
+	}
+}
+
 func TestApplyAnnouncementLeavesOtherMachinesAlone(t *testing.T) {
 	f := newFleet()
 	ctx := context.Background()
