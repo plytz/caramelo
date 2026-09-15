@@ -27,11 +27,11 @@ func TestM8CommandsAreRegistered(t *testing.T) {
 	}
 }
 
-func TestM8LocalAndClientCommands(t *testing.T) {
+func TestM8LocalAndCommanderCommands(t *testing.T) {
 	root := NewRootCmd(&bytes.Buffer{}, &bytes.Buffer{})
 	for _, tc := range []struct {
-		path   []string
-		client bool
+		path      []string
+		commander bool
 	}{
 		{[]string{"machine", "add"}, false},
 		{[]string{"machine", "join"}, false},
@@ -45,14 +45,14 @@ func TestM8LocalAndClientCommands(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%v: %v", tc.path, err)
 		}
-		if got := isClient(cmd); got != tc.client {
-			t.Errorf("caramelo %s: forwarded = %v, want %v", cmd.CommandPath(), got, tc.client)
+		if got := isCommander(cmd); got != tc.commander {
+			t.Errorf("caramelo %s: forwarded = %v, want %v", cmd.CommandPath(), got, tc.commander)
 		}
 	}
 
 	cmd, _, err := root.Find([]string{"machine"})
-	if err != nil || !isClient(cmd) {
-		t.Errorf("the machine group stopped being a client group (%v)", err)
+	if err != nil || !isCommander(cmd) {
+		t.Errorf("the machine group stopped being a commander group (%v)", err)
 	}
 }
 

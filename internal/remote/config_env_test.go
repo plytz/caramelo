@@ -8,33 +8,33 @@ import (
 	"testing"
 )
 
-func TestLoadAndSaveClientConfigUseTheUsersConfigDir(t *testing.T) {
+func TestLoadAndSaveCommanderConfigUseTheUsersConfigDir(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", dir)
 
-	got, err := LoadClientConfig()
+	got, err := LoadCommanderConfig()
 	if err != nil {
 		t.Fatalf("loading a config that was never written must not fail: %v", err)
 	}
-	if !reflect.DeepEqual(got, ClientConfig{}) {
+	if !reflect.DeepEqual(got, CommanderConfig{}) {
 		t.Errorf("config = %+v, want the zero config", got)
 	}
 
-	want := ClientConfig{
+	want := CommanderConfig{
 		DefaultMachine: "worker1",
 		Machines:       map[string]string{"worker1": "caramelo@192.168.56.11:4022"},
 	}
-	if err := SaveClientConfig(want); err != nil {
-		t.Fatalf("SaveClientConfig: %v", err)
+	if err := SaveCommanderConfig(want); err != nil {
+		t.Fatalf("SaveCommanderConfig: %v", err)
 	}
 
-	path := filepath.Join(dir, "caramelo", ClientConfigFile)
+	path := filepath.Join(dir, "caramelo", CommanderConfigFile)
 	if _, err := os.Stat(path); err != nil {
-		t.Fatalf("SaveClientConfig did not write %s: %v", path, err)
+		t.Fatalf("SaveCommanderConfig did not write %s: %v", path, err)
 	}
-	got, err = LoadClientConfig()
+	got, err = LoadCommanderConfig()
 	if err != nil {
-		t.Fatalf("LoadClientConfig: %v", err)
+		t.Fatalf("LoadCommanderConfig: %v", err)
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("round trip = %+v, want %+v", got, want)
@@ -53,21 +53,21 @@ func TestLoadAndSaveClientConfigUseTheUsersConfigDir(t *testing.T) {
 	}
 }
 
-func TestClientConfigPathFailsWithoutAHome(t *testing.T) {
+func TestCommanderConfigPathFailsWithoutAHome(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", "")
 	t.Setenv("HOME", "")
-	if got, err := ClientConfigPath(); err == nil {
-		t.Fatalf("ClientConfigPath() = %q, want an error when there is no home", got)
+	if got, err := CommanderConfigPath(); err == nil {
+		t.Fatalf("CommanderConfigPath() = %q, want an error when there is no home", got)
 	}
 }
 
-func TestLoadClientConfigRejectsBrokenYAML(t *testing.T) {
+func TestLoadCommanderConfigRejectsBrokenYAML(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.yaml")
 	if err := os.WriteFile(path, []byte("default_machine: [unclosed\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	_, err := LoadClientConfigFrom(path)
+	_, err := LoadCommanderConfigFrom(path)
 	if err == nil {
 		t.Fatal("a broken config file must be an error, not a silent zero config")
 	}
@@ -76,21 +76,21 @@ func TestLoadClientConfigRejectsBrokenYAML(t *testing.T) {
 	}
 }
 
-func TestLoadClientConfigReportsAnUnreadableFile(t *testing.T) {
+func TestLoadCommanderConfigReportsAnUnreadableFile(t *testing.T) {
 
 	dir := t.TempDir()
-	if _, err := LoadClientConfigFrom(dir); err == nil {
+	if _, err := LoadCommanderConfigFrom(dir); err == nil {
 		t.Fatal("an unreadable config path must be an error")
 	}
 }
 
-func TestSaveClientConfigToReportsAnUnwritableLocation(t *testing.T) {
+func TestSaveCommanderConfigToReportsAnUnwritableLocation(t *testing.T) {
 
 	file := filepath.Join(t.TempDir(), "not-a-dir")
 	if err := os.WriteFile(file, nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	err := SaveClientConfigTo(filepath.Join(file, "caramelo", "config.yaml"), ClientConfig{})
+	err := SaveCommanderConfigTo(filepath.Join(file, "caramelo", "config.yaml"), CommanderConfig{})
 	if err == nil {
 		t.Fatal("writing under a plain file must fail")
 	}

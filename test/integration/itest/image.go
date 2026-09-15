@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	ImageMachine = "machine"
-	ImageLaptop  = "laptop"
+	ImageMachine   = "machine"
+	ImageCommander = "commander"
 )
 
 const imageBuildTimeout = 20 * time.Minute

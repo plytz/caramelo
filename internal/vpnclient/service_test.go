@@ -137,7 +137,7 @@ func TestServiceNeedsARecord(t *testing.T) {
 	}
 }
 
-func TestServiceRefusesARecordThatWouldRerouteTheComputer(t *testing.T) {
+func TestServiceRefusesARecordThatWouldRerouteTheCommander(t *testing.T) {
 	keys, records := stores(t)
 	const machine = "hostile"
 	if _, _, err := keys.Ensure(machine); err != nil {

@@ -157,25 +157,25 @@ func TestFleetMemberDialsAndTheHubLearnsWhereFrom(t *testing.T) {
 	}
 }
 
-func TestFleetHubRelaysALaptopToAMember(t *testing.T) {
+func TestFleetHubRelaysTheCommanderToAMember(t *testing.T) {
 	hub, member := startFleet(t)
 
 	if _, err := member.say(t, netip.AddrPortFrom(hub.envIP, 8000), "hello"); err != nil {
 		t.Fatalf("member -> hub: %v", err)
 	}
 
-	peer, priv := newPeer(t, "laptop", "10.86.0.2")
+	peer, priv := newPeer(t, "commander", "10.86.0.2")
 	if err := hub.dev.AddPeer(context.Background(), peer); err != nil {
 		t.Fatalf("AddPeer: %v", err)
 	}
-	lap := startFleetPeer(t, hub, peer, priv)
+	commander := startFleetPeer(t, hub, peer, priv)
 
-	got, err := lap.say(t, netip.AddrPortFrom(member.envIP, 8000).String(), "hello")
+	got, err := commander.say(t, netip.AddrPortFrom(member.envIP, 8000).String(), "hello")
 	if err != nil {
-		t.Fatalf("laptop -> member: %v", err)
+		t.Fatalf("commander -> member: %v", err)
 	}
 	if got != "m1:hello" {
-		t.Fatalf("laptop -> member answered %q, want %q", got, "m1:hello")
+		t.Fatalf("commander -> member answered %q, want %q", got, "m1:hello")
 	}
 }
 

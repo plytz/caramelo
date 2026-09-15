@@ -68,7 +68,7 @@ func TestTheFeedRecordsWithNobodyWatching(t *testing.T) {
 	}
 }
 
-func TestTheFeedRecordsAfterTheClientHangsUp(t *testing.T) {
+func TestTheFeedRecordsAfterTheCommanderHangsUp(t *testing.T) {
 	h := newHarness(t)
 	rec := &state.EnvRecord{ID: 7, App: "shop", Name: "feat-x"}
 	ctx, cancel := context.WithCancel(context.Background())

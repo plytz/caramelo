@@ -202,9 +202,9 @@ func start() (err error) {
 		return err
 	}
 
-	machineAddr = box.ClientMachine(suiteT)
+	machineAddr = box.CommanderMachine(suiteT)
 	home = suiteT.TempDir()
-	if err := itest.WriteClientHomeNoPeer(home, box); err != nil {
+	if err := itest.WriteCommanderHomeNoPeer(home, box); err != nil {
 		return err
 	}
 	tmpDir = suiteT.TempDir()

@@ -204,16 +204,16 @@ func (a *app) hubReachableFrom(token string) string {
 }
 
 func (a *app) hubHost() string {
-	client, err := remote.LoadClientConfig()
+	commander, err := remote.LoadCommanderConfig()
 	if err != nil {
 		return ""
 	}
 	name := strings.TrimSpace(a.machine)
 	if name == "" {
-		name = client.DefaultMachine
+		name = commander.DefaultMachine
 	}
 	addr := name
-	if v, ok := client.Machines[name]; ok {
+	if v, ok := commander.Machines[name]; ok {
 		addr = v
 	}
 	t, err := remote.ParseTarget(addr)

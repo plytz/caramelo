@@ -121,7 +121,7 @@ func TestParseRole(t *testing.T) {
 
 func TestToken(t *testing.T) {
 	now := time.Date(2026, 9, 10, 12, 0, 0, 0, time.UTC)
-	tok, err := NewToken("s3cret", "laptop", now, 0)
+	tok, err := NewToken("s3cret", "commander", now, 0)
 	if err != nil {
 		t.Fatal(err)
 	}

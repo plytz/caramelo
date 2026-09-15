@@ -136,7 +136,7 @@ func TestFindRecordMatchesEveryNameForTheMachine(t *testing.T) {
 		}
 	}
 	if _, err := findRecord(rs, "somewhere-else"); err == nil {
-		t.Error("findRecord matched a machine this computer has never joined")
+		t.Error("findRecord matched a machine the commander has never joined")
 	} else if !strings.Contains(err.Error(), remote.ErrNoTunnel.Error()) {
 		t.Errorf("err = %v, want ErrNoTunnel so the caller falls through to the next transport", err)
 	}

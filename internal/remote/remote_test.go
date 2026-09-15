@@ -93,26 +93,26 @@ func TestJoinArgs(t *testing.T) {
 	}
 }
 
-func TestClientConfigRoundTrip(t *testing.T) {
+func TestCommanderConfigRoundTrip(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.yaml")
 
-	got, err := LoadClientConfigFrom(path)
+	got, err := LoadCommanderConfigFrom(path)
 	if err != nil {
 		t.Fatalf("loading a missing config must not fail: %v", err)
 	}
-	if !reflect.DeepEqual(got, ClientConfig{}) {
+	if !reflect.DeepEqual(got, CommanderConfig{}) {
 		t.Errorf("missing config = %+v, want zero", got)
 	}
 
-	want := ClientConfig{
+	want := CommanderConfig{
 		DefaultMachine: "box",
 		Machines:       map[string]string{"box": "alex@192.168.56.11:4022"},
 	}
-	if err := SaveClientConfigTo(path, want); err != nil {
+	if err := SaveCommanderConfigTo(path, want); err != nil {
 		t.Fatal(err)
 	}
-	got, err = LoadClientConfigFrom(path)
+	got, err = LoadCommanderConfigFrom(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,8 +126,8 @@ func TestClientConfigRoundTrip(t *testing.T) {
 	}
 }
 
-func TestClientConfigResolve(t *testing.T) {
-	c := ClientConfig{Machines: map[string]string{
+func TestCommanderConfigResolve(t *testing.T) {
+	c := CommanderConfig{Machines: map[string]string{
 		"box":  "alex@192.168.56.11:4022",
 		"prod": "prod.example.com",
 	}}
@@ -151,25 +151,25 @@ func TestClientConfigResolve(t *testing.T) {
 	}
 }
 
-func TestClientConfigResolveBadEntry(t *testing.T) {
-	c := ClientConfig{Machines: map[string]string{"box": "alex@box:notaport"}}
+func TestCommanderConfigResolveBadEntry(t *testing.T) {
+	c := CommanderConfig{Machines: map[string]string{"box": "alex@box:notaport"}}
 	_, err := c.Resolve("box")
 	if err == nil {
 		t.Fatal("want an error for a broken machines entry")
 	}
-	if !strings.Contains(err.Error(), "client config") {
-		t.Errorf("error = %v, want it to blame the client config", err)
+	if !strings.Contains(err.Error(), "commander config") {
+		t.Errorf("error = %v, want it to blame the commander config", err)
 	}
 }
 
-func TestClientConfigPathFollowsXDG(t *testing.T) {
+func TestCommanderConfigPathFollowsXDG(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", dir)
-	got, err := ClientConfigPath()
+	got, err := CommanderConfigPath()
 	if err != nil {
 		t.Fatal(err)
 	}
 	if want := filepath.Join(dir, "caramelo", "config.yaml"); got != want {
-		t.Errorf("ClientConfigPath() = %q, want %q", got, want)
+		t.Errorf("CommanderConfigPath() = %q, want %q", got, want)
 	}
 }

@@ -1013,7 +1013,7 @@ func deployIDOf(t *testing.T, h *harness, name string) int64 {
 	return rec.DeployID
 }
 
-func TestAWatchWhoseClientLeftIsFinishedByTheDaemon(t *testing.T) {
+func TestAWatchWhoseCommanderLeftIsFinishedByTheDaemon(t *testing.T) {
 	h, _, _ := deployHarness(t, 1)
 	h.cfg.Deploy = &config.Deploy{Watch: time.Hour, Promote: config.PromoteManual}
 	h.mustCreate(CreateRequest{App: "shop", Name: "production", Production: true})
@@ -1044,12 +1044,12 @@ func TestAWatchWhoseClientLeftIsFinishedByTheDaemon(t *testing.T) {
 			t.Fatalf("the interrupted deploy answered %+v", d)
 		}
 	case <-time.After(5 * time.Second):
-		t.Fatal("the deploy did not return when its client left")
+		t.Fatal("the deploy did not return when its commander left")
 	}
 
 	d, err := h.m.Promote(context.Background(), PromoteRequest{App: "shop", Env: "production"}, &h.out)
 	if err != nil {
-		t.Fatalf("promote the deploy whose client left: %v\n%s", err, h.out.String())
+		t.Fatalf("promote the deploy whose commander left: %v\n%s", err, h.out.String())
 	}
 	if d.ID != id || d.Status != DeployPromoted {
 		t.Fatalf("deploy %d is %s, want %d promoted", d.ID, d.Status, id)

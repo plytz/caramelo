@@ -45,7 +45,7 @@ const (
 
 const fleetSecret = "vaulted9f2a"
 
-const clientTimeout = 12 * time.Minute
+const commanderTimeout = 12 * time.Minute
 
 func begin(t *testing.T) *itest.Machine {
 	t.Helper()
@@ -105,7 +105,7 @@ func needRemoteEnv(t *testing.T) {
 	}
 }
 
-func hubClientAddress() (string, error) {
+func hubCommanderAddress() (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), itest.Scale(30*time.Second))
 	defer cancel()
 	ip, err := hub.Address(ctx)
@@ -120,9 +120,9 @@ func hubClientAddress() (string, error) {
 }
 
 func writeHubHome(dir string, peer bool) error {
-	write := itest.WriteClientHomeNoPeer
+	write := itest.WriteCommanderHomeNoPeer
 	if peer {
-		write = itest.WriteClientHome
+		write = itest.WriteCommanderHome
 	}
 	if err := write(dir, hub); err != nil {
 		return err
@@ -131,13 +131,13 @@ func writeHubHome(dir string, peer bool) error {
 }
 
 func addHubAddressHost(dir string) error {
-	addr, err := hubClientAddress()
+	addr, err := hubCommanderAddress()
 	if err != nil {
 		return err
 	}
 	ip, port, err := net.SplitHostPort(addr)
 	if err != nil {
-		return fmt.Errorf("the hub's client address %q: %w", addr, err)
+		return fmt.Errorf("the hub's commander address %q: %w", addr, err)
 	}
 	key := filepath.Join(dir, ".ssh", itest.LabKeyName)
 	block := fmt.Sprintf("Host %s\n  HostName %s\n  Port %s\n  User %s\n  IdentityFile %s\n"+
@@ -156,69 +156,69 @@ func addHubAddressHost(dir string) error {
 
 func reconnect(t *testing.T) {
 	t.Helper()
-	addr, err := hubClientAddress()
+	addr, err := hubCommanderAddress()
 	if err != nil {
-		t.Fatalf("the hub's client address: %v", err)
+		t.Fatalf("the hub's commander address: %v", err)
 	}
 	machineAddr = addr
 	if err := writeHubHome(home, false); err != nil {
-		t.Fatalf("point the first laptop at %s again: %v", hub.Alias, err)
+		t.Fatalf("point the first commander at %s again: %v", hub.Alias, err)
 	}
 	if err := writeHubHome(otherHome, false); err != nil {
-		t.Fatalf("point the second laptop at %s again: %v", hub.Alias, err)
+		t.Fatalf("point the second commander at %s again: %v", hub.Alias, err)
 	}
 	if otherKey != "" {
 		if err := useIdentity(otherHome, otherKey); err != nil {
-			t.Fatalf("give the second laptop its own key again: %v", err)
+			t.Fatalf("give the second commander its own key again: %v", err)
 		}
 	}
 	if err := writeHubHome(peerHome, true); err != nil {
 		t.Fatalf("join the fleet's network again: %v", err)
 	}
 	for _, m := range memberBoxes {
-		if err := itest.AddClientHost(home, m); err != nil {
-			t.Fatalf("point the first laptop at %s again: %v", m.Alias, err)
+		if err := itest.AddCommanderHost(home, m); err != nil {
+			t.Fatalf("point the first commander at %s again: %v", m.Alias, err)
 		}
 	}
 	t.Logf("the hub answers on %s again", machineAddr)
 }
 
-func clientEnv(extra ...string) []string {
+func commanderEnv(extra ...string) []string {
 	return itest.GitEnv(home, append([]string{"CARAMELO_MACHINE=" + machineAddr}, extra...)...)
 }
 
-func otherClientEnv(extra ...string) []string {
+func otherCommanderEnv(extra ...string) []string {
 	return itest.GitEnv(otherHome, append([]string{"CARAMELO_MACHINE=" + machineAddr}, extra...)...)
 }
 
-type clientOpts struct {
+type commanderOpts struct {
 	Dir     string
 	Timeout time.Duration
 	Stdin   string
 	Home    string
 }
 
-func client(t *testing.T, o clientOpts, args ...string) itest.Result {
+func commander(t *testing.T, o commanderOpts, args ...string) itest.Result {
 	t.Helper()
 	timeout := o.Timeout
 	if timeout == 0 {
-		timeout = clientTimeout
+		timeout = commanderTimeout
 	}
-	env := clientEnv()
+	env := commanderEnv()
 	if o.Home == otherHome && otherHome != "" {
-		env = otherClientEnv()
+		env = otherCommanderEnv()
 	}
-	opts := itest.ClientOptions{Dir: o.Dir, Env: env, Timeout: itest.Scale(timeout)}
+	opts := itest.CommanderOptions{Dir: o.Dir, Env: env, Timeout: itest.Scale(timeout)}
 	if o.Stdin != "" {
 		opts.Stdin = strings.NewReader(o.Stdin)
 	}
-	t.Logf("[client] caramelo %s (in %s)", strings.Join(args, " "), o.Dir)
-	return itest.MustRunClient(t, opts, args...)
+	t.Logf("[commander] caramelo %s (in %s)", strings.Join(args, " "), o.Dir)
+	return itest.MustRunCommander(t, opts, args...)
 }
 
 func inRepo(t *testing.T, args ...string) itest.Result {
 	t.Helper()
-	return client(t, clientOpts{Dir: repo}, args...)
+	return commander(t, commanderOpts{Dir: repo}, args...)
 }
 
 func mustInRepo(t *testing.T, args ...string) itest.Result {
@@ -247,7 +247,7 @@ func decodeInto(stdout string, v any) error {
 func machineAdd(t *testing.T, target, name string, extra ...string) (capi.MachineAddResult, itest.Result) {
 	t.Helper()
 	args := append([]string{"machine", "add", target, "--name", name, "--json"}, extra...)
-	res := client(t, clientOpts{Dir: repo, Timeout: 20 * time.Minute}, args...)
+	res := commander(t, commanderOpts{Dir: repo, Timeout: 20 * time.Minute}, args...)
 	if res.ExitCode != 0 || strings.TrimSpace(res.Stdout) == "" {
 		return capi.MachineAddResult{}, res
 	}
@@ -361,7 +361,7 @@ func createEnv(t *testing.T, name string, extra ...string) envDoc {
 func tryCreateEnv(t *testing.T, name string, extra ...string) (envDoc, itest.Result) {
 	t.Helper()
 	args := append([]string{"env", "create", name, "--json"}, extra...)
-	res := client(t, clientOpts{Dir: repo}, args...)
+	res := commander(t, commanderOpts{Dir: repo}, args...)
 	if strings.TrimSpace(res.Stdout) == "" {
 		return envDoc{}, res
 	}
@@ -426,7 +426,7 @@ func envNames(list []envDoc) []string {
 func tryDeploy(t *testing.T, name string, extra ...string) (capi.DeployResult, itest.Result) {
 	t.Helper()
 	args := append([]string{"deploy", name, "--json"}, extra...)
-	res := client(t, clientOpts{Dir: repo, Timeout: 20 * time.Minute}, args...)
+	res := commander(t, commanderOpts{Dir: repo, Timeout: 20 * time.Minute}, args...)
 	t.Logf("[deploy %s] progress:\n%s", name, res.Stderr)
 	if strings.TrimSpace(res.Stdout) == "" {
 		return capi.DeployResult{}, res
@@ -449,7 +449,7 @@ func deploy(t *testing.T, name string, extra ...string) (capi.DeployResult, ites
 func rollback(t *testing.T, name string, extra ...string) (capi.DeployResult, itest.Result) {
 	t.Helper()
 	args := append([]string{"rollback", name, "--json"}, extra...)
-	res := client(t, clientOpts{Dir: repo, Timeout: 20 * time.Minute}, args...)
+	res := commander(t, commanderOpts{Dir: repo, Timeout: 20 * time.Minute}, args...)
 	if strings.TrimSpace(res.Stdout) == "" {
 		return capi.DeployResult{}, res
 	}
@@ -547,7 +547,7 @@ func startFollower(t *testing.T, args ...string) *follower {
 	argv := append([]string{"events", "--follow", "--json"}, args...)
 	cmd := exec.CommandContext(ctx, itest.BinaryPath(t), argv...)
 	cmd.Dir = repo
-	cmd.Env = clientEnv()
+	cmd.Env = commanderEnv()
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -676,8 +676,8 @@ func initSampleRepo(t *testing.T) string {
 	copyAs(t, dir, "greeting.secret.py", "greeting.py")
 	copyAs(t, dir, "caramelo.fleet.yaml", "caramelo.yaml")
 	copyAs(t, dir, "gitignore", ".gitignore")
-	itest.Git(t, dir, clientEnv(), "init", "-b", branch)
-	firstCommit = itest.GitCommitAll(t, dir, clientEnv(), "sampleapp: run on a fleet")
+	itest.Git(t, dir, commanderEnv(), "init", "-b", branch)
+	firstCommit = itest.GitCommitAll(t, dir, commanderEnv(), "sampleapp: run on a fleet")
 	return dir
 }
 
@@ -719,7 +719,7 @@ func restoreConfig(t *testing.T, name string) {
 func useConfig(t *testing.T, name string) string {
 	t.Helper()
 	copyAs(t, repo, name, "caramelo.yaml")
-	return itest.GitCommitAll(t, repo, clientEnv(), "sampleapp: "+name)
+	return itest.GitCommitAll(t, repo, commanderEnv(), "sampleapp: "+name)
 }
 
 func setVersion(t *testing.T, want string) string {
@@ -739,21 +739,21 @@ func setVersion(t *testing.T, want string) string {
 		t.Fatalf("write version.py: %v", err)
 	}
 	currentVersion = want
-	return itest.GitCommitAll(t, repo, clientEnv(), "sampleapp: version "+want)
+	return itest.GitCommitAll(t, repo, commanderEnv(), "sampleapp: version "+want)
 }
 
 func hubRemote() string { return itest.GitRemoteAt(machineAddr, appName) }
 
 func pushBranch(t *testing.T, refspec string) itest.Result {
 	t.Helper()
-	return itest.Git(t, repo, clientEnv(), "push", hubRemote(), refspec)
+	return itest.Git(t, repo, commanderEnv(), "push", hubRemote(), refspec)
 }
 
 func tryPushBranch(t *testing.T, refspec string) (itest.Result, error) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), itest.Scale(3*time.Minute))
 	defer cancel()
-	return itest.GitRun(ctx, repo, clientEnv(), "push", hubRemote(), refspec)
+	return itest.GitRun(ctx, repo, commanderEnv(), "push", hubRemote(), refspec)
 }
 
 func field(body, name string) string {
@@ -847,9 +847,9 @@ func tryTunnel(t *testing.T, f func(*itest.ConnectSession) error, names ...strin
 	ctx, cancel := context.WithTimeout(context.Background(), itest.Scale(3*time.Minute))
 	defer cancel()
 	args := append([]string{}, names...)
-	s, err := itest.Connect(ctx, itest.ClientOptions{
+	s, err := itest.Connect(ctx, itest.CommanderOptions{
 		Dir:     repo,
-		Env:     itest.ClientEnv(peerHome, "CARAMELO_MACHINE="+tunnelAddr),
+		Env:     itest.CommanderEnv(peerHome, "CARAMELO_MACHINE="+tunnelAddr),
 		Timeout: itest.Scale(90 * time.Second),
 	}, args...)
 	if err != nil {
@@ -1033,41 +1033,41 @@ func diagnoseEnv(t *testing.T, envName string) string {
 	return b.String()
 }
 
-const secondLaptopName = "laptop-b"
+const secondCommanderName = "commander-b"
 
-func secondLaptop(t *testing.T) string {
+func secondCommander(t *testing.T) string {
 	t.Helper()
 	me, other := whoAmI(t, home), whoAmI(t, otherHome)
 	if me != other {
 		return other
 	}
 	priv := filepath.Join(t.TempDir(), "id_ed25519")
-	if out, err := exec.Command("ssh-keygen", "-t", "ed25519", "-N", "", "-C", secondLaptopName,
+	if out, err := exec.Command("ssh-keygen", "-t", "ed25519", "-N", "", "-C", secondCommanderName,
 		"-f", priv).CombinedOutput(); err != nil {
-		t.Fatalf("ssh-keygen for the second laptop: %v\n%s", err, out)
+		t.Fatalf("ssh-keygen for the second commander: %v\n%s", err, out)
 	}
 	pub, err := os.ReadFile(priv + ".pub")
 	if err != nil {
-		t.Fatalf("read the second laptop's public key: %v", err)
+		t.Fatalf("read the second commander's public key: %v", err)
 	}
-	add := client(t, clientOpts{Dir: repo, Stdin: string(pub)},
-		"key", "add", "--name", secondLaptopName, "--json")
+	add := commander(t, commanderOpts{Dir: repo, Stdin: string(pub)},
+		"key", "add", "--name", secondCommanderName, "--json")
 	if add.ExitCode != 0 {
 		t.Fatalf("key add %s: exit %d\nstdout:\n%sstderr:\n%s",
-			secondLaptopName, add.ExitCode, add.Stdout, add.Stderr)
+			secondCommanderName, add.ExitCode, add.Stdout, add.Stderr)
 	}
 	if err := writeHubHome(otherHome, false); err != nil {
-		t.Fatalf("write the second laptop's home: %v", err)
+		t.Fatalf("write the second commander's home: %v", err)
 	}
 	if err := useIdentity(otherHome, priv); err != nil {
-		t.Fatalf("give the second laptop its own key: %v", err)
+		t.Fatalf("give the second commander its own key: %v", err)
 	}
 	otherKey = priv
 	return whoAmI(t, otherHome)
 }
 
-func useIdentity(clientHome, key string) error {
-	path := filepath.Join(clientHome, ".ssh", "config")
+func useIdentity(commanderHome, key string) error {
+	path := filepath.Join(commanderHome, ".ssh", "config")
 	body, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("read %s: %w", path, err)
@@ -1085,7 +1085,7 @@ func useIdentity(clientHome, key string) error {
 
 func whoAmI(t *testing.T, which string) string {
 	t.Helper()
-	res := client(t, clientOpts{Dir: repo, Home: which}, "status", "--json")
+	res := commander(t, commanderOpts{Dir: repo, Home: which}, "status", "--json")
 	if res.ExitCode != 0 {
 		t.Fatalf("status: exit %d\nstderr:\n%s", res.ExitCode, res.Stderr)
 	}

@@ -40,8 +40,8 @@ func (d *dockerDriver) user() string { return LoginUser }
 func (d *dockerDriver) home() string { return LoginHome }
 
 func (d *dockerDriver) image(ctx context.Context) (string, error) {
-	if d.m.Kind == KindLaptop {
-		return EnsureImage(ctx, ImageLaptop)
+	if d.m.Kind == KindCommander {
+		return EnsureImage(ctx, ImageCommander)
 	}
 	if d.m.State == StateProvisioned {
 		return EnsureProvisionedImage(ctx)

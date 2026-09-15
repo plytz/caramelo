@@ -214,7 +214,7 @@ func TestEnvURLTooManyArgumentsIsAUsageError(t *testing.T) {
 			t.Errorf("%v: stderr = %q, want the command named", args, stderr)
 		}
 		if svc.asked != [3]string{} {
-			t.Errorf("%v: the daemon was called with %v; the client should have refused", args, svc.asked)
+			t.Errorf("%v: the daemon was called with %v; the commander should have refused", args, svc.asked)
 		}
 	}
 }

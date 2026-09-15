@@ -553,7 +553,7 @@ func TestCommandsOverTheLocalSocketHaveNoIdentity(t *testing.T) {
 
 func TestEnvsListsWhatTheManagerHas(t *testing.T) {
 	d, _, _ := newEnvDaemon(t)
-	ctx := sessionCtx("laptop")
+	ctx := sessionCtx("commander")
 	for _, name := range []string{"feat-x", "feat-y"} {
 		if _, err := d.CreateEnv(ctx, env.CreateRequest{App: "shop", Name: name, NoDeps: true}, io.Discard); err != nil {
 			t.Fatal(err)
@@ -584,9 +584,9 @@ func TestEnvsListsWhatTheManagerHas(t *testing.T) {
 	}
 }
 
-func TestEnvReturnsTheDetailTheClientPrints(t *testing.T) {
+func TestEnvReturnsTheDetailTheCommanderPrints(t *testing.T) {
 	d, _, _ := newEnvDaemon(t)
-	ctx := sessionCtx("laptop")
+	ctx := sessionCtx("commander")
 	created, err := d.CreateEnv(ctx, env.CreateRequest{App: "shop", Name: "feat-x", NoDeps: true}, io.Discard)
 	if err != nil {
 		t.Fatal(err)
@@ -614,7 +614,7 @@ func TestEnvReturnsTheDetailTheClientPrints(t *testing.T) {
 
 func TestDestroyEnvRemovesItAndIsIdempotent(t *testing.T) {
 	d, _, repo := newEnvDaemon(t)
-	ctx := sessionCtx("laptop")
+	ctx := sessionCtx("commander")
 	e, err := d.CreateEnv(ctx, env.CreateRequest{App: "shop", Name: "feat-x", NoDeps: true}, io.Discard)
 	if err != nil {
 		t.Fatal(err)
@@ -653,7 +653,7 @@ func TestDestroyEnvRemovesItAndIsIdempotent(t *testing.T) {
 
 func TestExecEnvPassesArgvAndTheExitCodeBack(t *testing.T) {
 	d, _, _ := newEnvDaemon(t)
-	ctx := sessionCtx("laptop")
+	ctx := sessionCtx("commander")
 	e, err := d.CreateEnv(ctx, env.CreateRequest{App: "shop", Name: "feat-x", NoDeps: true}, io.Discard)
 	if err != nil {
 		t.Fatal(err)
@@ -685,7 +685,7 @@ func TestExecEnvPassesArgvAndTheExitCodeBack(t *testing.T) {
 
 func TestExportEnvRendersTheVariables(t *testing.T) {
 	d, _, _ := newEnvDaemon(t)
-	ctx := sessionCtx("laptop")
+	ctx := sessionCtx("commander")
 	if _, err := d.CreateEnv(ctx, env.CreateRequest{App: "shop", Name: "feat-x", NoDeps: true}, io.Discard); err != nil {
 		t.Fatal(err)
 	}
@@ -717,7 +717,7 @@ func TestAppsCountsEnvsAndMeasuresRepositories(t *testing.T) {
 	store.mu.Lock()
 	store.apps = append(store.apps, state.App{Name: "blog", DefaultBranch: "trunk", RepoPath: "/elsewhere/blog.git"})
 	store.mu.Unlock()
-	ctx := sessionCtx("laptop")
+	ctx := sessionCtx("commander")
 	if _, err := d.CreateEnv(ctx, env.CreateRequest{App: "shop", Name: "feat-x", NoDeps: true}, io.Discard); err != nil {
 		t.Fatal(err)
 	}

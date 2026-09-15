@@ -87,7 +87,7 @@ func (s *suite) createFirstEnv(t *testing.T) {
 		t.Errorf("GREETING = %q, want %q", e.Vars["GREETING"], want)
 	}
 
-	refs := itest.GitRefs(t, s.repo, s.clientEnv(), s.remote)
+	refs := itest.GitRefs(t, s.repo, s.commanderEnv(), s.remote)
 	if refs["refs/heads/"+defaultBranch] != s.mainCommit {
 		t.Errorf("ls-remote: %s = %q, want %q", defaultBranch, refs["refs/heads/"+defaultBranch], s.mainCommit)
 	}
@@ -170,7 +170,7 @@ func (s *suite) secondEnv(t *testing.T) {
 func (s *suite) createUsesTheCurrentBranch(t *testing.T) {
 	s.needRepo(t)
 
-	env := s.clientEnv()
+	env := s.commanderEnv()
 	itest.Git(t, s.repo, env, "checkout", featureBranch)
 	t.Cleanup(func() { itest.Git(t, s.repo, env, "checkout", defaultBranch) })
 
@@ -217,7 +217,7 @@ func (s *suite) exec(t *testing.T) {
 
 	t.Run("stdin round-trips", func(t *testing.T) {
 		const payload = "caramelo reads stdin\n"
-		res := s.mustClient(t, clientOpts{Dir: s.repo, Stdin: strings.NewReader(payload)},
+		res := s.mustCommander(t, commanderOpts{Dir: s.repo, Stdin: strings.NewReader(payload)},
 			"env", "exec", envX, "--", "cat")
 		if res.Stdout != payload {
 			t.Errorf("stdout = %q, want %q", res.Stdout, payload)
@@ -226,7 +226,7 @@ func (s *suite) exec(t *testing.T) {
 
 	t.Run("a silent command is not cut off", func(t *testing.T) {
 		started := time.Now()
-		res := s.client(t, clientOpts{Dir: s.repo, Timeout: itest.Scale(5 * time.Minute)},
+		res := s.commander(t, commanderOpts{Dir: s.repo, Timeout: itest.Scale(5 * time.Minute)},
 			"env", "exec", envX, "--", "sleep", "90")
 		if res.ExitCode != 0 {
 			t.Fatalf("sleep 90: exit %d after %s\nstderr:\n%s", res.ExitCode, time.Since(started), res.Stderr)
@@ -359,10 +359,10 @@ func (s *suite) envSurvivesAMachineRestart(t *testing.T) {
 
 func (s *suite) refresh(t *testing.T) {
 	t.Helper()
-	s.machine = s.m.ClientMachine(t)
+	s.machine = s.m.CommanderMachine(t)
 	s.remote = s.m.GitRemote(t, appName)
-	if err := itest.WriteClientHomeNoPeer(s.home, s.m); err != nil {
-		t.Fatalf("rewrite the client home after the power cycle: %v", err)
+	if err := itest.WriteCommanderHomeNoPeer(s.home, s.m); err != nil {
+		t.Fatalf("rewrite the commander home after the power cycle: %v", err)
 	}
 	t.Logf("machine %s, git remote %s", s.machine, s.remote)
 }
@@ -370,13 +370,13 @@ func (s *suite) refresh(t *testing.T) {
 func (s *suite) pushToADirtyWorktreeIsRefused(t *testing.T) {
 	s.needRepo(t)
 
-	env := s.clientEnv()
+	env := s.commanderEnv()
 	name := "feat-dirty"
 	s.createEnv(t, name, "--from", defaultBranch, "--no-deps")
 	t.Cleanup(func() { s.destroyEnv(t, name, "--delete-branch") })
 
 	itest.Git(t, s.repo, env, "checkout", defaultBranch)
-	if err := os.WriteFile(filepath.Join(s.repo, "pushed.txt"), []byte("from the laptop\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(s.repo, "pushed.txt"), []byte("from the commander\n"), 0o644); err != nil {
 		t.Fatalf("write pushed.txt: %v", err)
 	}
 	itest.GitCommitAll(t, s.repo, env, "sampleapp: something to push")
@@ -405,7 +405,7 @@ func (s *suite) failedEnvIsRecoverable(t *testing.T) {
 	s.needRepo(t)
 
 	started := time.Now()
-	res := s.client(t, clientOpts{Dir: s.repo, Timeout: itest.Scale(4 * time.Minute)},
+	res := s.commander(t, commanderOpts{Dir: s.repo, Timeout: itest.Scale(4 * time.Minute)},
 		"env", "create", envBad, "--from", brokenBranch, "--timeout", "30s", "--json")
 	if res.ExitCode != 1 {
 		t.Fatalf("env create %s: exit %d, want 1\nstdout:\n%sstderr:\n%s",
@@ -425,7 +425,7 @@ func (s *suite) failedEnvIsRecoverable(t *testing.T) {
 		t.Errorf("container %s is gone; a failed env is left in place for inspection (have %v)", container, got)
 	}
 
-	env := s.clientEnv()
+	env := s.commanderEnv()
 	itest.Git(t, s.repo, env, "checkout", brokenBranch)
 	copyIn(t, s.repo, "caramelo.yaml")
 	s.brokenCommit = itest.GitCommitAll(t, s.repo, env, "sampleapp: fix the readiness command")
@@ -462,8 +462,8 @@ func (s *suite) parallelCreate(t *testing.T) {
 		wg.Add(1)
 		go func(i int, name string) {
 			defer wg.Done()
-			results[i], errs[i] = itest.RunClient(context.Background(),
-				s.opts(clientOpts{Dir: s.repo, Timeout: itest.Scale(8 * time.Minute)}),
+			results[i], errs[i] = itest.RunCommander(context.Background(),
+				s.opts(commanderOpts{Dir: s.repo, Timeout: itest.Scale(8 * time.Minute)}),
 				"env", "create", name, "--from", defaultBranch, "--no-push", "--no-deps", "--json")
 		}(i, name)
 	}
@@ -512,7 +512,7 @@ func (s *suite) destroy(t *testing.T) {
 	if res := s.asCaramelo(t, "test -e "+cenv.EnvDir(dataDir, appName, envX)); res.ExitCode == 0 {
 		t.Errorf("%s still exists after destroy", cenv.EnvDir(dataDir, appName, envX))
 	}
-	if refs := itest.GitRefs(t, s.repo, s.clientEnv(), s.remote); refs["refs/heads/"+envX] == "" {
+	if refs := itest.GitRefs(t, s.repo, s.commanderEnv(), s.remote); refs["refs/heads/"+envX] == "" {
 		t.Errorf("branch %s was deleted by destroy; only --delete-branch may do that", envX)
 	}
 	if res := s.inRepo(t, "env", "destroy", envX, "--yes"); res.ExitCode != 0 {
@@ -520,7 +520,7 @@ func (s *suite) destroy(t *testing.T) {
 	}
 
 	s.destroyEnv(t, envY, "--delete-branch")
-	if refs := itest.GitRefs(t, s.repo, s.clientEnv(), s.remote); refs["refs/heads/"+envY] != "" {
+	if refs := itest.GitRefs(t, s.repo, s.commanderEnv(), s.remote); refs["refs/heads/"+envY] != "" {
 		t.Errorf("--delete-branch left branch %s behind", envY)
 	}
 
@@ -561,7 +561,7 @@ func (s *suite) agentCommitComesBack(t *testing.T) {
 		t.Fatalf("HEAD in the env is %q; the commit did not happen", remoteHead)
 	}
 
-	env := s.clientEnv()
+	env := s.commanderEnv()
 	itest.Git(t, s.repo, env, "fetch", s.remote, envAgent+":refs/remotes/caramelo/"+envAgent)
 	got := strings.TrimSpace(itest.Git(t, s.repo, env, "rev-parse", "refs/remotes/caramelo/"+envAgent).Stdout)
 	if got != remoteHead {

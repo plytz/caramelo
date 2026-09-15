@@ -34,14 +34,14 @@ type connectDoc struct {
 	Listeners []vpnclient.Listener `json:"listeners"`
 }
 
-func Connect(ctx context.Context, o ClientOptions, args ...string) (*ConnectSession, error) {
-	bin, err := clientBinary(o)
+func Connect(ctx context.Context, o CommanderOptions, args ...string) (*ConnectSession, error) {
+	bin, err := commanderBinary(o)
 	if err != nil {
 		return nil, err
 	}
 	timeout := o.Timeout
 	if timeout == 0 {
-		timeout = ClientTimeout
+		timeout = CommanderTimeout
 	}
 	runCtx, cancel := context.WithCancel(ctx)
 

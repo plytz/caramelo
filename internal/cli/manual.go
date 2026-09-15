@@ -49,7 +49,7 @@ var manualAgentNotes = []string{
 	"Progress and diagnostics go to standard error. With --progress json each line on standard error is one JSON event with the same shape as `caramelo events --json`.",
 	"Exit codes are stable: 0 is success, 1 is a failure the command reports, 2 is a usage error (unknown command, bad flag, missing argument).",
 	"No command needs a terminal. Anything a person is asked interactively can be answered with a flag, and when standard input is not a terminal the command fails at once naming that flag instead of waiting.",
-	"The machine a command talks to is picked by --machine (CARAMELO_MACHINE is its default), then a local caramelod socket if there is one, then the client config's default_machine.",
+	"The machine a command talks to is picked by --machine (CARAMELO_MACHINE is its default), then a local caramelod socket if there is one, then the commander config's default_machine.",
 	"The app and the environment default to the git checkout the command runs in; --app and --env (or CARAMELO_APP and CARAMELO_ENV) name them explicitly.",
 	"Names in the manual are placeholders: feat-x is an environment, shop is an app, box is a machine.",
 }
@@ -61,7 +61,7 @@ var manualEnvironment = []manualFlag{
 	{Name: "CARAMELO_SSH", Type: "string", Usage: "the ssh program used to reach a user@host machine (default: ssh)"},
 	{Name: "CARAMELO_SSH_OPTS", Type: "string", Usage: "extra arguments for that ssh, split like shell words"},
 	{Name: "CARAMELO_DEBUG", Type: "string", Usage: "when set, say on standard error which transport was chosen and why"},
-	{Name: "XDG_CONFIG_HOME", Type: "path", Usage: "absolute path under which the client config and keys live, in caramelo/ (default: the platform's user config dir)"},
+	{Name: "XDG_CONFIG_HOME", Type: "path", Usage: "absolute path under which the commander config and keys live, in caramelo/ (default: the platform's user config dir)"},
 	{Name: "XDG_CACHE_HOME", Type: "path", Usage: "absolute path under which ssh control sockets live, in caramelo/ (default: the platform's user cache dir)"},
 	{Name: "XDG_RUNTIME_DIR", Type: "path", Usage: "where the transparent-mode service's control socket lives, in caramelo/ (default: the cache dir)"},
 }

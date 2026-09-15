@@ -127,7 +127,7 @@ func TestSilenceErrorSaysWhatToCheck(t *testing.T) {
 	}
 
 	revoked := silenceError(rec, ap, time.Now().Add(-90*time.Second), true).Error()
-	for _, want := range []string{"handshake", "1m30s ago", "no longer be a peer", "peer list"} {
+	for _, want := range []string{"handshake", "1m30s ago", "no longer be admitted", "peer list"} {
 		if !strings.Contains(revoked, want) {
 			t.Errorf("a revoked peer says %q, want it to mention %q", revoked, want)
 		}

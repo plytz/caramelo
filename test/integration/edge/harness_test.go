@@ -21,7 +21,7 @@ import (
 
 const edgeControlSocket = "/run/caramelo/edge.sock"
 
-var clientTimeout = itest.Scale(8 * time.Minute)
+var commanderTimeout = itest.Scale(8 * time.Minute)
 
 func begin(t *testing.T) *itest.Machine {
 	t.Helper()
@@ -41,37 +41,37 @@ func needRepo(t *testing.T) {
 	}
 }
 
-func clientEnv(extra ...string) []string {
+func commanderEnv(extra ...string) []string {
 	return itest.GitEnv(home, append([]string{"CARAMELO_MACHINE=" + machineAddr}, extra...)...)
 }
 
-type clientOpts = itest.ClientOptions
+type commanderOpts = itest.CommanderOptions
 
-func opts(o clientOpts) clientOpts {
-	o.Env = clientEnv()
+func opts(o commanderOpts) commanderOpts {
+	o.Env = commanderEnv()
 	if o.Timeout == 0 {
-		o.Timeout = clientTimeout
+		o.Timeout = commanderTimeout
 	}
 	return o
 }
 
-func clientExec(o clientOpts, args ...string) (itest.Result, error) {
-	return itest.RunClient(context.Background(), opts(o), args...)
+func commanderExec(o commanderOpts, args ...string) (itest.Result, error) {
+	return itest.RunCommander(context.Background(), opts(o), args...)
 }
 
-func client(t *testing.T, o clientOpts, args ...string) itest.Result {
+func commander(t *testing.T, o commanderOpts, args ...string) itest.Result {
 	t.Helper()
-	return itest.MustRunClient(t, opts(o), args...)
+	return itest.MustRunCommander(t, opts(o), args...)
 }
 
 func inRepo(t *testing.T, args ...string) itest.Result {
 	t.Helper()
-	return client(t, clientOpts{Dir: repo}, args...)
+	return commander(t, commanderOpts{Dir: repo}, args...)
 }
 
 func mustInRepo(t *testing.T, args ...string) itest.Result {
 	t.Helper()
-	return itest.ClientOK(t, opts(clientOpts{Dir: repo}), args...)
+	return itest.CommanderOK(t, opts(commanderOpts{Dir: repo}), args...)
 }
 
 func decode[T any](t *testing.T, what, stdout string) T {
@@ -249,7 +249,7 @@ func initSampleRepo(t *testing.T) string {
 		t.Fatalf("create the sample checkout: %v", err)
 	}
 	t.Logf("sample checkout: %s", dir)
-	env := clientEnv()
+	env := commanderEnv()
 
 	copyIn(t, dir, "app.py", "behaviour.py", "greeting.py", "version.py", "health.py")
 	copyAs(t, dir, "caramelo.edge.yaml", "caramelo.yaml")
@@ -294,5 +294,5 @@ func setVersion(t *testing.T, dir, want string) string {
 		t.Fatalf("write version.py: %v", err)
 	}
 	currentVersion = want
-	return itest.GitCommitAll(t, dir, clientEnv(), "sampleapp: version "+want)
+	return itest.GitCommitAll(t, dir, commanderEnv(), "sampleapp: version "+want)
 }

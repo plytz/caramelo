@@ -174,7 +174,7 @@ func start() (err error) {
 
 	tmpDir = suiteT.TempDir()
 	home = suiteT.TempDir()
-	if err := itest.WriteClientHome(home, box); err != nil {
+	if err := itest.WriteCommanderHome(home, box); err != nil {
 		return err
 	}
 
@@ -200,7 +200,7 @@ func start() (err error) {
 	if internet, err = itest.NewEdgeClient(box, edgeRoots...); err != nil {
 		return err
 	}
-	fmt.Fprintf(os.Stderr, "reboot suite: machine %s, pebble %s\n", box.ClientMachine(suiteT), pebble.Directory)
+	fmt.Fprintf(os.Stderr, "reboot suite: machine %s, pebble %s\n", box.CommanderMachine(suiteT), pebble.Directory)
 	return nil
 }
 

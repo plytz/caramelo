@@ -87,11 +87,11 @@ func silenceError(rec Record, ap netip.AddrPort, last time.Time, known bool) err
 		return fmt.Errorf("connect to %s through the tunnel to %s: nothing answered within %s",
 			ap, rec.Machine, dialTimeout)
 	case last.IsZero():
-		return fmt.Errorf("no handshake with %s after %s; is UDP %s reachable, and is this computer still a peer? "+
+		return fmt.Errorf("no handshake with %s after %s; is UDP %s reachable, and is this peer still admitted? "+
 			"(check 'caramelo peer list' on the machine)", rec.Machine, dialTimeout, rec.Endpoint)
 	default:
-		return fmt.Errorf("no answer from %s within %s; the last handshake was %s ago, so this computer "+
-			"may no longer be a peer — check 'caramelo peer list' on the machine, and that UDP %s is reachable",
+		return fmt.Errorf("no answer from %s within %s; the last handshake was %s ago, so this peer "+
+			"may no longer be admitted — check 'caramelo peer list' on the machine, and that UDP %s is reachable",
 			rec.Machine, dialTimeout, time.Since(last).Round(time.Second), rec.Endpoint)
 	}
 }
@@ -184,7 +184,7 @@ func verify(ctx context.Context, dev *wgDevice, timeout time.Duration) (time.Tim
 
 func noHandshake(rec Record, timeout time.Duration) error {
 	return fmt.Errorf("no handshake with %s after %s: nothing came back. "+
-		"Check that UDP %s is reachable from here and that this computer is still a peer "+
+		"Check that UDP %s is reachable from here and that this peer is still admitted "+
 		"('caramelo peer list' on the machine); a revoked or unknown key gets no reply at all",
 		rec.Machine, timeout, rec.Endpoint)
 }

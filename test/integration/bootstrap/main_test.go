@@ -109,7 +109,7 @@ func (b *suiteTB) runCleanups() {
 
 const machineName = "lab"
 
-const laptopBin = itest.RemoteBin
+const commanderBin = itest.RemoteBin
 
 type result struct {
 	Target string `json:"target"`
@@ -130,17 +130,17 @@ type result struct {
 }
 
 var (
-	suiteT  *suiteTB
-	lab     *itest.Lab
-	machine *itest.Machine
-	laptop  *itest.Machine
+	suiteT    *suiteTB
+	lab       *itest.Lab
+	machine   *itest.Machine
+	commander *itest.Machine
 
-	boxArch          string
-	laptopHome       string
-	clientConfigPath string
-	peerKeyDir       string
-	skipReason       string
-	startErr         error
+	boxArch             string
+	commanderHome       string
+	commanderConfigPath string
+	peerKeyDir          string
+	skipReason          string
+	startErr            error
 
 	first    result
 	firstRaw string
@@ -164,15 +164,15 @@ func start() (err error) {
 	}()
 
 	lab = itest.New(suiteT, itest.Options{
-		Suite:   "bootstrap",
-		Roles:   []string{itest.RoleHub},
-		Laptops: []string{itest.RoleClient},
+		Suite:      "bootstrap",
+		Roles:      []string{itest.RoleHub},
+		Commanders: []string{itest.RoleCommander},
 	})
 	machine = lab.Machine(itest.RoleHub)
-	laptop = lab.Laptop(itest.RoleClient)
-	laptopHome = laptop.Home()
-	clientConfigPath = laptopHome + "/.config/caramelo/config.yaml"
-	peerKeyDir = laptopHome + "/.config/caramelo/vpn"
+	commander = lab.Commander(itest.RoleCommander)
+	commanderHome = commander.Home()
+	commanderConfigPath = commanderHome + "/.config/caramelo/config.yaml"
+	peerKeyDir = commanderHome + "/.config/caramelo/vpn"
 
 	ctx, cancel := context.WithTimeout(context.Background(), lab.Budget().Setup)
 	defer cancel()
@@ -183,7 +183,7 @@ func start() (err error) {
 	if _, err := itest.EnsureGossFor(ctx, machine); err != nil {
 		return err
 	}
-	if _, err := itest.InstallClientBinaries(ctx, laptop, machine); err != nil {
+	if _, err := itest.InstallCommanderBinaries(ctx, commander, machine); err != nil {
 		if errors.Is(err, itest.ErrNoBinary) {
 			skipReason = err.Error()
 			fmt.Fprintf(os.Stderr, "bootstrap suite: %v; tests will skip\n", err)
@@ -201,8 +201,8 @@ func bootstrap(ctx context.Context, extra ...string) (result, string, error) {
 	if err != nil {
 		return result{}, "", err
 	}
-	args := append([]string{laptopBin, "server", "setup", "--target", target, "--yes", "--json"}, extra...)
-	res, err := laptop.Run(ctx, strings.Join(args, " "))
+	args := append([]string{commanderBin, "server", "setup", "--target", target, "--yes", "--json"}, extra...)
+	res, err := commander.Run(ctx, strings.Join(args, " "))
 	raw := res.Stdout + "\n--- stderr ---\n" + res.Stderr
 	if err != nil {
 		return result{}, raw, fmt.Errorf("server setup --target %s: %w", target, err)

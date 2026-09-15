@@ -35,7 +35,7 @@ const (
 
 var depNames = []string{"db", "cache"}
 
-var clientTimeout = itest.Scale(5 * time.Minute)
+var commanderTimeout = itest.Scale(5 * time.Minute)
 
 type suite struct {
 	lab     *itest.Lab
@@ -71,8 +71,8 @@ func start(t *testing.T) *suite {
 	s := &suite{
 		lab:     lab,
 		m:       m,
-		home:    itest.ClientHomeNoPeer(t, m),
-		machine: m.ClientMachine(t),
+		home:    itest.CommanderHomeNoPeer(t, m),
+		machine: m.CommanderMachine(t),
 		tmp:     t.TempDir(),
 	}
 	s.remote = m.GitRemote(t, appName)
@@ -87,38 +87,38 @@ func (s *suite) needRepo(t *testing.T) {
 	}
 }
 
-func (s *suite) clientEnv(extra ...string) []string {
+func (s *suite) commanderEnv(extra ...string) []string {
 	return itest.GitEnv(s.home, append([]string{"CARAMELO_MACHINE=" + s.machine}, extra...)...)
 }
 
-type clientOpts = itest.ClientOptions
+type commanderOpts = itest.CommanderOptions
 
-func (s *suite) opts(o clientOpts) clientOpts {
-	o.Env = s.clientEnv()
+func (s *suite) opts(o commanderOpts) commanderOpts {
+	o.Env = s.commanderEnv()
 	if o.Timeout == 0 {
-		o.Timeout = clientTimeout
+		o.Timeout = commanderTimeout
 	}
 	return o
 }
 
-func (s *suite) client(t *testing.T, o clientOpts, args ...string) itest.Result {
+func (s *suite) commander(t *testing.T, o commanderOpts, args ...string) itest.Result {
 	t.Helper()
-	return itest.MustRunClient(t, s.opts(o), args...)
+	return itest.MustRunCommander(t, s.opts(o), args...)
 }
 
 func (s *suite) inRepo(t *testing.T, args ...string) itest.Result {
 	t.Helper()
-	return s.client(t, clientOpts{Dir: s.repo}, args...)
+	return s.commander(t, commanderOpts{Dir: s.repo}, args...)
 }
 
-func (s *suite) mustClient(t *testing.T, o clientOpts, args ...string) itest.Result {
+func (s *suite) mustCommander(t *testing.T, o commanderOpts, args ...string) itest.Result {
 	t.Helper()
-	return itest.ClientOK(t, s.opts(o), args...)
+	return itest.CommanderOK(t, s.opts(o), args...)
 }
 
 func (s *suite) mustInRepo(t *testing.T, args ...string) itest.Result {
 	t.Helper()
-	return s.mustClient(t, clientOpts{Dir: s.repo}, args...)
+	return s.mustCommander(t, commanderOpts{Dir: s.repo}, args...)
 }
 
 func decode[T any](t *testing.T, what, stdout string) T {
@@ -225,7 +225,7 @@ func (s *suite) initSampleRepo(t *testing.T) string {
 		t.Fatalf("create the sample checkout: %v", err)
 	}
 	t.Logf("sample checkout: %s", dir)
-	env := s.clientEnv()
+	env := s.commanderEnv()
 
 	copyIn(t, dir, "caramelo.yaml", "main.txt")
 	itest.Git(t, dir, env, "init", "-b", defaultBranch)

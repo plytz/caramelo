@@ -70,7 +70,7 @@ func NewWith(opts Options) (Client, error) {
 func (c *client) Up(ctx context.Context, req UpRequest) (*State, error) {
 	machine := strings.TrimSpace(req.Machine)
 	if machine == "" {
-		return nil, errors.New("no machine: pass --machine NAME (or set default_machine in the client config)")
+		return nil, errors.New("no machine: pass --machine NAME (or set default_machine in the commander config)")
 	}
 	kp, created, err := c.opts.Keys.Ensure(machine)
 	if err != nil {
@@ -323,7 +323,7 @@ func RecordFrom(machine, peerName, publicKey string, st *api.Status, peer *state
 	vs := st.VPN
 	ip, err := netip.ParseAddr(strings.TrimSpace(peer.IP))
 	if err != nil {
-		return Record{}, fmt.Errorf("the address %q allocated for this computer: %w", peer.IP, err)
+		return Record{}, fmt.Errorf("the address %q allocated for the commander: %w", peer.IP, err)
 	}
 	machineIP, err := netip.ParseAddr(strings.TrimSpace(vs.Address))
 	if err != nil {
@@ -427,7 +427,7 @@ func listenPort(vs *api.VPNStatus) int {
 }
 
 var resolveMachineHost = func(machine string) (string, error) {
-	cfg, err := remote.LoadClientConfig()
+	cfg, err := remote.LoadCommanderConfig()
 	if err != nil {
 		return "", err
 	}

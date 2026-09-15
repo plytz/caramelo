@@ -16,7 +16,7 @@ import (
 
 func init() {
 	register(func(a *app) *cobra.Command {
-		return clientCmd(&cobra.Command{
+		return commanderCmd(&cobra.Command{
 			Use:   "status",
 			Short: "Show whether caramelod and Docker are up, and how we reached them",
 			Long: `status answers the first question anyone asks: is the machine working, and

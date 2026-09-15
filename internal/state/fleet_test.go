@@ -443,7 +443,7 @@ func TestAJoinTokenIsRedeemedExactlyOnce(t *testing.T) {
 	s, _ := tempDB(t)
 	ctx := context.Background()
 	now := time.Now().UTC().Truncate(time.Second)
-	tok := JoinToken{Hash: "deadbeef", CreatedBy: "laptop", CreatedAt: now, ExpiresAt: now.Add(time.Hour)}
+	tok := JoinToken{Hash: "deadbeef", CreatedBy: "commander", CreatedAt: now, ExpiresAt: now.Add(time.Hour)}
 	if err := s.AddJoinToken(ctx, tok); err != nil {
 		t.Fatalf("AddJoinToken: %v", err)
 	}

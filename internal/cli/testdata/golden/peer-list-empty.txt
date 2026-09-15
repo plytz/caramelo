@@ -1,1 +1,1 @@
-no peers; add this computer with 'caramelo vpn up'
+no peers; add the commander with 'caramelo vpn up'

@@ -49,6 +49,42 @@ results but the human experience will be tuned to work through a coding agent.
 - **Progressive depth.** `caramelo up` just works. Every knob underneath is reachable.
 - **Local first, then fleet.** Everything works on one machine. The same primitives extend to many.
 
+## The roles
+
+Three words name the machines caramelo deals with, and one names the set of them. They are the only
+role words; anywhere else in the docs or the output, a word that looks like a role is not one.
+
+**commander.** The developer's own machine: the CLI half of caramelo. It is where you type
+`caramelo`, where your key lives, and where `caramelo.yaml` sits in a checkout. It drives a fleet
+over ssh or through the tunnel, and it can also run environments of its own with nothing but Docker.
+The commander is never a machine of the fleet: it holds no fleet state, serves no traffic, and is
+admitted to a machine as a peer like any other identity.
+
+**hub.** The one machine that keeps the fleet's state — the machine list, the environment directory,
+the vault, the releases and the event feed — and acts as the fleet's head. A commander talks to the
+hub; the hub forwards what belongs elsewhere. A machine set up on its own is a hub of one, so
+`hub` is the role every machine starts in.
+
+**member.** Every other machine of the fleet. A member joins a hub, announces what it runs, and
+keeps serving if the hub goes away: its environments, its edge and its containers do not depend on
+the hub being up. `fleet.role` in a machine's config is `hub` or `member`, and nothing else.
+
+**fleet.** The set of machines that behave as one: a hub and its members. Other tools call this a
+cluster; caramelo does not use that word.
+
+Four words that appear all over the code and are **not** roles. **client** keeps its ordinary
+protocol and library meaning — an ssh client, an HTTP client, a TLS client config, a browser, curl,
+the docker client, a third-party WireGuard client you already have, any `*Client` type from a
+library. **node** is never a machine role. Almost always it is Node.js: the `node` stack, a `node:22`
+image, `engines.node`, and the YAML library's `yaml.Node`; where it is neither it is a word from
+something else's vocabulary — Docker's `Swarm.NodeID` and `LocalNodeState`, the kernel's
+`MPOL_F_STATIC_NODES` in a captured `docker info`. That collision
+is exactly why the role is called `member`. **worker** is not a role either — where it appears it is
+a service named `worker` in a `caramelo.yaml` example, or a sample machine hostname. **laptop** is
+not a role either, and no longer names the commander; where it survives it is free-form user text —
+a peer name, an ssh-key name, a fixture directory or an example (`caramelo key add --name laptop`) —
+or a generic device in a list of examples.
+
 ## Development
 
 Docker is required. The integration tests run caramelo inside containers that stand in for real
@@ -82,8 +118,8 @@ user you log in as, and it must be reachable at the address you write in the inv
 machine running the tests and from the other boxes. The fleet suites join machines to each other
 over exactly that address.
 
-The boxes form one caramelo cluster. The first machine in the inventory is the **hub**. Every other
-machine is a **node** that joins the hub's fleet. Three machines run the whole test suite. With
+The boxes form one caramelo fleet. The first machine in the inventory is the **hub**. Every other
+machine is a **member** that joins the hub's fleet. Three machines run the whole test suite. With
 fewer, the cases that need more machines skip with a message naming what they wanted.
 
 End-to-end tests require an inventory file in this format:

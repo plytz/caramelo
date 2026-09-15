@@ -105,7 +105,7 @@ func (a *app) secretsBundleCmd() *cobra.Command {
 }
 
 func (a *app) imagesCmd() *cobra.Command {
-	cmd := clientCmd(&cobra.Command{
+	cmd := commanderCmd(&cobra.Command{
 		Use:    "images",
 		Short:  "Move a release's images between machines (machines only)",
 		Hidden: true,
@@ -224,7 +224,7 @@ func (e *envCmd) syncCmd() *cobra.Command {
 
 func (a *app) pushCheckCmd() *cobra.Command {
 	var repo string
-	cmd := clientCmd(&cobra.Command{
+	cmd := commanderCmd(&cobra.Command{
 		Use:    "push-check",
 		Short:  "Ask whether a push may land (run by the pre-receive hook)",
 		Hidden: true,

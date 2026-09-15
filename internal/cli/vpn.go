@@ -71,14 +71,14 @@ func (a *app) vpnMachine() (string, error) {
 	if m := strings.TrimSpace(a.machine); m != "" && m != "local" {
 		return m, nil
 	}
-	cfg, err := remote.LoadClientConfig()
+	cfg, err := remote.LoadCommanderConfig()
 	if err != nil {
 		return "", err
 	}
 	if cfg.DefaultMachine != "" {
 		return cfg.DefaultMachine, nil
 	}
-	path, _ := remote.ClientConfigPath()
+	path, _ := remote.CommanderConfigPath()
 	return "", &usageError{fmt.Errorf(
 		"no machine to join: pass --machine <name|user@host> (or CARAMELO_MACHINE, "+
 			"or default_machine in %s)", path)}
@@ -89,8 +89,8 @@ func (a *app) vpnUpCmd() *cobra.Command {
 	var transparent bool
 	cmd := &cobra.Command{
 		Use:   "up",
-		Short: "Join the machine's network from this computer",
-		Long: `Generates a key for this computer if it has none, registers it with the
+		Short: "Join the machine's network from the commander",
+		Long: `Generates a key for the commander if it has none, registers it with the
 machine as a peer, and verifies a session through the tunnel. Idempotent: a
 machine already joined is simply re-verified.`,
 		Args: exactArgs(0),
@@ -124,7 +124,7 @@ machine already joined is simply re-verified.`,
 		},
 	}
 	cmd.Flags().StringVar(&peerName, "name", "",
-		"identity to register this computer under (default: <user>-<hostname>)")
+		"identity to register the commander under (default: <user>-<hostname>)")
 	cmd.Flags().BoolVar(&transparent, "transparent", false,
 		"bring the installed background service's interface up instead of using the in-process tunnel")
 	return cmd
@@ -253,7 +253,7 @@ func (a *app) vpnInstallCmd() *cobra.Command {
 		Short: "Install transparent mode: a background service and split DNS (needs root)",
 		Long: `Installs this same binary as a small background service that owns a real
 tunnel interface, and points .internal at the machine's resolver. This is the
-only command that ever needs root on your own computer, and it needs it once.
+only command that ever needs root on the commander, and it needs it once.
 Everything works without it; transparent mode is what makes names and addresses
 work in browsers, psql and everything else.`,
 		Args: exactArgs(0),
@@ -300,7 +300,7 @@ func (a *app) vpnUninstallCmd() *cobra.Command {
 		Use:   "uninstall",
 		Short: "Remove transparent mode's service and DNS entry (needs root)",
 		Long: `Stops and removes the background service and the split-DNS entry. Keys and
-client configuration are left alone, so the default userspace mode keeps
+commander configuration are left alone, so the default userspace mode keeps
 working.`,
 		Args: exactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -323,9 +323,9 @@ func (a *app) vpnConfigCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "config",
 		Short: "Print a wg-quick configuration for a third-party WireGuard client",
-		Long: `Renders a standard wg-quick file for this computer's peer. Nothing in
+		Long: `Renders a standard wg-quick file for the commander's peer. Nothing in
 Caramelo needs it — it is the escape hatch for anyone who would rather use the
-WireGuard client they already have. It contains this computer's private key.`,
+WireGuard client they already have. It contains the commander's private key.`,
 		Args: exactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			machine, err := a.vpnMachine()

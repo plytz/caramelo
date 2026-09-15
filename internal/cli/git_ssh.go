@@ -117,7 +117,7 @@ func (a *app) runGitSSH(ctx context.Context, inv sshInvocationArgs) (int, error)
 	if err != nil {
 		if errors.Is(err, vpnclient.ErrNoKey) {
 			return ExitError, fmt.Errorf(
-				"git-ssh cannot reach %s: this computer has not joined its network (run 'caramelo vpn up'): %w",
+				"git-ssh cannot reach %s: the commander has not joined its network (run 'caramelo vpn up'): %w",
 				inv.Host, err)
 		}
 		return ExitError, err

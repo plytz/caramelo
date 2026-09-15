@@ -245,11 +245,11 @@ func TestViaOfPrefersWhatWasWrittenOverTheFile(t *testing.T) {
 		t.Fatalf("via = %q, want hub", got)
 	}
 
-	if err := f.SetEnvFleetRow(context.Background(), rec.ID, FleetRow{Via: config.ViaNode}); err != nil {
+	if err := f.SetEnvFleetRow(context.Background(), rec.ID, FleetRow{Via: config.ViaMember}); err != nil {
 		t.Fatalf("write the fleet row: %v", err)
 	}
-	if got := h.m.ViaOf(context.Background(), rec, h.cfg); got != config.ViaNode {
-		t.Fatalf("via = %q, want node: what was written wins over the file", got)
+	if got := h.m.ViaOf(context.Background(), rec, h.cfg); got != config.ViaMember {
+		t.Fatalf("via = %q, want member: what was written wins over the file", got)
 	}
 }
 

@@ -19,7 +19,7 @@ func init() {
 
 		t := &envTargets{a: a, env: os.Getenv("CARAMELO_ENV")}
 		var reveal bool
-		group := clientCmd(&cobra.Command{
+		group := commanderCmd(&cobra.Command{
 			Use:   "config",
 			Short: "Inspect the effective caramelo.yaml of an app",
 		})
@@ -68,7 +68,7 @@ and the machine records an event naming you.`,
 				return err
 			}
 			resolveConfigEnv(t, cmd, args)
-			return a.forwardIfClient(cmd)
+			return a.forwardIfCommander(cmd)
 		}
 		return group
 	})

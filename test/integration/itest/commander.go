@@ -17,18 +17,18 @@ import (
 	"time"
 )
 
-const ClientTimeout = 2 * time.Minute
+const CommanderTimeout = 2 * time.Minute
 
-const clientExitUnreachable = 255
+const commanderExitUnreachable = 255
 
-func (m *Machine) ClientMachine(t testing.TB) string {
+func (m *Machine) CommanderMachine(t testing.TB) string {
 	t.Helper()
 	return m.HostAddr(t, CarameloSSHPort)
 }
 
-func (m *Machine) ClientTarget(t testing.TB) string {
+func (m *Machine) CommanderTarget(t testing.TB) string {
 	t.Helper()
-	return CarameloUser + "@" + m.ClientMachine(t)
+	return CarameloUser + "@" + m.CommanderMachine(t)
 }
 
 func (m *Machine) BootstrapTarget(t testing.TB) string {
@@ -48,26 +48,26 @@ func (m *Machine) TunnelTarget(t testing.TB) string {
 	return CarameloUser + "@" + m.SSHAlias()
 }
 
-func ClientHome(t testing.TB, m *Machine) string {
+func CommanderHome(t testing.TB, m *Machine) string {
 	t.Helper()
 	home := t.TempDir()
-	if err := WriteClientHome(home, m); err != nil {
+	if err := WriteCommanderHome(home, m); err != nil {
 		t.Fatalf("itest: %v", err)
 	}
 	return home
 }
 
-func ClientHomeNoPeer(t testing.TB, m *Machine) string {
+func CommanderHomeNoPeer(t testing.TB, m *Machine) string {
 	t.Helper()
 	home := t.TempDir()
-	if err := WriteClientHomeNoPeer(home, m); err != nil {
+	if err := WriteCommanderHomeNoPeer(home, m); err != nil {
 		t.Fatalf("itest: %v", err)
 	}
 	return home
 }
 
-func WriteClientHome(home string, m *Machine) error {
-	if err := WriteClientHomeNoPeer(home, m); err != nil {
+func WriteCommanderHome(home string, m *Machine) error {
+	if err := WriteCommanderHomeNoPeer(home, m); err != nil {
 		return err
 	}
 	if err := JoinLabPeer(home, m); err != nil {
@@ -76,7 +76,7 @@ func WriteClientHome(home string, m *Machine) error {
 	return nil
 }
 
-func WriteClientHomeNoPeer(home string, m *Machine) error {
+func WriteCommanderHomeNoPeer(home string, m *Machine) error {
 	key, _, err := LabSSHKey()
 	if err != nil {
 		return err
@@ -96,14 +96,14 @@ func WriteClientHomeNoPeer(home string, m *Machine) error {
 	if err := os.WriteFile(keyCopy, keyBytes, 0o600); err != nil {
 		return fmt.Errorf("write %s: %w", keyCopy, err)
 	}
-	blocks, err := clientHostBlocks(m, keyCopy)
+	blocks, err := commanderHostBlocks(m, keyCopy)
 	if err != nil {
 		return err
 	}
 	return os.WriteFile(filepath.Join(sshDir, "config"), []byte(blocks), 0o600)
 }
 
-func AddClientHost(home string, m *Machine) error {
+func AddCommanderHost(home string, m *Machine) error {
 	key, _, err := LabSSHKey()
 	if err != nil {
 		return err
@@ -143,7 +143,7 @@ func AddClientHost(home string, m *Machine) error {
 
 const bootstrapAliasSuffix = "-boot"
 
-func clientHostBlocks(m *Machine, key string) (string, error) {
+func commanderHostBlocks(m *Machine, key string) (string, error) {
 	blocks, err := machineHostBlocks(m, key)
 	if err != nil {
 		return "", err
@@ -187,7 +187,7 @@ func sshHostBlock(alias, host string, port int, user, key string) string {
 	return b.String()
 }
 
-func ClientEnv(home string, extra ...string) []string {
+func CommanderEnv(home string, extra ...string) []string {
 	var env []string
 	for _, kv := range os.Environ() {
 		if strings.HasPrefix(kv, "CARAMELO_") || strings.HasPrefix(kv, "HOME=") || strings.HasPrefix(kv, "XDG_CONFIG_HOME=") {
@@ -202,7 +202,7 @@ func ClientEnv(home string, extra ...string) []string {
 	return append(env, extra...)
 }
 
-type ClientOptions struct {
+type CommanderOptions struct {
 	Bin     string
 	Dir     string
 	Env     []string
@@ -210,14 +210,14 @@ type ClientOptions struct {
 	Timeout time.Duration
 }
 
-func RunClient(ctx context.Context, o ClientOptions, args ...string) (Result, error) {
-	bin, err := clientBinary(o)
+func RunCommander(ctx context.Context, o CommanderOptions, args ...string) (Result, error) {
+	bin, err := commanderBinary(o)
 	if err != nil {
 		return Result{}, err
 	}
 	timeout := o.Timeout
 	if timeout == 0 {
-		timeout = ClientTimeout
+		timeout = CommanderTimeout
 	}
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -244,26 +244,26 @@ func RunClient(ctx context.Context, o ClientOptions, args ...string) (Result, er
 	if ctx.Err() != nil {
 		return res, fmt.Errorf("caramelo %s: %w after %s", strings.Join(args, " "), ctx.Err(), timeout)
 	}
-	if res.ExitCode == clientExitUnreachable {
-		return res, fmt.Errorf("caramelo %s: exit %d, the client could not reach the machine: %s",
+	if res.ExitCode == commanderExitUnreachable {
+		return res, fmt.Errorf("caramelo %s: exit %d, the commander could not reach the machine: %s",
 			strings.Join(args, " "), res.ExitCode, strings.TrimSpace(res.Stderr))
 	}
 	return res, nil
 }
 
-func MustRunClient(t testing.TB, o ClientOptions, args ...string) Result {
+func MustRunCommander(t testing.TB, o CommanderOptions, args ...string) Result {
 	t.Helper()
-	res, err := RunClient(context.Background(), o, args...)
+	res, err := RunCommander(context.Background(), o, args...)
 	if err != nil {
 		t.Fatalf("%v\nstdout:\n%sstderr:\n%s", err, res.Stdout, res.Stderr)
 	}
-	t.Logf("[client] caramelo %s: exit %d", strings.Join(args, " "), res.ExitCode)
+	t.Logf("[commander] caramelo %s: exit %d", strings.Join(args, " "), res.ExitCode)
 	return res
 }
 
-func ClientOK(t testing.TB, o ClientOptions, args ...string) Result {
+func CommanderOK(t testing.TB, o CommanderOptions, args ...string) Result {
 	t.Helper()
-	res := MustRunClient(t, o, args...)
+	res := MustRunCommander(t, o, args...)
 	if res.ExitCode != 0 {
 		t.Fatalf("caramelo %s: exit %d\nstdout:\n%sstderr:\n%s",
 			strings.Join(args, " "), res.ExitCode, res.Stdout, res.Stderr)
@@ -284,7 +284,7 @@ func killProcessGroup(cmd *exec.Cmd) {
 	cmd.WaitDelay = ProcessGroupWaitDelay
 }
 
-func clientBinary(o ClientOptions) (string, error) {
+func commanderBinary(o CommanderOptions) (string, error) {
 	if o.Bin != "" {
 		return o.Bin, nil
 	}

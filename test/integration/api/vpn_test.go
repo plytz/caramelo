@@ -23,23 +23,23 @@ const apiPeer = "api-itest-peer"
 func tunnelBox(t *testing.T) (*itest.Machine, *itest.Machine, itest.SSHAPIOptions) {
 	t.Helper()
 	lab := itest.New(t, itest.Options{
-		Suite:   suite,
-		State:   itest.StateProvisioned,
-		Roles:   []string{itest.RoleHub},
-		Laptops: []string{itest.RoleClient},
+		Suite:      suite,
+		State:      itest.StateProvisioned,
+		Roles:      []string{itest.RoleHub},
+		Commanders: []string{itest.RoleCommander},
 	})
 	m, o := ready(t, lab.Machine(itest.RoleHub))
-	laptop := lab.Laptop(itest.RoleClient)
+	commander := lab.Commander(itest.RoleCommander)
 
 	ctx, cancel := context.WithTimeout(context.Background(), itest.Scale(3*time.Minute))
 	defer cancel()
-	if err := itest.InstallBinaryOn(ctx, laptop); err != nil {
-		t.Fatalf("install the client on %s: %v", laptop.Alias, err)
+	if err := itest.InstallBinaryOn(ctx, commander); err != nil {
+		t.Fatalf("install the commander on %s: %v", commander.Alias, err)
 	}
-	return m, laptop, o
+	return m, commander, o
 }
 
-func onLaptop(t *testing.T, l *itest.Machine, env []string, timeout time.Duration, args ...string) itest.Result {
+func onCommander(t *testing.T, l *itest.Machine, env []string, timeout time.Duration, args ...string) itest.Result {
 	t.Helper()
 	line := "env"
 	for _, kv := range env {
@@ -58,9 +58,9 @@ func onLaptop(t *testing.T, l *itest.Machine, env []string, timeout time.Duratio
 	return res
 }
 
-func mustOnLaptop(t *testing.T, l *itest.Machine, env []string, timeout time.Duration, args ...string) itest.Result {
+func mustOnCommander(t *testing.T, l *itest.Machine, env []string, timeout time.Duration, args ...string) itest.Result {
 	t.Helper()
-	res := onLaptop(t, l, env, timeout, args...)
+	res := onCommander(t, l, env, timeout, args...)
 	if res.ExitCode != 0 {
 		t.Fatalf("[%s] caramelo %s: exit %d\nstdout:%s\nstderr:%s",
 			l.Alias, strings.Join(args, " "), res.ExitCode, res.Stdout, res.Stderr)
@@ -69,7 +69,7 @@ func mustOnLaptop(t *testing.T, l *itest.Machine, env []string, timeout time.Dur
 }
 
 func TestTunnelSessionAndIdentity(t *testing.T) {
-	m, laptop, o := tunnelBox(t)
+	m, commander, o := tunnelBox(t)
 	target := itest.CarameloUser + "@" + m.MustAddress(t)
 	env := []string{"CARAMELO_MACHINE=" + target}
 
@@ -77,20 +77,20 @@ func TestTunnelSessionAndIdentity(t *testing.T) {
 		itest.SSHAPIRun(t, o, "peer", "remove", apiPeer)
 	})
 
-	up := mustOnLaptop(t, laptop, env, itest.Scale(3*time.Minute), "vpn", "up", "--name", apiPeer, "--json")
+	up := mustOnCommander(t, commander, env, itest.Scale(3*time.Minute), "vpn", "up", "--name", apiPeer, "--json")
 	st := decodeJSON[vpnclient.State](t, "vpn up", up.Stdout)
 	if st.PeerName != apiPeer || !st.IP.IsValid() {
 		t.Fatalf("vpn up = %+v, want the peer %q with an address", st, apiPeer)
 	}
 
-	laptop.MustRun(t, "rm -rf "+laptop.Home()+"/.ssh")
-	laptop.MustRun(t, "sudo -n rm -f /usr/bin/ssh /bin/ssh /usr/local/bin/ssh")
-	if res := laptop.MustRun(t, "command -v ssh || true"); strings.TrimSpace(res.Stdout) != "" {
+	commander.MustRun(t, "rm -rf "+commander.Home()+"/.ssh")
+	commander.MustRun(t, "sudo -n rm -f /usr/bin/ssh /bin/ssh /usr/local/bin/ssh")
+	if res := commander.MustRun(t, "command -v ssh || true"); strings.TrimSpace(res.Stdout) != "" {
 		t.Fatalf("ssh is still on %s at %q; the tunnel would not be the only way in",
-			laptop.Alias, strings.TrimSpace(res.Stdout))
+			commander.Alias, strings.TrimSpace(res.Stdout))
 	}
 
-	out := mustOnLaptop(t, laptop, env, itest.Scale(2*time.Minute), "status", "--json")
+	out := mustOnCommander(t, commander, env, itest.Scale(2*time.Minute), "status", "--json")
 	status := decodeJSON[capi.Status](t, "status", out.Stdout)
 	if status.Transport != remote.KindTunnel {
 		t.Errorf("transport = %q, want %q", status.Transport, remote.KindTunnel)
@@ -99,7 +99,7 @@ func TestTunnelSessionAndIdentity(t *testing.T) {
 		t.Errorf("identity = %q, want the peer name %q", status.Identity, apiPeer)
 	}
 
-	own := onLaptop(t, laptop, env, itest.Scale(time.Minute), "peer", "remove", apiPeer)
+	own := onCommander(t, commander, env, itest.Scale(time.Minute), "peer", "remove", apiPeer)
 	if own.ExitCode == 0 {
 		t.Errorf("a peer revoked its own identity through its own tunnel and got an answer:\n%s", own.Stdout)
 	}
@@ -111,7 +111,7 @@ func TestTunnelSessionAndIdentity(t *testing.T) {
 		t.Fatalf("revoking %s from the machine: exit %d\nstderr:%s", apiPeer, res.ExitCode, res.Stderr)
 	}
 	started := time.Now()
-	gone := onLaptop(t, laptop, env, itest.Scale(3*time.Minute), "status", "--json")
+	gone := onCommander(t, commander, env, itest.Scale(3*time.Minute), "status", "--json")
 	switch gone.ExitCode {
 	case 0:
 		t.Errorf("the machine still answered %s after the peer was revoked:\n%s",
@@ -129,8 +129,8 @@ func TestTunnelSessionAndIdentity(t *testing.T) {
 
 func TestTunnelSessionFromTheHost(t *testing.T) {
 	m, o := box(t)
-	home := itest.ClientHome(t, m)
-	res := itest.ClientOK(t, itest.ClientOptions{Env: itest.ClientEnv(home)},
+	home := itest.CommanderHome(t, m)
+	res := itest.CommanderOK(t, itest.CommanderOptions{Env: itest.CommanderEnv(home)},
 		"--machine", m.TunnelTarget(t), "status", "--json")
 	st := decodeStatus(t, res.Stdout)
 	if st.Transport != remote.KindTunnel {

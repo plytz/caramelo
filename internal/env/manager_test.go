@@ -138,7 +138,7 @@ func (h *harness) status(name string) string {
 
 func TestCreateTwoEnvsGetDisjointBlocksAndDistinctVars(t *testing.T) {
 	h := newHarness(t)
-	ctx := WithIdentity(context.Background(), "laptop")
+	ctx := WithIdentity(context.Background(), "commander")
 
 	x, err := h.m.Create(ctx, CreateRequest{App: "shop", Name: "feat-x", From: "main"}, &h.out)
 	if err != nil {
@@ -155,7 +155,7 @@ func TestCreateTwoEnvsGetDisjointBlocksAndDistinctVars(t *testing.T) {
 	if x.Commit != mainCommit || y.Commit != featureCommit {
 		t.Errorf("commits = %q and %q, want %q and %q", x.Commit, y.Commit, mainCommit, featureCommit)
 	}
-	if x.CreatedBy != "laptop" {
+	if x.CreatedBy != "commander" {
 		t.Errorf("created_by = %q, want the session identity", x.CreatedBy)
 	}
 	if x.Worktree != WorktreePath(h.data, "shop", "feat-x") {

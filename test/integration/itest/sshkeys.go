@@ -92,7 +92,7 @@ func installLabKeys(ctx context.Context, m *Machine) error {
 	switch m.Kind {
 	case KindMachine:
 		return authorizeLabKey(ctx, m, pub, sshDir+"/authorized_keys")
-	case KindLaptop:
+	case KindCommander:
 		if err := m.Copy(ctx, priv, sshDir+"/id_ed25519"); err != nil {
 			return err
 		}

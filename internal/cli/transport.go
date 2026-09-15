@@ -74,19 +74,19 @@ func forwardImpl(ctx context.Context, a *app) (int, error) {
 
 func resolveTransport(ctx context.Context, a *app) (transport, error) {
 	socketPath, user := daemonSocket()
-	client, err := remote.LoadClientConfig()
+	commander, err := remote.LoadCommanderConfig()
 	if err != nil {
 		return transport{}, err
 	}
 	c, err := remote.Select(ctx, remote.Selection{
 		Machine:      a.machine,
-		Config:       client,
+		Config:       commander,
 		SocketPath:   socketPath,
 		SocketUser:   user,
 		SocketExists: socketExists,
 	})
 	if errors.Is(err, remote.ErrNoMachine) {
-		path, _ := remote.ClientConfigPath()
+		path, _ := remote.CommanderConfigPath()
 		return transport{}, fmt.Errorf(
 			"no local caramelod (no socket at %s) and no machine configured; "+
 				"run 'sudo caramelo server setup' on this machine, or point at one with "+

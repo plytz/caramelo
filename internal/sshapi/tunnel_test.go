@@ -133,7 +133,7 @@ func (h *tunnelHarness) dial(t *testing.T) (*gossh.Client, error) {
 }
 
 func TestTunnelSessionAuthenticatesByPeer(t *testing.T) {
-	h := startTunnelServer(t, serverconfig.APIListenVPN, map[string]string{"127.0.0.1": "laptop"})
+	h := startTunnelServer(t, serverconfig.APIListenVPN, map[string]string{"127.0.0.1": "commander"})
 
 	client, err := h.dial(t)
 	if err != nil {
@@ -148,10 +148,10 @@ func TestTunnelSessionAuthenticatesByPeer(t *testing.T) {
 	if !strings.Contains(stdout, `"name":"transport=tunnel"`) {
 		t.Errorf("the service saw %q, want transport=tunnel", stdout)
 	}
-	if !strings.Contains(stdout, `"type":"identity=laptop"`) {
-		t.Errorf("the service saw %q, want identity=laptop", stdout)
+	if !strings.Contains(stdout, `"type":"identity=commander"`) {
+		t.Errorf("the service saw %q, want identity=commander", stdout)
 	}
-	if got := h.log.String(); !strings.Contains(got, "tunnel laptop:") {
+	if got := h.log.String(); !strings.Contains(got, "tunnel commander:") {
 		t.Errorf("the audit trail says %q, want a line naming the peer", got)
 	}
 }
@@ -182,7 +182,7 @@ func TestTunnelRefusesAnUnknownSource(t *testing.T) {
 
 func TestAPIListenSelectsListeners(t *testing.T) {
 	t.Run("vpn", func(t *testing.T) {
-		h := startTunnelServer(t, serverconfig.APIListenVPN, map[string]string{"127.0.0.1": "laptop"})
+		h := startTunnelServer(t, serverconfig.APIListenVPN, map[string]string{"127.0.0.1": "commander"})
 		if addr := h.server.Addr(); addr != nil {
 			t.Errorf("api_listen: vpn still bound the public listener at %s", addr)
 		}
@@ -200,7 +200,7 @@ func TestAPIListenSelectsListeners(t *testing.T) {
 	})
 
 	t.Run("public", func(t *testing.T) {
-		h := startTunnelServer(t, serverconfig.APIListenPublic, map[string]string{"127.0.0.1": "laptop"})
+		h := startTunnelServer(t, serverconfig.APIListenPublic, map[string]string{"127.0.0.1": "commander"})
 		if h.server.Addr() == nil {
 			t.Fatal("api_listen: public did not bind the public listener")
 		}
@@ -212,7 +212,7 @@ func TestAPIListenSelectsListeners(t *testing.T) {
 	})
 
 	t.Run("both", func(t *testing.T) {
-		h := startTunnelServer(t, serverconfig.APIListenBoth, map[string]string{"127.0.0.1": "laptop"})
+		h := startTunnelServer(t, serverconfig.APIListenBoth, map[string]string{"127.0.0.1": "commander"})
 		if h.server.Addr() == nil {
 			t.Error("api_listen: both did not bind the public listener")
 		}

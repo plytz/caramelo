@@ -29,8 +29,8 @@ func TestM6CommandsAreRegistered(t *testing.T) {
 func TestM6EdgeCommandKinds(t *testing.T) {
 	root := NewRootCmd(&bytes.Buffer{}, &bytes.Buffer{})
 	for _, tc := range []struct {
-		path   []string
-		client bool
+		path      []string
+		commander bool
 	}{
 		{[]string{"edge", "status"}, true},
 		{[]string{"edge", "ca"}, true},
@@ -42,8 +42,8 @@ func TestM6EdgeCommandKinds(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%v: %v", tc.path, err)
 		}
-		if got := isClient(cmd); got != tc.client {
-			t.Errorf("caramelo %s: client command = %v, want %v", cmd.CommandPath(), got, tc.client)
+		if got := isCommander(cmd); got != tc.commander {
+			t.Errorf("caramelo %s: commander command = %v, want %v", cmd.CommandPath(), got, tc.commander)
 		}
 	}
 }
