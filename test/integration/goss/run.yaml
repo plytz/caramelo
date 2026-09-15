@@ -12,6 +12,8 @@ file:
     filetype: file
     owner: caramelo
     group: caramelo
+  /mnt/caramelo/secrets:
+    exists: false
 
 command:
   sudo -u caramelo env XDG_RUNTIME_DIR=/run/user/$(id -u caramelo) DOCKER_HOST=unix:///run/user/$(id -u caramelo)/docker.sock docker network inspect caramelo-sampleapp-feat-x:

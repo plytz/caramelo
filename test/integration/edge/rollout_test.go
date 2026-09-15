@@ -201,9 +201,9 @@ func TestAFailedRolloutChangesNothing(t *testing.T) {
 	}
 
 	copyAs(t, repo, "health.unhealthy.py", "health.py")
-	itest.GitCommitAll(t, repo, clientEnv(), "sampleapp: a health check that never passes")
+	itest.GitCommitAll(t, repo, commanderEnv(), "sampleapp: a health check that never passes")
 
-	res := client(t, clientOpts{Dir: repo, Timeout: itest.Scale(6 * time.Minute)},
+	res := commander(t, commanderOpts{Dir: repo, Timeout: itest.Scale(6 * time.Minute)},
 		"up", envX, "--json", "--timeout", "60s")
 	if res.ExitCode != 1 {
 		load.Stop()
@@ -267,7 +267,7 @@ func TestAFailedRolloutChangesNothing(t *testing.T) {
 	})
 
 	copyIn(t, repo, "health.py")
-	itest.GitCommitAll(t, repo, clientEnv(), "sampleapp: a health check that passes again")
+	itest.GitCommitAll(t, repo, commanderEnv(), "sampleapp: a health check that passes again")
 	out := up(t, envX)
 	if roll := rolloutOf(t, "up "+envX, out.Rollouts, webService); roll.Failed != nil {
 		t.Fatalf("the recovery rollout failed at %+v", roll.Failed)

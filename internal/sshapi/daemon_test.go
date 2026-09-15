@@ -154,13 +154,13 @@ func newTestDaemon(t *testing.T) (*Daemon, *fakeStore) {
 
 func TestDaemonStatus(t *testing.T) {
 	d, _ := newTestDaemon(t)
-	ctx := WithSession(context.Background(), api.Session{Transport: TransportSSH, Identity: "laptop", Machine: "box"})
+	ctx := WithSession(context.Background(), api.Session{Transport: TransportSSH, Identity: "commander", Machine: "box"})
 
 	st, err := d.Status(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if st.Transport != TransportSSH || st.Identity != "laptop" || st.Machine != "box" {
+	if st.Transport != TransportSSH || st.Identity != "commander" || st.Machine != "box" {
 		t.Errorf("session fields = %+v, want the ones from the context", st)
 	}
 	if st.HostKeyFingerprint != "SHA256:host" {

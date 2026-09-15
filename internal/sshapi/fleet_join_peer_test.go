@@ -310,8 +310,8 @@ func TestOnlyAMachinesOwnHubMayRetireIt(t *testing.T) {
 		t.Fatalf("error = %v, want a refusal naming the hub", err)
 	}
 
-	laptop := WithSession(context.Background(), api.Session{Transport: "tunnel", Identity: "laptop"})
-	if err := member.MachineRemoved(laptop); err == nil ||
+	commander := WithSession(context.Background(), api.Session{Transport: "tunnel", Identity: "commander"})
+	if err := member.MachineRemoved(commander); err == nil ||
 		!strings.Contains(err.Error(), "machine remove") {
 		t.Fatalf("error = %v, want the command a person runs instead", err)
 	}
@@ -527,7 +527,7 @@ func TestForcedRemovalDoesNotDependOnReachingTheMachine(t *testing.T) {
 	}
 	if err := store.PutDirectoryEntry(ctx, state.DirectoryRow{
 		App: "shop", Env: "feat-p", Machine: "m2", Address: "10.81.0.1",
-		Owner: "laptop", Mode: "dev", UpdatedAt: time.Unix(1, 0),
+		Owner: "commander", Mode: "dev", UpdatedAt: time.Unix(1, 0),
 	}); err != nil {
 		t.Fatalf("write the directory row: %v", err)
 	}
@@ -562,7 +562,7 @@ func TestARemovalForgetsTheMachineBeforeItsEnvironments(t *testing.T) {
 	}
 	if err := store.PutDirectoryEntry(ctx, state.DirectoryRow{
 		App: "shop", Env: "feat-p", Machine: "m2", Address: "10.81.0.1",
-		Owner: "laptop", Mode: "dev", UpdatedAt: time.Unix(1, 0),
+		Owner: "commander", Mode: "dev", UpdatedAt: time.Unix(1, 0),
 	}); err != nil {
 		t.Fatalf("write the directory row: %v", err)
 	}

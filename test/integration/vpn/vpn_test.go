@@ -35,10 +35,10 @@ func TestVPN(t *testing.T) {
 		{"GitPushOverTheTunnel", s.gitPushOverTheTunnel},
 		{"PeerAddAndRemoveAnotherIdentity", s.peerAddAndRemoveAnotherIdentity},
 		{"VPNConfigRendersWgQuick", s.vpnConfigRendersWgQuick},
-		{"TransparentModeOnTheClient", s.transparentModeOnTheClient},
+		{"TransparentModeOnTheCommander", s.transparentModeOnTheCommander},
 		{"ConcurrentUseOfTheTunnel", s.concurrentUseOfTheTunnel},
 		{"EnvDestroyFreesTheAddress", s.envDestroyFreesTheAddress},
-		{"PeerRemoveSilencesTheClient", s.peerRemoveSilencesTheClient},
+		{"PeerRemoveSilencesTheCommander", s.peerRemoveSilencesTheCommander},
 		{"ZZFinalState", s.zzFinalState},
 		{"ZZTunnelSurvivesAPowerCycle", s.zzTunnelSurvivesAPowerCycle},
 	} {
@@ -47,11 +47,11 @@ func TestVPN(t *testing.T) {
 }
 
 func (s *suite) vpnUp(t *testing.T) {
-	up := fmt.Sprintf("vpn up --machine %s --name %s --json", s.boxIP, clientPeer)
-	res := s.clientCaramelo(t, up)
+	up := fmt.Sprintf("vpn up --machine %s --name %s --json", s.boxIP, commanderPeer)
+	res := s.commanderCaramelo(t, up)
 	if res.ExitCode != 0 {
 		t.Fatalf("vpn up on %s: exit %d\nstdout:%s\nstderr:%s",
-			s.client.Alias, res.ExitCode, res.Stdout, res.Stderr)
+			s.commander.Alias, res.ExitCode, res.Stdout, res.Stderr)
 	}
 	st := decode[vpnclient.State](t, "vpn up", res.Stdout)
 
@@ -59,8 +59,8 @@ func (s *suite) vpnUp(t *testing.T) {
 		t.Errorf("mode = %q, want %q: nothing may be installed for the default mode",
 			st.Mode, vpnclient.ModeUserspace)
 	}
-	if st.PeerName != clientPeer {
-		t.Errorf("peer_name = %q, want %q", st.PeerName, clientPeer)
+	if st.PeerName != commanderPeer {
+		t.Errorf("peer_name = %q, want %q", st.PeerName, commanderPeer)
 	}
 	if st.PublicKey == "" {
 		t.Error("vpn up reported no public key")
@@ -73,17 +73,17 @@ func (s *suite) vpnUp(t *testing.T) {
 		t.Error("vpn up returned with no handshake: it must verify a session through the tunnel")
 	}
 
-	key := s.clientKeyPath()
-	perm := s.runOnClient(t, "stat -c %a "+itest.ShellQuote(key), itest.Scale(time.Minute))
+	key := s.commanderKeyPath()
+	perm := s.runOnCommander(t, "stat -c %a "+itest.ShellQuote(key), itest.Scale(time.Minute))
 	if perm.ExitCode != 0 {
 		t.Fatalf("no private key at %s on %s: exit %d: %s",
-			key, s.client.Alias, perm.ExitCode, strings.TrimSpace(perm.Stderr))
+			key, s.commander.Alias, perm.ExitCode, strings.TrimSpace(perm.Stderr))
 	}
 	if got := strings.TrimSpace(perm.Stdout); got != "600" {
 		t.Errorf("%s mode = %s, want 600", key, got)
 	}
 	if st.PublicKey != "" {
-		leak := s.runOnClient(t, fmt.Sprintf("grep -qF %s %s",
+		leak := s.runOnCommander(t, fmt.Sprintf("grep -qF %s %s",
 			itest.ShellQuote(st.PublicKey), itest.ShellQuote(key)), itest.Scale(time.Minute))
 		if leak.ExitCode == 0 {
 			t.Error("the private key file contains the public key verbatim; keys must not be confused")
@@ -91,20 +91,20 @@ func (s *suite) vpnUp(t *testing.T) {
 	}
 
 	peers := s.listPeers(t, s.withSSH())
-	p, ok := peers[clientPeer]
+	p, ok := peers[commanderPeer]
 	if !ok {
-		t.Fatalf("peer %q not in peer list: %v", clientPeer, keysOf(peers))
+		t.Fatalf("peer %q not in peer list: %v", commanderPeer, keysOf(peers))
 	}
 	if p.IP != st.IP.String() {
-		t.Errorf("peer %s ip = %q, the client says %s", clientPeer, p.IP, st.IP)
+		t.Errorf("peer %s ip = %q, the commander says %s", commanderPeer, p.IP, st.IP)
 	}
 	if p.PublicKey != st.PublicKey {
-		t.Errorf("peer %s public key = %q, the client says %q", clientPeer, p.PublicKey, st.PublicKey)
+		t.Errorf("peer %s public key = %q, the commander says %q", commanderPeer, p.PublicKey, st.PublicKey)
 	}
 
-	again := s.clientCaramelo(t, up)
+	again := s.commanderCaramelo(t, up)
 	if again.ExitCode != 0 {
-		t.Fatalf("a second vpn up on %s: exit %d\nstderr:%s", s.client.Alias, again.ExitCode, again.Stderr)
+		t.Fatalf("a second vpn up on %s: exit %d\nstderr:%s", s.commander.Alias, again.ExitCode, again.Stderr)
 	}
 	if st2 := decode[vpnclient.State](t, "vpn up (again)", again.Stdout); st2.IP != st.IP {
 		t.Errorf("a second vpn up moved the address: %s -> %s", st.IP, st2.IP)
@@ -113,14 +113,14 @@ func (s *suite) vpnUp(t *testing.T) {
 
 func (s *suite) tunnelIsTheOnlyWayIn(t *testing.T) {
 	if err := os.RemoveAll(s.home + "/.ssh"); err != nil {
-		t.Fatalf("removing the laptop's ssh key: %v", err)
+		t.Fatalf("removing the commander's ssh key: %v", err)
 	}
 	if p, ok := itest.LookPathIn(s.noSSHPath, "ssh"); ok {
 		t.Fatalf("the test PATH still has ssh at %s", p)
 	}
-	t.Logf("the laptop now has no ssh key and no ssh binary; PATH=%s", s.noSSHPath)
+	t.Logf("the commander now has no ssh key and no ssh binary; PATH=%s", s.noSSHPath)
 
-	res := itest.ClientOK(t, s.opts(s.clientEnv()), "status", "--json")
+	res := itest.CommanderOK(t, s.opts(s.commanderEnv()), "status", "--json")
 	st := decode[capi.Status](t, "status", res.Stdout)
 	if st.Transport != remote.KindTunnel {
 		t.Errorf("transport = %q, want %q", st.Transport, remote.KindTunnel)
@@ -139,13 +139,13 @@ func (s *suite) tunnelIsTheOnlyWayIn(t *testing.T) {
 		t.Errorf("peers = %d, want at least this one", st.VPN.Peers)
 	}
 
-	itest.ClientOK(t, s.opts(s.clientEnv()), "env", "list", "--json")
+	itest.CommanderOK(t, s.opts(s.commanderEnv()), "env", "list", "--json")
 }
 
 func (s *suite) envGetsAnAddress(t *testing.T) {
 	s.pushSample(t, defaultBranch)
 
-	res := itest.ClientOK(t, s.opts(s.clientEnv()), "env", "create", envName, "--from", defaultBranch, "--json")
+	res := itest.CommanderOK(t, s.opts(s.commanderEnv()), "env", "create", envName, "--from", defaultBranch, "--json")
 	e := decode[envRecord](t, "env create", res.Stdout)
 	if e.Status != cenv.StatusReady {
 		t.Fatalf("env create: status %q, want %q", e.Status, cenv.StatusReady)
@@ -214,7 +214,7 @@ func (s *suite) connectOpensLocalPorts(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), itest.Scale(2*time.Minute))
 	defer cancel()
-	session, err := itest.Connect(ctx, s.opts(s.clientEnv()), envName)
+	session, err := itest.Connect(ctx, s.opts(s.commanderEnv()), envName)
 	if err != nil {
 		t.Fatalf("caramelo connect %s: %v", envName, err)
 	}
@@ -312,7 +312,7 @@ func (s *suite) gitPushOverTheTunnel(t *testing.T) {
 
 		ctx, cancel := context.WithTimeout(context.Background(), itest.Scale(2*time.Minute))
 		defer cancel()
-		session, err := itest.Connect(ctx, s.opts(s.clientEnv()), envName)
+		session, err := itest.Connect(ctx, s.opts(s.commanderEnv()), envName)
 		if err != nil {
 			t.Fatalf("caramelo connect %s: %v", envName, err)
 		}
@@ -330,17 +330,17 @@ func (s *suite) gitPushOverTheTunnel(t *testing.T) {
 func (s *suite) peerAddAndRemoveAnotherIdentity(t *testing.T) {
 	pub := generatePublicKey(t)
 	t.Cleanup(func() {
-		_, _ = itest.RunClient(context.Background(), s.opts(s.clientEnv()), "peer", "remove", agentPeer)
+		_, _ = itest.RunCommander(context.Background(), s.opts(s.commanderEnv()), "peer", "remove", agentPeer)
 	})
 
-	res := itest.ClientOK(t, s.opts(s.clientEnv()), "peer", "add", agentPeer, pub, "--json")
+	res := itest.CommanderOK(t, s.opts(s.commanderEnv()), "peer", "add", agentPeer, pub, "--json")
 	added := decode[state.Peer](t, "peer add", res.Stdout)
 	if added.Name != agentPeer || added.PublicKey != pub {
 		t.Errorf("peer add returned %+v, want %s with the key it was given", added, agentPeer)
 	}
 	inSubnet(t, "peer add ip", addr(t, "peer add ip", added.IP), vpn.KindPeer)
 
-	peers := s.listPeers(t, s.clientEnv())
+	peers := s.listPeers(t, s.commanderEnv())
 	if _, ok := peers[agentPeer]; !ok {
 		t.Fatalf("peer %q not listed after peer add: %v", agentPeer, keysOf(peers))
 	}
@@ -348,22 +348,22 @@ func (s *suite) peerAddAndRemoveAnotherIdentity(t *testing.T) {
 		t.Errorf("two peers share the address %s", peers[agentPeer].IP)
 	}
 
-	itest.ClientOK(t, s.opts(s.clientEnv()), "peer", "add", agentPeer, pub, "--json")
-	if again := s.listPeers(t, s.clientEnv()); again[agentPeer].IP != peers[agentPeer].IP {
+	itest.CommanderOK(t, s.opts(s.commanderEnv()), "peer", "add", agentPeer, pub, "--json")
+	if again := s.listPeers(t, s.commanderEnv()); again[agentPeer].IP != peers[agentPeer].IP {
 		t.Errorf("re-adding %s moved its address: %s -> %s",
 			agentPeer, peers[agentPeer].IP, again[agentPeer].IP)
 	}
 
-	itest.ClientOK(t, s.opts(s.clientEnv()), "peer", "remove", agentPeer)
-	if left := s.listPeers(t, s.clientEnv()); left[agentPeer].Name != "" {
+	itest.CommanderOK(t, s.opts(s.commanderEnv()), "peer", "remove", agentPeer)
+	if left := s.listPeers(t, s.commanderEnv()); left[agentPeer].Name != "" {
 		t.Errorf("peer %q is still listed after peer remove", agentPeer)
 	}
 }
 
 func (s *suite) vpnConfigRendersWgQuick(t *testing.T) {
-	res := s.clientCaramelo(t, "vpn config --machine "+s.boxIP)
+	res := s.commanderCaramelo(t, "vpn config --machine "+s.boxIP)
 	if res.ExitCode != 0 {
-		t.Fatalf("vpn config on %s: exit %d\nstderr:%s", s.client.Alias, res.ExitCode, res.Stderr)
+		t.Fatalf("vpn config on %s: exit %d\nstderr:%s", s.commander.Alias, res.ExitCode, res.Stderr)
 	}
 	for _, want := range []string{"[Interface]", "PrivateKey", "Address", "[Peer]", "PublicKey", "Endpoint", "AllowedIPs"} {
 		if !strings.Contains(res.Stdout, want) {
@@ -375,39 +375,39 @@ func (s *suite) vpnConfigRendersWgQuick(t *testing.T) {
 	}
 }
 
-func (s *suite) transparentModeOnTheClient(t *testing.T) {
+func (s *suite) transparentModeOnTheCommander(t *testing.T) {
 	s.needEnv(t)
 
-	s.joinClient(t)
-	s.writeClientConfig(t, s.boxIP)
+	s.joinCommander(t)
+	s.writeCommanderConfig(t, s.boxIP)
 
-	if res := s.sudoClientCaramelo(t, "vpn install --machine "+s.boxIP+" --json"); res.ExitCode != 0 {
+	if res := s.sudoCommanderCaramelo(t, "vpn install --machine "+s.boxIP+" --json"); res.ExitCode != 0 {
 		t.Fatalf("sudo caramelo vpn install on %s: exit %d\nstdout:%s\nstderr:%s",
-			s.client.Alias, res.ExitCode, res.Stdout, res.Stderr)
+			s.commander.Alias, res.ExitCode, res.Stdout, res.Stderr)
 	}
-	if res := s.clientCaramelo(t, "vpn up --transparent --machine "+s.boxIP+" --json"); res.ExitCode != 0 {
-		t.Fatalf("vpn up --transparent on %s: exit %d\nstderr:%s", s.client.Alias, res.ExitCode, res.Stderr)
+	if res := s.commanderCaramelo(t, "vpn up --transparent --machine "+s.boxIP+" --json"); res.ExitCode != 0 {
+		t.Fatalf("vpn up --transparent on %s: exit %d\nstderr:%s", s.commander.Alias, res.ExitCode, res.Stderr)
 	}
 
 	host := vpn.ServiceHost(appName, envName, "db")
-	res := s.runOnClient(t, "getent hosts "+host, itest.Scale(time.Minute))
+	res := s.runOnCommander(t, "getent hosts "+host, itest.Scale(time.Minute))
 	if res.ExitCode != 0 || !strings.Contains(res.Stdout, s.envAddress) {
 		t.Errorf("getent hosts %s on %s: exit %d, stdout %q, want %s",
-			host, s.client.Alias, res.ExitCode, res.Stdout, s.envAddress)
+			host, s.commander.Alias, res.ExitCode, res.Stdout, s.envAddress)
 	}
-	if res := s.runOnClient(t, "getent hosts nope."+appName+"."+vpn.Domain, itest.Scale(time.Minute)); res.ExitCode == 0 {
-		t.Errorf("an unknown .internal name resolved on %s: %q", s.client.Alias, res.Stdout)
+	if res := s.runOnCommander(t, "getent hosts nope."+appName+"."+vpn.Domain, itest.Scale(time.Minute)); res.ExitCode == 0 {
+		t.Errorf("an unknown .internal name resolved on %s: %q", s.commander.Alias, res.Stdout)
 	}
 
 	script := fmt.Sprintf("python3 -c 'import socket; s=socket.create_connection((\"%s\", 5432), %d); "+
 		"print(\"connected\", s.getpeername()); s.close()'", host, int(itest.Scale(10*time.Second).Seconds()))
-	if res := s.runOnClient(t, script, itest.Scale(time.Minute)); res.ExitCode != 0 ||
+	if res := s.runOnCommander(t, script, itest.Scale(time.Minute)); res.ExitCode != 0 ||
 		!strings.Contains(res.Stdout, "connected") {
 		t.Errorf("tcp to %s:5432 from %s: exit %d\nstdout:%s\nstderr:%s",
-			host, s.client.Alias, res.ExitCode, res.Stdout, res.Stderr)
+			host, s.commander.Alias, res.ExitCode, res.Stdout, res.Stderr)
 	}
 
-	itest.RunGoss(t, s.client, itest.MustGossSpec(t, "vpn.yaml"))
+	itest.RunGoss(t, s.commander, itest.MustGossSpec(t, "vpn.yaml"))
 
 	t.Run("http and udp to the environment's services", func(t *testing.T) {
 		urls := s.envURLs(t, envName)
@@ -415,12 +415,12 @@ func (s *suite) transparentModeOnTheClient(t *testing.T) {
 		if !ok {
 			t.Fatalf("env url %s lists no web service: %+v", envName, urls)
 		}
-		itest.EnsureCurl(t, s.client)
-		res := s.runOnClient(t, fmt.Sprintf("curl -sS --max-time %d %s/",
+		itest.EnsureCurl(t, s.commander)
+		res := s.runOnCommander(t, fmt.Sprintf("curl -sS --max-time %d %s/",
 			int(itest.Scale(20*time.Second).Seconds()), web.InternalURL), itest.Scale(2*time.Minute))
 		if res.ExitCode != 0 || !strings.Contains(res.Stdout, envName) {
 			t.Errorf("curl %s/ on %s: exit %d\nstdout:%s\nstderr:%s",
-				web.InternalURL, s.client.Alias, res.ExitCode, res.Stdout, res.Stderr)
+				web.InternalURL, s.commander.Alias, res.ExitCode, res.Stdout, res.Stderr)
 		}
 		echoHost := vpn.ServiceHost(appName, envName, "echo")
 		script := fmt.Sprintf(`python3 -c 'import socket, sys
@@ -437,36 +437,36 @@ for _ in range(5):
         s.close()
 print("no answer:", last, file=sys.stderr)
 sys.exit(1)'`, echoHost)
-		if res := s.runOnClient(t, script, itest.Scale(time.Minute)); res.ExitCode != 0 ||
+		if res := s.runOnCommander(t, script, itest.Scale(time.Minute)); res.ExitCode != 0 ||
 			!strings.Contains(res.Stdout, "caramelo") {
 			t.Errorf("udp to %s:9001 from %s: exit %d\nstdout:%s\nstderr:%s",
-				echoHost, s.client.Alias, res.ExitCode, res.Stdout, res.Stderr)
+				echoHost, s.commander.Alias, res.ExitCode, res.Stdout, res.Stderr)
 		}
 	})
 }
 
-func (s *suite) joinClient(t *testing.T) {
+func (s *suite) joinCommander(t *testing.T) {
 	t.Helper()
-	up := "vpn up --machine " + s.boxIP + " --name " + clientPeer + " --json"
-	res := s.clientCaramelo(t, up)
+	up := "vpn up --machine " + s.boxIP + " --name " + commanderPeer + " --json"
+	res := s.commanderCaramelo(t, up)
 	if res.ExitCode == 0 {
-		t.Logf("%s joined the network on its own", s.client.Alias)
+		t.Logf("%s joined the network on its own", s.commander.Alias)
 		return
 	}
 	t.Logf("%s could not register itself (exit %d: %s); admitting it from the host",
-		s.client.Alias, res.ExitCode, strings.TrimSpace(res.Stderr))
+		s.commander.Alias, res.ExitCode, strings.TrimSpace(res.Stderr))
 
-	st := decode[vpnclient.State](t, "vpn status on "+s.client.Alias,
-		s.clientCaramelo(t, "vpn status --machine "+s.boxIP+" --json").Stdout)
+	st := decode[vpnclient.State](t, "vpn status on "+s.commander.Alias,
+		s.commanderCaramelo(t, "vpn status --machine "+s.boxIP+" --json").Stdout)
 	if st.PublicKey == "" {
 		t.Fatalf("%s has no key to admit: `vpn up` failed and `vpn status` reports none. "+
-			"A client that cannot reach the API must still generate its key so an existing "+
-			"peer can add it.", s.client.Alias)
+			"A commander that cannot reach the API must still generate its key so an existing "+
+			"peer can add it.", s.commander.Alias)
 	}
-	itest.ClientOK(t, s.opts(s.clientEnv()), "peer", "add", clientPeer, st.PublicKey, "--json")
-	if res := s.clientCaramelo(t, up); res.ExitCode != 0 {
+	itest.CommanderOK(t, s.opts(s.commanderEnv()), "peer", "add", commanderPeer, st.PublicKey, "--json")
+	if res := s.commanderCaramelo(t, up); res.ExitCode != 0 {
 		t.Fatalf("vpn up on %s after peer add: exit %d\nstdout:%s\nstderr:%s",
-			s.client.Alias, res.ExitCode, res.Stdout, res.Stderr)
+			s.commander.Alias, res.ExitCode, res.Stdout, res.Stderr)
 	}
 }
 
@@ -476,7 +476,7 @@ func (s *suite) concurrentUseOfTheTunnel(t *testing.T) {
 	t.Run("one device carries many conversations at once", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), itest.Scale(2*time.Minute))
 		defer cancel()
-		session, err := itest.Connect(ctx, s.opts(s.clientEnv()), envName)
+		session, err := itest.Connect(ctx, s.opts(s.commanderEnv()), envName)
 		if err != nil {
 			t.Fatalf("caramelo connect %s: %v", envName, err)
 		}
@@ -536,18 +536,18 @@ func (s *suite) concurrentUseOfTheTunnel(t *testing.T) {
 	})
 
 	t.Run("many processes at once in transparent mode", func(t *testing.T) {
-		if peers := s.listPeers(t, s.clientEnv()); peers[clientPeer].Name == "" {
-			t.Skipf("%s is not a peer; transparent mode never came up", s.client.Alias)
+		if peers := s.listPeers(t, s.commanderEnv()); peers[commanderPeer].Name == "" {
+			t.Skipf("%s is not a peer; transparent mode never came up", s.commander.Alias)
 		}
 		const n = 4
 		cmd := fmt.Sprintf("for i in $(seq %d); do %s env list --json > /tmp/list.$i.json 2>/tmp/list.$i.err & done; wait; "+
 			"for i in $(seq %d); do python3 -c \"import json,sys; json.load(open('/tmp/list.$i.json'))\" || "+
 			"{ echo \"run $i:\"; cat /tmp/list.$i.err; exit 1; }; done; echo all-ok",
 			n, itest.CarameloBinary, n)
-		res := s.runOnClient(t, cmd, itest.Scale(3*time.Minute))
+		res := s.runOnCommander(t, cmd, itest.Scale(3*time.Minute))
 		if res.ExitCode != 0 || !strings.Contains(res.Stdout, "all-ok") {
 			t.Errorf("%d concurrent commands on %s: exit %d\nstdout:%s\nstderr:%s",
-				n, s.client.Alias, res.ExitCode, res.Stdout, res.Stderr)
+				n, s.commander.Alias, res.ExitCode, res.Stdout, res.Stderr)
 		}
 	})
 }
@@ -556,13 +556,13 @@ func (s *suite) envDestroyFreesTheAddress(t *testing.T) {
 	s.needEnv(t)
 	freed := s.envAddress
 
-	itest.ClientOK(t, s.opts(s.clientEnv()), "env", "destroy", envName, "--yes")
+	itest.CommanderOK(t, s.opts(s.commanderEnv()), "env", "destroy", envName, "--yes")
 	s.envAddress = ""
 
 	script := fmt.Sprintf("python3 -c 'import socket;\ns=socket.socket()\ns.settimeout(5)\nimport sys\n"+
 		"try:\n    s.connect((\"%s\", 5432))\nexcept OSError as e:\n    print(\"refused\", e); sys.exit(0)\n"+
 		"print(\"connected\"); sys.exit(1)'", freed)
-	if res := s.runOnClient(t, script, itest.Scale(time.Minute)); res.ExitCode != 0 {
+	if res := s.runOnCommander(t, script, itest.Scale(time.Minute)); res.ExitCode != 0 {
 		t.Errorf("%s:5432 still answered after destroy: exit %d\nstdout:%s\nstderr:%s",
 			freed, res.ExitCode, res.Stdout, res.Stderr)
 	}
@@ -572,7 +572,7 @@ func (s *suite) envDestroyFreesTheAddress(t *testing.T) {
 	deadline := time.Now().Add(allowed)
 	var last itest.Result
 	for {
-		last = s.runOnClient(t, "getent hosts "+host, itest.Scale(time.Minute))
+		last = s.runOnCommander(t, "getent hosts "+host, itest.Scale(time.Minute))
 		if last.ExitCode != 0 || time.Now().After(deadline) {
 			break
 		}
@@ -584,30 +584,30 @@ func (s *suite) envDestroyFreesTheAddress(t *testing.T) {
 	}
 
 	s.pushSample(t, defaultBranch)
-	res := itest.ClientOK(t, s.opts(s.clientEnv()), "env", "create", nextEnvName, "--from", defaultBranch, "--json")
+	res := itest.CommanderOK(t, s.opts(s.commanderEnv()), "env", "create", nextEnvName, "--from", defaultBranch, "--json")
 	e := decode[envRecord](t, "env create "+nextEnvName, res.Stdout)
 	t.Cleanup(func() {
-		_, _ = itest.RunClient(context.Background(), s.opts(s.clientEnv()), "env", "destroy", nextEnvName, "--yes")
+		_, _ = itest.RunCommander(context.Background(), s.opts(s.commanderEnv()), "env", "destroy", nextEnvName, "--yes")
 	})
 	if e.VPNIP != freed {
 		t.Errorf("%s got %s; %s freed %s and it is the lowest free address", nextEnvName, e.VPNIP, envName, freed)
 	}
 }
 
-func (s *suite) peerRemoveSilencesTheClient(t *testing.T) {
-	if peers := s.listPeers(t, s.clientEnv()); peers[clientPeer].Name == "" {
-		t.Skipf("%s never joined the network; nothing to revoke", s.client.Alias)
+func (s *suite) peerRemoveSilencesTheCommander(t *testing.T) {
+	if peers := s.listPeers(t, s.commanderEnv()); peers[commanderPeer].Name == "" {
+		t.Skipf("%s never joined the network; nothing to revoke", s.commander.Alias)
 	}
-	itest.ClientOK(t, s.opts(s.clientEnv()), "peer", "remove", clientPeer)
+	itest.CommanderOK(t, s.opts(s.commanderEnv()), "peer", "remove", commanderPeer)
 
 	started := time.Now()
-	res := s.clientCaramelo(t, "status --json --machine "+s.boxIP)
+	res := s.commanderCaramelo(t, "status --json --machine "+s.boxIP)
 	switch {
 	case res.ExitCode == 0:
 		t.Errorf("%s still reached the machine %s after its peer was removed:\n%s",
-			s.client.Alias, time.Since(started).Round(time.Second), res.Stdout)
+			s.commander.Alias, time.Since(started).Round(time.Second), res.Stdout)
 	case res.ExitCode == 1:
-		t.Logf("%s gave up after %s: %s", s.client.Alias, time.Since(started).Round(time.Second),
+		t.Logf("%s gave up after %s: %s", s.commander.Alias, time.Since(started).Round(time.Second),
 			strings.TrimSpace(res.Stderr))
 	default:
 		t.Errorf("exit = %d after %s, want 1: a revoked peer is an error, never a usage error and never 255\nstderr:%s",
@@ -618,7 +618,7 @@ func (s *suite) peerRemoveSilencesTheClient(t *testing.T) {
 	}
 
 	st := decode[vpnclient.State](t, "vpn status",
-		s.clientCaramelo(t, "vpn status --json --machine "+s.boxIP).Stdout)
+		s.commanderCaramelo(t, "vpn status --json --machine "+s.boxIP).Stdout)
 	if !st.LastHandshake.IsZero() && st.LastHandshake.After(started) {
 		t.Errorf("vpn status reports a handshake at %s, after the peer was removed at %s",
 			st.LastHandshake, started)
@@ -626,7 +626,7 @@ func (s *suite) peerRemoveSilencesTheClient(t *testing.T) {
 }
 
 func (s *suite) zzFinalState(t *testing.T) {
-	res := itest.ClientOK(t, s.opts(s.clientEnv()), "status", "--json")
+	res := itest.CommanderOK(t, s.opts(s.commanderEnv()), "status", "--json")
 	st := decode[capi.Status](t, "status", res.Stdout)
 	if st.VPN == nil {
 		t.Fatal("status carries no tunnel section")
@@ -665,15 +665,15 @@ func (s *suite) zzFinalState(t *testing.T) {
 	}
 
 	now := decode[capi.Status](t, "status",
-		itest.ClientOK(t, s.opts(s.clientEnv()), "status", "--json").Stdout)
+		itest.CommanderOK(t, s.opts(s.commanderEnv()), "status", "--json").Stdout)
 	if now.VPN == nil || now.VPN.APIListen != serverconfig.APIListenVPN {
 		t.Errorf("status through the tunnel says api_listen %+v", now.VPN)
 	}
 	if now.Transport != remote.KindTunnel {
 		t.Errorf("transport = %q, want %q", now.Transport, remote.KindTunnel)
 	}
-	itest.ClientOK(t, s.opts(s.clientEnv()), "env", "list", "--json")
-	itest.ClientOK(t, s.opts(s.clientEnv()), "peer", "list", "--json")
+	itest.CommanderOK(t, s.opts(s.commanderEnv()), "env", "list", "--json")
+	itest.CommanderOK(t, s.opts(s.commanderEnv()), "peer", "list", "--json")
 }
 
 func (s *suite) setAPIListen(t *testing.T, mode string) {
@@ -699,11 +699,11 @@ func (s *suite) setAPIListen(t *testing.T, mode string) {
 
 func (s *suite) zzTunnelSurvivesAPowerCycle(t *testing.T) {
 	before := decode[capi.Status](t, "status",
-		itest.ClientOK(t, s.opts(s.clientEnv()), "status", "--json").Stdout)
+		itest.CommanderOK(t, s.opts(s.commanderEnv()), "status", "--json").Stdout)
 	if before.VPN == nil || before.VPN.PublicKey == "" {
 		t.Fatalf("the machine reports no network to survive anything: %+v", before.VPN)
 	}
-	peersBefore := s.listPeers(t, s.clientEnv())
+	peersBefore := s.listPeers(t, s.commanderEnv())
 
 	itest.MustRestart(t, s.box)
 
@@ -740,12 +740,12 @@ func (s *suite) zzTunnelSurvivesAPowerCycle(t *testing.T) {
 
 	s.boxIP = s.box.MustAddress(t)
 	s.tunnel = s.recordMachine(t)
-	if err := itest.WriteClientHome(s.home, s.box); err != nil {
-		t.Fatalf("rewrite the client home after the power cycle: %v", err)
+	if err := itest.WriteCommanderHome(s.home, s.box); err != nil {
+		t.Fatalf("rewrite the commander home after the power cycle: %v", err)
 	}
 
 	after := decode[capi.Status](t, "status",
-		itest.ClientOK(t, s.opts(s.clientEnv()), "status", "--json").Stdout)
+		itest.CommanderOK(t, s.opts(s.commanderEnv()), "status", "--json").Stdout)
 	if after.Transport != remote.KindTunnel {
 		t.Errorf("transport = %q, want %q after the power cycle", after.Transport, remote.KindTunnel)
 	}

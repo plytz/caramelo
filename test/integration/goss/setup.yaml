@@ -128,6 +128,12 @@ file:
     owner: caramelo
     group: caramelo
     mode: "0660"
+  /run/caramelo/secrets:
+    exists: true
+    filetype: directory
+    owner: caramelo
+    group: caramelo
+    mode: "0700"
 
   /etc/sysctl.d/80-caramelo-lowports.conf:
     exists: false
@@ -142,6 +148,12 @@ file:
     filetype: file
     contents:
       - "Delegate=cpu cpuset io memory pids"
+  /etc/tmpfiles.d/caramelo.conf:
+    exists: true
+    filetype: file
+    contents:
+      - "d /run/caramelo 0750 caramelo caramelo -"
+      - "d /run/caramelo/secrets 0700 caramelo caramelo -"
   /etc/subuid:
     exists: true
     contents:

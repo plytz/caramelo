@@ -131,7 +131,7 @@ func applyEdgeTestKnobs(opts *edge.Options, getenv func(string) string, warn io.
 }
 
 func (a *app) edgeStatusCmd() *cobra.Command {
-	return clientCmd(&cobra.Command{
+	return commanderCmd(&cobra.Command{
 		Use:   "status",
 		Short: "Show the machine's routes, targets and certificates",
 		Long: `Reports what the edge is serving right now: every route with the environment
@@ -387,7 +387,7 @@ func (a *app) runEdgeSetup(ctx context.Context, cfg serverconfig.Config, configD
 }
 
 func (a *app) edgeCACmd() *cobra.Command {
-	return clientCmd(&cobra.Command{
+	return commanderCmd(&cobra.Command{
 		Use:   "ca",
 		Short: "Print the machine's internal CA root, to trust it",
 		Long: `On a machine running 'tls: internal' — one whose hostnames have no public
@@ -480,7 +480,7 @@ func describeTargetStates(routes []edge.Route) string {
 
 func (a *app) edgeCountsCmd() *cobra.Command {
 	var since time.Duration
-	cmd := clientCmd(&cobra.Command{
+	cmd := commanderCmd(&cobra.Command{
 		Use:   "counts",
 		Short: "Requests, errors and connection failures per hostname and replica",
 		Long: `counts reports what the edge has served since --since ago (default: since it

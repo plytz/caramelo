@@ -193,12 +193,12 @@ func TestRebootRecovery(t *testing.T) {
 		}
 	})
 
-	refreshClient(t)
+	refreshCommander(t)
 
 	t.Run("a session through the tunnel works", func(t *testing.T) {
 		waitUntil(t, atLeast(deadline, recoveryBudget), "a session through the tunnel", func() error {
-			res, err := itest.RunClient(context.Background(),
-				itest.ClientOptions{Env: clientEnv(t), Timeout: itest.Scale(30 * time.Second)}, "status", "--json")
+			res, err := itest.RunCommander(context.Background(),
+				itest.CommanderOptions{Env: commanderEnv(t), Timeout: itest.Scale(30 * time.Second)}, "status", "--json")
 			if err != nil {
 				return err
 			}
@@ -224,7 +224,7 @@ func TestRebootRecovery(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), itest.Scale(30*time.Second))
 			defer cancel()
 			session, err := itest.Connect(ctx,
-				itest.ClientOptions{Env: clientEnv(t), Timeout: itest.Scale(30 * time.Second)},
+				itest.CommanderOptions{Env: commanderEnv(t), Timeout: itest.Scale(30 * time.Second)},
 				envName, "--app", envApp, "cache")
 			if err != nil {
 				return err

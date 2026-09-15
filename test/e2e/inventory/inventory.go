@@ -45,13 +45,13 @@ func (inv Inventory) Hub() (Machine, bool) {
 	return inv.Machines[0], true
 }
 
-func (inv Inventory) Nodes() []Machine {
+func (inv Inventory) Members() []Machine {
 	if len(inv.Machines) < 2 {
 		return nil
 	}
-	nodes := make([]Machine, len(inv.Machines)-1)
-	copy(nodes, inv.Machines[1:])
-	return nodes
+	members := make([]Machine, len(inv.Machines)-1)
+	copy(members, inv.Machines[1:])
+	return members
 }
 
 func LoadEnv() (Inventory, string, error) {

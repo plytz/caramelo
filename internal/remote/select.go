@@ -17,7 +17,7 @@ var ErrNoMachine = errors.New("no caramelod to talk to")
 type Selection struct {
 	Machine string
 
-	Config ClientConfig
+	Config CommanderConfig
 
 	SocketPath string
 	SocketUser string
@@ -69,7 +69,7 @@ func Select(ctx context.Context, s Selection) (Choice, error) {
 		if err != nil {
 			return Choice{}, err
 		}
-		return s.remote(ctx, target, "default_machine in client config")
+		return s.remote(ctx, target, "default_machine in commander config")
 	}
 
 	return Choice{}, ErrNoMachine

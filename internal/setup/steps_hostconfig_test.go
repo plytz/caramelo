@@ -29,6 +29,7 @@ func configuredHost(env *Env) *testutil.FakeRunner {
 	run := testutil.New()
 	run.Respond("test -d /sys/module/br_netfilter", runner.Result{})
 	run.Stdout("stat -c %U:%G:%a:%F -- /run/caramelo", "caramelo:caramelo:750:directory\n")
+	run.Stdout("stat -c %U:%G:%a:%F -- /run/caramelo/secrets", "caramelo:caramelo:700:directory\n")
 	for _, f := range (&HostConfigStep{}).files(env) {
 		run.Stdout("stat -c %U:%G:%a:%F -- "+f.Path, "root:root:644:regular file\n")
 		run.Stdout("cat -- "+f.Path, f.Content)
@@ -45,7 +46,8 @@ func TestHostConfigCheckOnABareBox(t *testing.T) {
 	if done {
 		t.Fatal("Check() said done on an unconfigured box")
 	}
-	for _, want := range []string{ModulesFile, DelegateFile, TmpfilesFile, "br_netfilter not loaded", "/run/caramelo missing"} {
+	for _, want := range []string{ModulesFile, DelegateFile, TmpfilesFile, "br_netfilter not loaded",
+		"/run/caramelo missing", "/run/caramelo/secrets missing"} {
 		if !strings.Contains(detail, want) {
 			t.Errorf("detail %q does not mention %q", detail, want)
 		}
@@ -129,8 +131,16 @@ func TestHostConfigApply(t *testing.T) {
 		t.Errorf("low ports were configured without --low-ports:\n%s", run.Transcript())
 	}
 	call, _ := run.Find("tee -- " + TmpfilesFile)
-	if !strings.Contains(call.Stdin, "d /run/caramelo 0750 caramelo caramelo -") {
+	runLine := strings.Index(call.Stdin, "d /run/caramelo 0750 caramelo caramelo -")
+	if runLine < 0 {
 		t.Errorf("tmpfiles line = %q", call.Stdin)
+	}
+	secretsLine := strings.Index(call.Stdin, "d /run/caramelo/secrets 0700 caramelo caramelo -")
+	if secretsLine < 0 {
+		t.Errorf("tmpfiles wrote no secrets directory: %q", call.Stdin)
+	}
+	if runLine >= 0 && secretsLine >= 0 && secretsLine < runLine {
+		t.Errorf("the secrets directory is created before its parent: %q", call.Stdin)
 	}
 	call, _ = run.Find("tee -- " + DelegateFile)
 	if !strings.Contains(call.Stdin, "Delegate=cpu cpuset io memory pids") {

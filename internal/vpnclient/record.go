@@ -97,7 +97,7 @@ func (r Record) CheckRoutable() error {
 	for _, a := range []struct {
 		what string
 		ip   netip.Addr
-	}{{"this computer's address", r.IP}, {"the machine's address", r.MachineIP}} {
+	}{{"the commander's address", r.IP}, {"the machine's address", r.MachineIP}} {
 		if !subnet.Contains(a.ip) {
 			return fmt.Errorf("the record for %s puts %s (%s) outside its own range %s",
 				r.Machine, a.what, a.ip, subnet)

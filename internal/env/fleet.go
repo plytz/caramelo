@@ -66,7 +66,7 @@ func (m *Manager) setFleetRow(ctx context.Context, envID int64, row FleetRow) er
 
 func (m *Manager) ViaOf(ctx context.Context, rec *state.EnvRecord, cfg *config.App) config.Via {
 	if rec == nil {
-		return config.ViaNode
+		return config.ViaMember
 	}
 	if row := m.fleetRow(ctx, rec.ID); row.Via != "" {
 		return row.Via
@@ -74,7 +74,7 @@ func (m *Manager) ViaOf(ctx context.Context, rec *state.EnvRecord, cfg *config.A
 	if cfg != nil {
 		return cfg.ViaOf(rec.Name)
 	}
-	return config.ViaNode
+	return config.ViaMember
 }
 
 func (m *Manager) directoryEntry(ctx context.Context, rec *state.EnvRecord) fleet.DirectoryEntry {

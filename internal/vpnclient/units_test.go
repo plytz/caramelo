@@ -144,7 +144,7 @@ func TestInstallLinux(t *testing.T) {
 	}
 	if strings.Contains(run.joined(), "setcap cap_net_admin+eip /usr/local/bin/caramelo") {
 		t.Errorf("the capability was granted to the shared binary; every local user "+
-			"could then create interfaces and rewrite this computer's routes:\n%s", run.joined())
+			"could then create interfaces and rewrite the commander's routes:\n%s", run.joined())
 	}
 	if installed, err := inst.Installed(context.Background()); err != nil || !installed {
 		t.Fatalf("Installed after installing = %v, %v", installed, err)

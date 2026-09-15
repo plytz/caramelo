@@ -81,7 +81,7 @@ func newLogger(level int, w io.Writer) *device.Logger {
 func ipcConfig(rec Record, private string) (string, error) {
 	priv, err := KeyHex(private)
 	if err != nil {
-		return "", fmt.Errorf("this computer's private key: %w", err)
+		return "", fmt.Errorf("this peer's private key: %w", err)
 	}
 	pub, err := KeyHex(rec.MachineKey)
 	if err != nil {

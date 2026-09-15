@@ -293,7 +293,7 @@ func TestMachineGroupIsRegistered(t *testing.T) {
 	}
 }
 
-func TestClientCommandsAreForwardedWhenThereIsNoService(t *testing.T) {
+func TestCommanderCommandsAreForwardedWhenThereIsNoService(t *testing.T) {
 
 	for _, args := range [][]string{{"status"}, {"machine", "show"}} {
 		code, stdout, _ := run(t, args...)

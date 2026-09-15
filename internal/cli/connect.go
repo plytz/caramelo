@@ -114,7 +114,7 @@ can read the ports it was given.`,
 
 func noKeyError(machine string, err error) error {
 	if errors.Is(err, vpnclient.ErrNoKey) {
-		return fmt.Errorf("this computer has not joined the network of %s: run 'caramelo vpn up'", machine)
+		return fmt.Errorf("the commander has not joined the network of %s: run 'caramelo vpn up'", machine)
 	}
 	return err
 }

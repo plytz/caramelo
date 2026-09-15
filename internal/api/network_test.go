@@ -292,7 +292,7 @@ func key(t *testing.T, seed byte) string {
 
 func TestAddPeerAllocatesAnAddressAndInstallsIt(t *testing.T) {
 	n, store, dev := newNetwork(t)
-	ctx := env.WithIdentity(context.Background(), "laptop")
+	ctx := env.WithIdentity(context.Background(), "commander")
 
 	p, err := n.AddPeer(ctx, "agent-7", key(t, 1))
 	if err != nil {
@@ -302,7 +302,7 @@ func TestAddPeerAllocatesAnAddressAndInstallsIt(t *testing.T) {
 	if p.IP != "10.86.0.2" {
 		t.Errorf("address = %q, want 10.86.0.2", p.IP)
 	}
-	if p.AddedBy != "laptop" {
+	if p.AddedBy != "commander" {
 		t.Errorf("added_by = %q, want the caller's identity", p.AddedBy)
 	}
 	if got, ok := dev.peer("agent-7"); !ok || got.IP.String() != "10.86.0.2" {

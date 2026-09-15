@@ -60,7 +60,7 @@ all.`,
 	cmd.Flags().StringVar(&service, "service", "", "service to expose (default: the first one with a port)")
 	cmd.Flags().StringVar(&host, "host", "", "hostname to route (default: derived from the app's domain)")
 	cmd.Flags().StringVar(&e.exposeVia, "via", "",
-		"whose edge serves the name: `node` (the machine it runs on, the default) or `hub`")
+		"whose edge serves the name: `member` (the machine it runs on, the default) or `hub`")
 	return cmd
 }
 

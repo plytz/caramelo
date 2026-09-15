@@ -106,7 +106,7 @@ func errDaemonIsOlder(a *app) error {
 	if a.machine != "" {
 		target = a.machine
 	}
-	return fmt.Errorf("%s runs a caramelod older than this client: it does not understand --progress, "+
+	return fmt.Errorf("%s runs a caramelod older than this commander: it does not understand --progress, "+
 		"which every command is forwarded with since M7. Upgrade it with "+
 		"`caramelo server setup --target <user@host>` (or run the same version on both sides)", target)
 }

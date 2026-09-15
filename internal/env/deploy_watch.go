@@ -71,7 +71,7 @@ func (r *deployRun) interrupted(ctx context.Context) error {
 	if r.detached {
 		return r.abandon(ctx)
 	}
-	return errClientGone
+	return errCommanderGone
 }
 
 func (r *deployRun) watchPassed(ctx context.Context) {
@@ -114,14 +114,14 @@ func (r *deployRun) await(ctx context.Context) error {
 
 var errHandedOff = errors.New("the watch continues in the daemon")
 
-var errClientGone = errors.New("the client that started this deploy is gone")
+var errCommanderGone = errors.New("the commander that started this deploy is gone")
 
 func (r *deployRun) watchAll(ctx context.Context) error {
 	err := r.watch(ctx)
 	if errors.Is(err, errHandedOff) {
 		return r.await(ctx)
 	}
-	if errors.Is(err, errClientGone) {
+	if errors.Is(err, errCommanderGone) {
 
 		r.detached = true
 		return r.watchAll(ctx)
@@ -462,7 +462,7 @@ func (m *Manager) resume(ctx context.Context, row state.Deploy) error {
 	if DeployStatus(row.Status) != DeployWatching {
 
 		r.step(ctx, DeployStep{Step: StepRollback, Status: StepOK,
-			Detail: "caramelod restarted before the switch, so this deploy never reached a client"})
+			Detail: "caramelod restarted before the switch, so this deploy never reached a commander"})
 		r.d.Status, r.d.Reason, r.d.FinishedAt = DeployRolledBack,
 			"caramelod restarted at "+row.Status, m.now()
 		r.cleanStrays(ctx)
@@ -507,7 +507,7 @@ func (m *Manager) adopt(ctx context.Context, rec *state.EnvRecord) (*deployWait,
 	if err != nil {
 		return nil, false
 	}
-	m.takeOverWatch(ctx, rec, r, "this deploy was left watching by a client that is gone; caramelod picked it up")
+	m.takeOverWatch(ctx, rec, r, "this deploy was left watching by a commander that is gone; caramelod picked it up")
 	return r.wait, true
 }
 

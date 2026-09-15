@@ -70,7 +70,7 @@ func TestSelectOrder(t *testing.T) {
 
 	t.Run("default_machine when there is no socket", func(t *testing.T) {
 		s := selection()
-		s.Config = ClientConfig{DefaultMachine: "box", Machines: map[string]string{"box": "alex@10.0.0.5:4023"}}
+		s.Config = CommanderConfig{DefaultMachine: "box", Machines: map[string]string{"box": "alex@10.0.0.5:4023"}}
 		got, err := Select(ctx, s)
 		if err != nil {
 			t.Fatal(err)

@@ -66,7 +66,7 @@ func tunnelDaemon(t *testing.T) string {
 }
 
 func TestResolveTransportPrefersTheTunnel(t *testing.T) {
-	noClientConfig(t)
+	noCommanderConfig(t)
 	useSystemConfigDir(t, t.TempDir())
 	probe := installTunnel(t, "127.0.0.1:1", nil)
 
@@ -89,7 +89,7 @@ func TestResolveTransportPrefersTheTunnel(t *testing.T) {
 }
 
 func TestResolveTransportFallsBackToSSH(t *testing.T) {
-	noClientConfig(t)
+	noCommanderConfig(t)
 	useSystemConfigDir(t, t.TempDir())
 	installTunnel(t, "", remote.ErrNoTunnel)
 
@@ -103,7 +103,7 @@ func TestResolveTransportFallsBackToSSH(t *testing.T) {
 }
 
 func TestResolveTransportReportsABrokenTunnel(t *testing.T) {
-	noClientConfig(t)
+	noCommanderConfig(t)
 	useSystemConfigDir(t, t.TempDir())
 	boom := errors.New("no handshake with box after 10s")
 	installTunnel(t, "", boom)
@@ -115,7 +115,7 @@ func TestResolveTransportReportsABrokenTunnel(t *testing.T) {
 }
 
 func TestResolveTransportSocketIgnoresTheTunnel(t *testing.T) {
-	noClientConfig(t)
+	noCommanderConfig(t)
 	runDir := testutil.ShortDir(t)
 	useSystemConfigDir(t, writeServerConfig(t, runDir))
 	makeSocket(t, runDir, false)
@@ -134,7 +134,7 @@ func TestResolveTransportSocketIgnoresTheTunnel(t *testing.T) {
 }
 
 func TestForwardThroughTheTunnel(t *testing.T) {
-	noClientConfig(t)
+	noCommanderConfig(t)
 	useSystemConfigDir(t, t.TempDir())
 	probe := installTunnel(t, tunnelDaemon(t), nil)
 

@@ -146,7 +146,7 @@ func TestExposeHandsOverAndAnswersWithTheWholeTruth(t *testing.T) {
 	}
 	d.SetEdgeManager(m)
 
-	ctx := WithSession(context.Background(), api.Session{Transport: "ssh", Identity: "laptop"})
+	ctx := WithSession(context.Background(), api.Session{Transport: "ssh", Identity: "commander"})
 	res, err := d.Expose(ctx, env.ExposeRequest{App: "shop", Name: "feat-x", Service: "api"})
 	if err != nil {
 		t.Fatalf("Expose: %v", err)
@@ -154,7 +154,7 @@ func TestExposeHandsOverAndAnswersWithTheWholeTruth(t *testing.T) {
 	if m.exposeReq.Service != "api" || m.exposeReq.Name != "feat-x" {
 		t.Errorf("the request reached the route table as %+v", m.exposeReq)
 	}
-	if m.identity != "laptop" {
+	if m.identity != "commander" {
 		t.Errorf("identity = %q, want the session's key name on every route change", m.identity)
 	}
 	if res.Env.Name != "feat-x" || len(res.Routes) != 2 || len(res.Changed) != 1 {

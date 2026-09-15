@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-var ClientTools = []string{"git", "sh", "env", "uname", "cat", "sed"}
+var CommanderTools = []string{"git", "sh", "env", "uname", "cat", "sed"}
 
 var HiddenTools = []string{"ssh", "scp", "sshpass"}
 
@@ -42,7 +42,7 @@ func isExecutable(p string) bool {
 
 func NoSSHPath(dir, pathEnv string, tools ...string) (string, error) {
 	if len(tools) == 0 {
-		tools = ClientTools
+		tools = CommanderTools
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", fmt.Errorf("no-ssh PATH: %w", err)

@@ -22,12 +22,12 @@ the machine's private network by its WireGuard public key. The machine never
 answers a packet from a key it does not know, and every command that arrives
 through the tunnel is logged under the peer's name.
 
-'caramelo vpn up' adds this computer as a peer; these commands are for adding
+'caramelo vpn up' adds the commander as a peer; these commands are for adding
 the others.`,
 		}
 		asGroup(cmd)
 		cmd.AddCommand(a.peerAddCmd(), a.peerListCmd(), a.peerRemoveCmd())
-		return clientCmd(cmd)
+		return commanderCmd(cmd)
 	})
 }
 
@@ -75,7 +75,7 @@ func renderPeers(w io.Writer, peers []state.Peer) error { return peersView(peers
 
 func peersView(peers []state.Peer) *ui.View {
 	if len(peers) == 0 {
-		return ui.NewView().Text("no peers; add this computer with 'caramelo vpn up'")
+		return ui.NewView().Text("no peers; add the commander with 'caramelo vpn up'")
 	}
 	t := ui.NewTable("NAME", "ADDRESS", "PUBLIC KEY", "ADDED BY", "LAST HANDSHAKE")
 	for _, p := range peers {

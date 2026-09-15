@@ -98,7 +98,7 @@ func machineJoinedFixture() *api.MachineJoinResult {
 func fleetEnvRows() []envRow {
 	rows := envRows([]env.Env{sampleEnv(), releaseEnvFixture()})
 	rows[0].Machine, rows[0].Owner, rows[0].Via = "nx2", "agent-a", "hub"
-	rows[1].Machine, rows[1].Owner, rows[1].Via = "hub", "ci", "node"
+	rows[1].Machine, rows[1].Owner, rows[1].Via = "hub", "ci", "member"
 	return rows
 }
 
@@ -226,10 +226,10 @@ func TestMachineRemoveNeedsYes(t *testing.T) {
 
 	var stdout, errBuf bytes.Buffer
 	if code := Run([]string{"machine", "remove", "nx3"}, &stdout, &errBuf); code != ExitUsage {
-		t.Errorf("on a client: exit = %d, want %d (usage)", code, ExitUsage)
+		t.Errorf("on a commander: exit = %d, want %d (usage)", code, ExitUsage)
 	}
 	if !strings.Contains(errBuf.String(), "--yes") {
-		t.Errorf("client stderr = %q", errBuf.String())
+		t.Errorf("commander stderr = %q", errBuf.String())
 	}
 }
 
@@ -502,7 +502,7 @@ func TestMachineAddPointsTheTicketAtTheHubItIsTalkingTo(t *testing.T) {
 		t.Fatalf("the rewritten ticket does not parse: %v", err)
 	}
 	if back.Endpoint != "192.168.56.11:4021" {
-		t.Errorf("endpoint = %q, want the address this computer uses with the hub's port", back.Endpoint)
+		t.Errorf("endpoint = %q, want the address the commander uses with the hub's port", back.Endpoint)
 	}
 	if back.Secret != ticket.Secret || back.PublicKey != ticket.PublicKey {
 		t.Errorf("the rewrite changed more than the endpoint: %+v", back.Redacted())

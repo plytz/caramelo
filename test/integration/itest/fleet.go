@@ -11,12 +11,12 @@ import (
 	"github.com/plytz/caramelo/internal/serverconfig"
 )
 
-func PrepareNodes(l *Lab, state string) error {
-	nodes := l.Nodes()
-	if len(nodes) == 0 {
-		return fmt.Errorf("no machine plays the %q role in suite %s", RoleNode, l.Suite)
+func PrepareMembers(l *Lab, state string) error {
+	members := l.Members()
+	if len(members) == 0 {
+		return fmt.Errorf("no machine plays the %q role in suite %s", RoleMember, l.Suite)
 	}
-	for _, m := range nodes {
+	for _, m := range members {
 		if err := Reset(m, state); err != nil {
 			return fmt.Errorf("reset %s to %q: %w", m.Alias, state, err)
 		}
@@ -24,7 +24,7 @@ func PrepareNodes(l *Lab, state string) error {
 	return nil
 }
 
-func ReleaseNodes(l *Lab) error { return PrepareNodes(l, StateClean) }
+func ReleaseMembers(l *Lab) error { return PrepareMembers(l, StateClean) }
 
 func SSHTarget(ctx context.Context, m *Machine) (string, error) {
 	addr, err := m.Address(ctx)
@@ -42,7 +42,7 @@ func HubEndpoint(ctx context.Context, hub *Machine) (string, error) {
 	return fmt.Sprintf("%s:%d", addr, VPNPort), nil
 }
 
-func NodeNames(n int) []string {
+func MemberNames(n int) []string {
 	out := make([]string, 0, n)
 	for i := 1; i <= n; i++ {
 		out = append(out, fmt.Sprintf("m%d", i))

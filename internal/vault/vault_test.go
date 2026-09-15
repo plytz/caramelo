@@ -3,6 +3,8 @@ package vault
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -172,14 +174,64 @@ func TestKeyPathAndModes(t *testing.T) {
 	if got := KeyPath("/var/lib/caramelo"); got != "/var/lib/caramelo/vault.key" {
 		t.Errorf("KeyPath = %q", got)
 	}
-	if got := SecretsDir("/run/caramelo"); got != "/run/caramelo/secrets" {
-		t.Errorf("SecretsDir = %q", got)
+	if got, err := SecretsDir("/run/caramelo"); err != nil || got != "/run/caramelo/secrets" {
+		t.Errorf("SecretsDir = %q, %v", got, err)
 	}
 	if KeyMode != 0o600 || SecretsFileMode != 0o600 || SecretsDirMode != 0o700 {
 		t.Error("a vault file or directory is readable by somebody else")
 	}
 	if KeySize != 32 {
 		t.Errorf("KeySize = %d, want 32 (AES-256)", KeySize)
+	}
+}
+
+func TestSecretsDirIsTheRunDirectoryOrNothing(t *testing.T) {
+	dir, err := SecretsDir("/run/caramelo")
+	if err != nil {
+		t.Fatalf("SecretsDir(\"/run/caramelo\"): %v", err)
+	}
+	if dir != "/run/caramelo/secrets" {
+		t.Errorf("SecretsDir(\"/run/caramelo\") = %q, want /run/caramelo/secrets", dir)
+	}
+
+	for _, runDir := range []string{"", "   ", "run", "./run", "run/caramelo"} {
+		dir, err := SecretsDir(runDir)
+		if !errors.Is(err, ErrNoRunDir) {
+			t.Errorf("SecretsDir(%q) = %v, want %v", runDir, err, ErrNoRunDir)
+		}
+		if dir != "" {
+			t.Errorf("SecretsDir(%q) handed back %q instead of nothing", runDir, dir)
+		}
+	}
+
+	for _, dir := range []string{"", "   ", "relative/secrets"} {
+		if err := EnsureSecretsDir(dir); !errors.Is(err, ErrNoRunDir) {
+			t.Errorf("EnsureSecretsDir(%q) = %v, want %v", dir, err, ErrNoRunDir)
+		}
+	}
+
+	made, err := SecretsDir(t.TempDir())
+	if err != nil {
+		t.Fatalf("SecretsDir of a temporary run directory: %v", err)
+	}
+	if err := EnsureSecretsDir(made); err != nil {
+		t.Fatalf("EnsureSecretsDir(%q): %v", made, err)
+	}
+	info, err := os.Stat(made)
+	if err != nil {
+		t.Fatalf("stat %s: %v", made, err)
+	}
+	if !info.IsDir() {
+		t.Errorf("%s is not a directory", made)
+	}
+	if got := info.Mode().Perm(); got != SecretsDirMode {
+		t.Errorf("%s is mode %#o, want %#o", made, got, SecretsDirMode)
+	}
+	if err := EnsureSecretsDir(made); err != nil {
+		t.Errorf("EnsureSecretsDir a second time: %v", err)
+	}
+	if base := filepath.Base(made); base != SecretsDirName {
+		t.Errorf("the directory made is %s, want one named %s", base, SecretsDirName)
 	}
 }
 

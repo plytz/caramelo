@@ -119,7 +119,7 @@ func TestLookupRefusesNamesOutsideTheDomain(t *testing.T) {
 		t.Fatalf("err = %v, want NXDOMAIN", err)
 	}
 	if asked {
-		t.Fatal("a query for a public name left this computer")
+		t.Fatal("a query for a public name left the commander")
 	}
 }
 

@@ -54,21 +54,21 @@ func (m *Manager) setViaLocked(ctx context.Context, rec *state.EnvRecord, via co
 }
 
 func (m *Manager) canServeVia(via config.Via) error {
-	if via == config.ViaNode && m.fw().Private {
+	if via == config.ViaMember && m.fw().Private {
 		return fmt.Errorf("this machine was joined with --private, so it has no public listener and "+
 			"cannot serve a name itself: leave it on `--via %s`, or re-add the machine without --private",
 			config.ViaHub)
 	}
 	if via == config.ViaHub && m.fw().Fleet == nil {
 		return fmt.Errorf("this machine is not part of a fleet, so there is no hub to serve the name: " +
-			"join it to one with `caramelo machine join`, or use `--via node`")
+			"join it to one with `caramelo machine join`, or use `--via member`")
 	}
 	return nil
 }
 
 func (m *Manager) viaName(via config.Via) string {
 	if via != config.ViaHub {
-		return string(config.ViaNode)
+		return string(config.ViaMember)
 	}
 	if name := m.hubName(context.Background()); name != "" {
 		return "the hub (" + name + ")"

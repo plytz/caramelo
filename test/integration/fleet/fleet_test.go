@@ -307,7 +307,7 @@ func TestAPushIntoARemoteBranch(t *testing.T) {
 
 	worktree := showEnv(t, remoteEnv).Env.Worktree
 	onBox(t, box, fmt.Sprintf("sudo sh -c 'echo dirty >> %s/version.py'", worktree))
-	before := itest.GitRefs(t, repo, clientEnv(), hubRemote())
+	before := itest.GitRefs(t, repo, commanderEnv(), hubRemote())
 	setVersion(t, "3")
 	refused, err := tryPushBranch(t, branch+":"+remoteEnv)
 	if err != nil {
@@ -320,7 +320,7 @@ func TestAPushIntoARemoteBranch(t *testing.T) {
 	if !strings.Contains(said, "uncommitted") {
 		t.Errorf("the refusal does not mention the uncommitted work:\n%s%s", refused.Stdout, refused.Stderr)
 	}
-	after := itest.GitRefs(t, repo, clientEnv(), hubRemote())
+	after := itest.GitRefs(t, repo, commanderEnv(), hubRemote())
 	if after["refs/heads/"+remoteEnv] != before["refs/heads/"+remoteEnv] {
 		t.Errorf("the hub's %s moved despite the refusal: %s -> %s",
 			remoteEnv, before["refs/heads/"+remoteEnv], after["refs/heads/"+remoteEnv])
@@ -633,14 +633,14 @@ func TestViaTheHub(t *testing.T) {
 			host, m2, before.Targets, after.Targets)
 	}
 
-	if res := inRepo(t, "env", "expose", "feat-p", "--via", "node", "--json"); res.ExitCode == 0 {
-		t.Error("`env expose --via node` on a private member was accepted")
+	if res := inRepo(t, "env", "expose", "feat-p", "--via", "member", "--json"); res.ExitCode == 0 {
+		t.Error("`env expose --via member` on a private member was accepted")
 	} else if !strings.Contains(res.Stdout+res.Stderr, "private") {
 		t.Errorf("the refusal does not name --private:\n%s%s", res.Stdout, res.Stderr)
 	}
 	if joinedM1 && remoteEnv != "" {
 		m1Host := envHost(remoteEnv)
-		mustInRepo(t, "env", "expose", remoteEnv, "--host", m1Host, "--via", "node", "--json")
+		mustInRepo(t, "env", "expose", remoteEnv, "--host", m1Host, "--via", "member", "--json")
 		assertServes(t, needM1(t), m1Host)
 		mustInRepo(t, "env", "expose", remoteEnv, "--host", m1Host, "--via", "hub", "--json")
 		assertServes(t, hub, m1Host)
@@ -726,9 +726,9 @@ func TestHandoff(t *testing.T) {
 	needRemoteEnv(t)
 
 	me := whoAmI(t, home)
-	other := secondLaptop(t)
+	other := secondCommander(t)
 	if me == other {
-		t.Fatalf("both laptop HOMEs still authenticate as %q; a handoff needs two identities", me)
+		t.Fatalf("both commander HOMEs still authenticate as %q; a handoff needs two identities", me)
 	}
 	before := showEnv(t, remoteEnv)
 	if before.Env.Owner != me {
@@ -744,16 +744,16 @@ func TestHandoff(t *testing.T) {
 	mineHere := listEnvs(t, "--all", "--mine")
 	for _, e := range mineHere {
 		if e.Name == remoteEnv {
-			t.Errorf("`env list --mine` on the old owner's laptop still lists %s", remoteEnv)
+			t.Errorf("`env list --mine` on the old owner's commander still lists %s", remoteEnv)
 		}
 	}
-	res := client(t, clientOpts{Dir: repo, Home: otherHome}, "env", "list", "--all", "--mine", "--json")
+	res := commander(t, commanderOpts{Dir: repo, Home: otherHome}, "env", "list", "--all", "--mine", "--json")
 	if res.ExitCode != 0 {
-		t.Fatalf("env list --mine on the second laptop: exit %d\nstderr:\n%s", res.ExitCode, res.Stderr)
+		t.Fatalf("env list --mine on the second commander: exit %d\nstderr:\n%s", res.ExitCode, res.Stderr)
 	}
 	mineThere := decode[[]envDoc](t, "env list --mine", res.Stdout)
 	if _, found := findEnv(mineThere, remoteEnv); !found {
-		t.Errorf("`env list --mine` on the new owner's laptop does not list %s: %v",
+		t.Errorf("`env list --mine` on the new owner's commander does not list %s: %v",
 			remoteEnv, envNames(mineThere))
 	}
 
@@ -969,7 +969,7 @@ func TestTheHubRestarts(t *testing.T) {
 	refreshMemberPebble(t, member)
 
 	host := envHost(remoteEnv)
-	mustInRepo(t, "env", "expose", remoteEnv, "--host", host, "--via", "node", "--json")
+	mustInRepo(t, "env", "expose", remoteEnv, "--host", host, "--via", "member", "--json")
 	assertServes(t, member, host)
 
 	edgeClient, err := itest.NewEdgeClient(member, rootFor(member.Alias))
@@ -1188,7 +1188,7 @@ func TestTheInterface(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), itest.Scale(2*time.Minute))
 	defer cancel()
-	pty, err := itest.PTYRun(ctx, repo, clientEnv(), itest.BinaryPath(t), "machine", "list")
+	pty, err := itest.PTYRun(ctx, repo, commanderEnv(), itest.BinaryPath(t), "machine", "list")
 	if err != nil {
 		t.Fatalf("machine list on a terminal: %v", err)
 	}

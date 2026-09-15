@@ -31,9 +31,10 @@ const (
 	edgeControlSocket = "/run/caramelo/edge.sock"
 	vaultKeyPath      = "/var/lib/caramelo/vault.key"
 	secretsRunDir     = "/run/caramelo/secrets"
+	straySecretsDir   = "/mnt/caramelo/secrets"
 )
 
-var clientTimeout = itest.Scale(10 * time.Minute)
+var commanderTimeout = itest.Scale(10 * time.Minute)
 
 func begin(t *testing.T) *itest.Machine {
 	t.Helper()
@@ -61,29 +62,29 @@ func needProduction(t *testing.T) {
 	}
 }
 
-func clientEnv(extra ...string) []string {
+func commanderEnv(extra ...string) []string {
 	return itest.GitEnv(home, append([]string{"CARAMELO_MACHINE=" + machineAddr}, extra...)...)
 }
 
 func reconnect(t *testing.T, m *itest.Machine) {
 	t.Helper()
-	machineAddr = m.ClientMachine(t)
-	if err := itest.WriteClientHomeNoPeer(home, m); err != nil {
-		t.Fatalf("point the client at %s again: %v", m.Alias, err)
+	machineAddr = m.CommanderMachine(t)
+	if err := itest.WriteCommanderHomeNoPeer(home, m); err != nil {
+		t.Fatalf("point the commander at %s again: %v", m.Alias, err)
 	}
-	t.Logf("the client is pointed at %s again", machineAddr)
+	t.Logf("the commander is pointed at %s again", machineAddr)
 }
 
-func waitForClient(t *testing.T) {
+func waitForCommander(t *testing.T) {
 	t.Helper()
 	budget := itest.Scale(3 * time.Minute)
 	deadline := time.Now().Add(budget)
 	var last string
 	for attempt := 1; ; attempt++ {
-		res, err := clientExec(clientOpts{Dir: repo, Timeout: itest.Scale(time.Minute)}, "status", "--json")
+		res, err := commanderExec(commanderOpts{Dir: repo, Timeout: itest.Scale(time.Minute)}, "status", "--json")
 		switch {
 		case err == nil && res.ExitCode == 0:
-			t.Logf("the client reached the machine again on attempt %d", attempt)
+			t.Logf("the commander reached the machine again on attempt %d", attempt)
 			return
 		case err != nil:
 			last = err.Error()
@@ -91,45 +92,45 @@ func waitForClient(t *testing.T) {
 			last = fmt.Sprintf("exit %d: %s", res.ExitCode, strings.TrimSpace(res.Stderr))
 		}
 		if time.Now().After(deadline) {
-			t.Fatalf("the client never reached the machine again within %s (%d attempt(s)); last: %s",
+			t.Fatalf("the commander never reached the machine again within %s (%d attempt(s)); last: %s",
 				budget, attempt, last)
 		}
 		time.Sleep(2 * time.Second)
 	}
 }
 
-type clientOpts = itest.ClientOptions
+type commanderOpts = itest.CommanderOptions
 
-func opts(o clientOpts) clientOpts {
-	o.Env = clientEnv()
+func opts(o commanderOpts) commanderOpts {
+	o.Env = commanderEnv()
 	if o.Timeout == 0 {
-		o.Timeout = clientTimeout
+		o.Timeout = commanderTimeout
 	}
 	return o
 }
 
-func clientExec(o clientOpts, args ...string) (itest.Result, error) {
-	return itest.RunClient(context.Background(), opts(o), args...)
+func commanderExec(o commanderOpts, args ...string) (itest.Result, error) {
+	return itest.RunCommander(context.Background(), opts(o), args...)
 }
 
-func client(t *testing.T, o clientOpts, args ...string) itest.Result {
+func commander(t *testing.T, o commanderOpts, args ...string) itest.Result {
 	t.Helper()
-	return itest.MustRunClient(t, opts(o), args...)
+	return itest.MustRunCommander(t, opts(o), args...)
 }
 
 func inRepo(t *testing.T, args ...string) itest.Result {
 	t.Helper()
-	return client(t, clientOpts{Dir: repo}, args...)
+	return commander(t, commanderOpts{Dir: repo}, args...)
 }
 
 func mustInRepo(t *testing.T, args ...string) itest.Result {
 	t.Helper()
-	return itest.ClientOK(t, opts(clientOpts{Dir: repo}), args...)
+	return itest.CommanderOK(t, opts(commanderOpts{Dir: repo}), args...)
 }
 
 func destroyEnv(t *testing.T, name string) {
 	t.Helper()
-	res, err := clientExec(clientOpts{Dir: repo, Timeout: itest.Scale(4 * time.Minute)},
+	res, err := commanderExec(commanderOpts{Dir: repo, Timeout: itest.Scale(4 * time.Minute)},
 		"env", "destroy", name, "--yes")
 	if err != nil {
 		t.Logf("env destroy %s: %v", name, err)
@@ -172,7 +173,7 @@ func buildRelease(t *testing.T, name string, extra ...string) capi.BuildResult {
 func tryDeploy(t *testing.T, name string, extra ...string) (capi.DeployResult, itest.Result) {
 	t.Helper()
 	args := append([]string{"deploy", name, "--json"}, extra...)
-	res := client(t, clientOpts{Dir: repo, Timeout: itest.Scale(12 * time.Minute)}, args...)
+	res := commander(t, commanderOpts{Dir: repo, Timeout: itest.Scale(12 * time.Minute)}, args...)
 	t.Logf("[deploy %s] progress:\n%s", name, res.Stderr)
 	if strings.TrimSpace(res.Stdout) == "" {
 		return capi.DeployResult{}, res
@@ -195,7 +196,7 @@ func deploy(t *testing.T, name string, extra ...string) capi.DeployResult {
 func promote(t *testing.T, name string, extra ...string) capi.DeployResult {
 	t.Helper()
 	args := append([]string{"promote", name, "--json"}, extra...)
-	res := client(t, clientOpts{Dir: repo, Timeout: itest.Scale(6 * time.Minute)}, args...)
+	res := commander(t, commanderOpts{Dir: repo, Timeout: itest.Scale(6 * time.Minute)}, args...)
 	if res.ExitCode != 0 {
 		t.Fatalf("promote %s: exit %d\nstderr:\n%s", name, res.ExitCode, res.Stderr)
 	}
@@ -205,7 +206,7 @@ func promote(t *testing.T, name string, extra ...string) capi.DeployResult {
 func rollback(t *testing.T, name string, extra ...string) (capi.DeployResult, itest.Result) {
 	t.Helper()
 	args := append([]string{"rollback", name, "--json"}, extra...)
-	res := client(t, clientOpts{Dir: repo, Timeout: itest.Scale(10 * time.Minute)}, args...)
+	res := commander(t, commanderOpts{Dir: repo, Timeout: itest.Scale(10 * time.Minute)}, args...)
 	t.Logf("[rollback %s] progress:\n%s", name, res.Stderr)
 	if strings.TrimSpace(res.Stdout) == "" {
 		return capi.DeployResult{}, res
@@ -278,7 +279,7 @@ func startFollower(t *testing.T, args ...string) *follower {
 	argv := append([]string{"events", "--follow", "--json"}, args...)
 	cmd := exec.CommandContext(ctx, itest.BinaryPath(t), argv...)
 	cmd.Dir = repo
-	cmd.Env = clientEnv()
+	cmd.Env = commanderEnv()
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -532,6 +533,12 @@ func secretsOnDisk(t *testing.T, m *itest.Machine) []string {
 	return strings.Fields(res.Stdout)
 }
 
+func straySecretsOnDisk(t *testing.T, m *itest.Machine) string {
+	t.Helper()
+	res := onBox(t, m, "sudo ls -ld "+straySecretsDir+" 2>/dev/null || true")
+	return strings.TrimSpace(res.Stdout)
+}
+
 func buildsOnDisk(t *testing.T, m *itest.Machine, env string) []string {
 	t.Helper()
 	dir := fmt.Sprintf("/mnt/caramelo/apps/%s/envs/%s/builds", appName, env)
@@ -570,7 +577,7 @@ func initSampleRepo(t *testing.T) string {
 		t.Fatalf("create the sample checkout: %v", err)
 	}
 	t.Logf("sample checkout: %s", dir)
-	env := clientEnv()
+	env := commanderEnv()
 
 	copyIn(t, dir, "app.py", "version.py", "health.py", "behaviour.py",
 		"pgwire.py", "migrate.py", "smoke.py", "smoke_fail.py", "hog.py")
@@ -617,7 +624,7 @@ func setVersion(t *testing.T, want string) string {
 		t.Fatalf("write version.py: %v", err)
 	}
 	currentVersion = want
-	return itest.GitCommitAll(t, repo, clientEnv(), "sampleapp: version "+want)
+	return itest.GitCommitAll(t, repo, commanderEnv(), "sampleapp: version "+want)
 }
 
 func servingVersion(t *testing.T, url string) string {
@@ -633,7 +640,7 @@ func servingVersion(t *testing.T, url string) string {
 
 func commitAll(t *testing.T, message string) string {
 	t.Helper()
-	return itest.GitCommitAll(t, repo, clientEnv(), message)
+	return itest.GitCommitAll(t, repo, commanderEnv(), message)
 }
 
 func keptReleases(hist capi.ReleasesResult, keep int) []string {

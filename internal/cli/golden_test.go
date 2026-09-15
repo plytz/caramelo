@@ -147,7 +147,7 @@ func TestGoldenPlainOutput(t *testing.T) {
 	}
 }
 
-func TestClientRenderMatchesTheDaemon(t *testing.T) {
+func TestCommanderRenderMatchesTheDaemon(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		args []string
@@ -253,10 +253,10 @@ func TestClientRenderMatchesTheDaemon(t *testing.T) {
 			}
 			var b bytes.Buffer
 			if err := fn(&b, json.RawMessage(strings.TrimSpace(body))); err != nil {
-				t.Fatalf("client render: %v", err)
+				t.Fatalf("commander render: %v", err)
 			}
 			if b.String() != human {
-				t.Errorf("the client's rendering is not the daemon's.\n--- client ---\n%s\n--- daemon ---\n%s",
+				t.Errorf("the commander's rendering is not the daemon's.\n--- commander ---\n%s\n--- daemon ---\n%s",
 					b.String(), human)
 			}
 		})

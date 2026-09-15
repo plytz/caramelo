@@ -47,27 +47,27 @@ func (a *App) PlacementOf() Placement {
 type Via string
 
 const (
-	ViaNode Via = "node"
+	ViaMember Via = "member"
 
 	ViaHub Via = "hub"
 )
 
-var Vias = []Via{ViaNode, ViaHub}
+var Vias = []Via{ViaMember, ViaHub}
 
 func ParseVia(s string) (Via, error) {
 	switch v := Via(strings.ToLower(strings.TrimSpace(s))); v {
-	case "", ViaNode:
-		return ViaNode, nil
+	case "", ViaMember:
+		return ViaMember, nil
 	case ViaHub:
 		return ViaHub, nil
 	default:
-		return "", fmt.Errorf("unknown via %q: want %s or %s", s, ViaNode, ViaHub)
+		return "", fmt.Errorf("unknown via %q: want %s or %s", s, ViaMember, ViaHub)
 	}
 }
 
 func (v Via) String() string {
 	if v == "" {
-		return string(ViaNode)
+		return string(ViaMember)
 	}
 	return string(v)
 }
@@ -75,7 +75,7 @@ func (v Via) String() string {
 func (a *App) ViaOf(env string) Via {
 	o, ok := a.Override(env)
 	if !ok || o.Via == "" {
-		return ViaNode
+		return ViaMember
 	}
 	return o.Via
 }

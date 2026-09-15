@@ -140,8 +140,8 @@ func describeVia(via string) string {
 	switch config.Via(via) {
 	case config.ViaHub:
 		return "hub: the hub's edge terminates TLS and forwards through the tunnel"
-	case config.ViaNode:
-		return "node: the edge of the machine it runs on"
+	case config.ViaMember:
+		return "member: the edge of the machine it runs on"
 	}
 	return via
 }

@@ -132,7 +132,7 @@ func fleetSession(t *testing.T, argv ...string) (context.Context, *bytes.Buffer)
 	t.Helper()
 	var out bytes.Buffer
 	return WithSession(context.Background(), api.Session{
-		Transport: "tunnel", Identity: "laptop", Machine: "hub",
+		Transport: "tunnel", Identity: "commander", Machine: "hub",
 		Args: argv, Stdout: &out, Stderr: io.Discard,
 	}), &out
 }
@@ -238,15 +238,15 @@ func machines(names ...string) MachineLookup {
 	})
 }
 
-func TestAnAnnouncementFromALaptopIsRefusedNamingWhatToRunInstead(t *testing.T) {
+func TestAnAnnouncementFromACommanderIsRefusedNamingWhatToRunInstead(t *testing.T) {
 	d := &Daemon{KnownMachines: machines("nx2")}
-	ctx := WithSession(context.Background(), api.Session{Transport: "tunnel", Identity: "laptop"})
+	ctx := WithSession(context.Background(), api.Session{Transport: "tunnel", Identity: "commander"})
 
 	_, err := d.MachineAnnounce(ctx, fleet.Announcement{Machine: "nx2"})
 	if err == nil || !strings.Contains(err.Error(), "machine list") {
 		t.Fatalf("error = %v, want a refusal naming the command a person runs", err)
 	}
-	if !strings.Contains(err.Error(), "laptop") {
+	if !strings.Contains(err.Error(), "commander") {
 		t.Fatalf("error = %v, want the peer named", err)
 	}
 }
@@ -256,8 +256,8 @@ func TestAServerNamesAMachinePeerAndNobodyElse(t *testing.T) {
 	if got := s.machinePeer(context.Background(), "nx2"); got != "nx2" {
 		t.Fatalf("machinePeer(nx2) = %q, want nx2", got)
 	}
-	if got := s.machinePeer(context.Background(), "laptop"); got != "" {
-		t.Fatalf("machinePeer(laptop) = %q, want a laptop to be nobody's machine", got)
+	if got := s.machinePeer(context.Background(), "commander"); got != "" {
+		t.Fatalf("machinePeer(commander) = %q, want a commander to be nobody's machine", got)
 	}
 
 	if got := (&Server{}).machinePeer(context.Background(), "nx2"); got != "" {
@@ -322,8 +322,8 @@ func TestAForwardedCommandSaysWhoseWorkItIs(t *testing.T) {
 	if err := d.forwardEnv(ctx, "shop", "feat-x"); err == nil {
 		t.Fatal("forwardEnv answered locally")
 	}
-	if fwd.identity != "laptop" {
-		t.Fatalf("the forward is for %q, want the laptop that asked", fwd.identity)
+	if fwd.identity != "commander" {
+		t.Fatalf("the forward is for %q, want the commander that asked", fwd.identity)
 	}
 }
 
@@ -333,10 +333,10 @@ func TestOnlyAMachineOfTheFleetMaySayWhoACommandIsFor(t *testing.T) {
 		sess api.Session
 		want string
 	}{
-		{"a hub speaking for a laptop", api.Session{Identity: "hub", Peer: "hub", OnBehalfOf: "laptop"}, "laptop"},
-		{"a laptop claiming to be another", api.Session{Identity: "laptop-a", OnBehalfOf: "laptop-b"}, "laptop-a"},
+		{"a hub speaking for a commander", api.Session{Identity: "hub", Peer: "hub", OnBehalfOf: "commander"}, "commander"},
+		{"a commander claiming to be another", api.Session{Identity: "commander-a", OnBehalfOf: "commander-b"}, "commander-a"},
 		{"a machine that said nothing", api.Session{Identity: "hub", Peer: "hub"}, "hub"},
-		{"an ordinary session", api.Session{Identity: "laptop-a"}, "laptop-a"},
+		{"an ordinary session", api.Session{Identity: "commander-a"}, "commander-a"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := tc.sess.Author(); got != tc.want {
@@ -351,9 +351,9 @@ func TestOnlyAMachineOfTheFleetMaySayWhoACommandIsFor(t *testing.T) {
 }
 
 func TestOneVariableOutOfASessionsEnvironment(t *testing.T) {
-	environ := []string{"LANG=C", api.IdentityEnv + "=laptop-b", "TERM=xterm"}
-	if got := envValue(environ, api.IdentityEnv); got != "laptop-b" {
-		t.Fatalf("envValue = %q, want %q", got, "laptop-b")
+	environ := []string{"LANG=C", api.IdentityEnv + "=commander-b", "TERM=xterm"}
+	if got := envValue(environ, api.IdentityEnv); got != "commander-b" {
+		t.Fatalf("envValue = %q, want %q", got, "commander-b")
 	}
 	if got := envValue(environ, "NOTHING"); got != "" {
 		t.Fatalf("envValue of a variable that was not sent = %q, want empty", got)

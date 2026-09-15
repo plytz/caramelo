@@ -13,7 +13,7 @@ import (
 
 func init() {
 	register(func(a *app) *cobra.Command {
-		cmd := clientCmd(&cobra.Command{
+		cmd := commanderCmd(&cobra.Command{
 			Use:   "app",
 			Short: "Inspect the applications on the machine",
 			Long: `An application is a bare git repository on the machine. It comes into

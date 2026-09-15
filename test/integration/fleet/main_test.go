@@ -171,14 +171,14 @@ func start() (err error) {
 	lab = itest.New(suiteT, itest.Options{
 		Suite: suiteName,
 		State: itest.StateClean,
-		Roles: []string{itest.RoleHub, itest.RoleNode, itest.RoleNode},
+		Roles: []string{itest.RoleHub, itest.RoleMember, itest.RoleMember},
 	})
-	if why := itest.MissingRoles(lab, itest.RoleHub, itest.RoleNode, itest.RoleNode); why != "" {
+	if why := itest.MissingRoles(lab, itest.RoleHub, itest.RoleMember, itest.RoleMember); why != "" {
 		return skipBecause(why)
 	}
 	hub = lab.Machine(itest.RoleHub)
-	memberBoxes = lab.Nodes()
-	memberNames = itest.NodeNames(len(memberBoxes))
+	memberBoxes = lab.Members()
+	memberNames = itest.MemberNames(len(memberBoxes))
 	if err := itest.EnsureState(hub, itest.StateProvisioned); err != nil {
 		return err
 	}
@@ -234,7 +234,7 @@ func start() (err error) {
 	home = suiteT.TempDir()
 	otherHome = suiteT.TempDir()
 	peerHome = suiteT.TempDir()
-	if machineAddr, err = hubClientAddress(); err != nil {
+	if machineAddr, err = hubCommanderAddress(); err != nil {
 		return err
 	}
 	if err := writeHubHome(home, false); err != nil {
@@ -251,13 +251,13 @@ func start() (err error) {
 	}
 	tunnelAddr = hub.HostIP()
 	for _, m := range memberBoxes {
-		if err := itest.AddClientHost(home, m); err != nil {
+		if err := itest.AddCommanderHost(home, m); err != nil {
 			return err
 		}
 	}
 	tmpDir = suiteT.TempDir()
 
-	fmt.Fprintf(os.Stderr, "fleet suite: hub %s at %s, nodes %s, pebble %s\n",
+	fmt.Fprintf(os.Stderr, "fleet suite: hub %s at %s, members %s, pebble %s\n",
 		hub.Alias, machineAddr, strings.Join(memberAliases(), ", "), pebble.Directory)
 	return nil
 }

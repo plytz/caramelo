@@ -104,7 +104,7 @@ func DialTarget(ctx context.Context, host string, port int, opts TunnelOptions) 
 	}
 	rec, err := findRecord(records, host)
 	if errors.Is(err, remote.ErrNoTunnel) {
-		return nil, fmt.Errorf("no machine of this computer's answers to %q: %w", host, ErrNoKey)
+		return nil, fmt.Errorf("no machine of the commander's answers to %q: %w", host, ErrNoKey)
 	}
 	if err != nil {
 		return nil, err

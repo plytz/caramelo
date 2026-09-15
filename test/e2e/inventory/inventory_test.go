@@ -62,18 +62,18 @@ func TestLoadValidThreeMachines(t *testing.T) {
 	if hub.HostKey != "ssh-ed25519 QUFBQQ==" {
 		t.Errorf("Hub().HostKey = %q", hub.HostKey)
 	}
-	nodes := inv.Nodes()
-	if len(nodes) != 2 {
-		t.Fatalf("len(Nodes()) = %d, want 2", len(nodes))
+	members := inv.Members()
+	if len(members) != 2 {
+		t.Fatalf("len(Members()) = %d, want 2", len(members))
 	}
-	if nodes[0].Name != "m2" || nodes[1].Name != "m3" {
-		t.Errorf("Nodes() = %+v", nodes)
+	if members[0].Name != "m2" || members[1].Name != "m3" {
+		t.Errorf("Members() = %+v", members)
 	}
-	if nodes[1].Port != 2222 {
-		t.Errorf("Nodes()[1].Port = %d, want 2222", nodes[1].Port)
+	if members[1].Port != 2222 {
+		t.Errorf("Members()[1].Port = %d, want 2222", members[1].Port)
 	}
-	if nodes[0].HostKey != "" {
-		t.Errorf("Nodes()[0].HostKey = %q, want empty", nodes[0].HostKey)
+	if members[0].HostKey != "" {
+		t.Errorf("Members()[0].HostKey = %q, want empty", members[0].HostKey)
 	}
 }
 
@@ -256,12 +256,12 @@ func TestLoadEnvUnset(t *testing.T) {
 
 func TestRolesOnEmptyOneAndThree(t *testing.T) {
 	cases := []struct {
-		name      string
-		inv       Inventory
-		count     int
-		wantHub   bool
-		hubName   string
-		wantNodes []string
+		name        string
+		inv         Inventory
+		count       int
+		wantHub     bool
+		hubName     string
+		wantMembers []string
 	}{
 		{name: "zero machines", inv: Inventory{Version: 1}, count: 0, wantHub: false},
 		{
@@ -272,12 +272,12 @@ func TestRolesOnEmptyOneAndThree(t *testing.T) {
 			hubName: "m1",
 		},
 		{
-			name:      "three machines",
-			inv:       Inventory{Version: 1, Machines: []Machine{{Name: "m1"}, {Name: "m2"}, {Name: "m3"}}},
-			count:     3,
-			wantHub:   true,
-			hubName:   "m1",
-			wantNodes: []string{"m2", "m3"},
+			name:        "three machines",
+			inv:         Inventory{Version: 1, Machines: []Machine{{Name: "m1"}, {Name: "m2"}, {Name: "m3"}}},
+			count:       3,
+			wantHub:     true,
+			hubName:     "m1",
+			wantMembers: []string{"m2", "m3"},
 		},
 	}
 
@@ -293,24 +293,24 @@ func TestRolesOnEmptyOneAndThree(t *testing.T) {
 			if ok && hub.Name != tc.hubName {
 				t.Errorf("Hub().Name = %q, want %q", hub.Name, tc.hubName)
 			}
-			nodes := tc.inv.Nodes()
-			if len(nodes) != len(tc.wantNodes) {
-				t.Fatalf("len(Nodes()) = %d, want %d", len(nodes), len(tc.wantNodes))
+			members := tc.inv.Members()
+			if len(members) != len(tc.wantMembers) {
+				t.Fatalf("len(Members()) = %d, want %d", len(members), len(tc.wantMembers))
 			}
-			for i, want := range tc.wantNodes {
-				if nodes[i].Name != want {
-					t.Errorf("Nodes()[%d].Name = %q, want %q", i, nodes[i].Name, want)
+			for i, want := range tc.wantMembers {
+				if members[i].Name != want {
+					t.Errorf("Members()[%d].Name = %q, want %q", i, members[i].Name, want)
 				}
 			}
 		})
 	}
 }
 
-func TestNodesDoesNotAliasMachines(t *testing.T) {
+func TestMembersDoesNotAliasMachines(t *testing.T) {
 	inv := Inventory{Version: 1, Machines: []Machine{{Name: "m1"}, {Name: "m2"}}}
-	nodes := inv.Nodes()
-	nodes[0].Name = "changed"
+	members := inv.Members()
+	members[0].Name = "changed"
 	if inv.Machines[1].Name != "m2" {
-		t.Errorf("Nodes() aliases Machines: machines[1].Name = %q", inv.Machines[1].Name)
+		t.Errorf("Members() aliases Machines: machines[1].Name = %q", inv.Machines[1].Name)
 	}
 }

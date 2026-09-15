@@ -17,18 +17,18 @@ import (
 )
 
 const (
-	KindMachine = "machine"
-	KindLaptop  = "laptop"
+	KindMachine   = "machine"
+	KindCommander = "commander"
 )
 
 const DefaultTimeout = 5 * time.Minute
 
 type Options struct {
-	Suite   string
-	State   string
-	Roles   []string
-	Laptops []string
-	Ports   []Port
+	Suite      string
+	State      string
+	Roles      []string
+	Commanders []string
+	Ports      []Port
 }
 
 type Lab struct {
@@ -37,13 +37,13 @@ type Lab struct {
 	Network string
 	State   string
 
-	t        testing.TB
-	budget   Budgets
-	machines []*Machine
-	laptops  []*Machine
-	byRole   map[string]*Machine
-	byAlias  map[string]*Machine
-	ports    []Port
+	t          testing.TB
+	budget     Budgets
+	machines   []*Machine
+	commanders []*Machine
+	byRole     map[string]*Machine
+	byAlias    map[string]*Machine
+	ports      []Port
 
 	unbound        []string
 	inventoryCount int
@@ -66,7 +66,7 @@ func New(t testing.TB, o Options) *Lab {
 		t.Fatalf("itest: unknown state %q", state)
 	}
 	roles := o.Roles
-	if len(roles) == 0 && len(o.Laptops) == 0 {
+	if len(roles) == 0 && len(o.Commanders) == 0 {
 		roles = []string{RoleHub}
 	}
 
@@ -87,12 +87,12 @@ func New(t testing.TB, o Options) *Lab {
 	}
 
 	counts := map[string]int{}
-	var wanted, laptops []*Machine
+	var wanted, commanders []*Machine
 	for _, role := range roles {
 		wanted = append(wanted, l.newMachine(role, counts, KindMachine, state))
 	}
-	for _, role := range o.Laptops {
-		laptops = append(laptops, l.newMachine(role, counts, KindLaptop, ""))
+	for _, role := range o.Commanders {
+		commanders = append(commanders, l.newMachine(role, counts, KindCommander, ""))
 	}
 
 	var overSSH, inDocker []*Machine
@@ -103,7 +103,7 @@ func New(t testing.TB, o Options) *Lab {
 		}
 		inDocker = append(inDocker, m)
 	}
-	containers := append(append([]*Machine(nil), inDocker...), laptops...)
+	containers := append(append([]*Machine(nil), inDocker...), commanders...)
 
 	if len(containers) > 0 {
 		if err := RequireDocker(ctx); err != nil {
@@ -146,7 +146,7 @@ func New(t testing.TB, o Options) *Lab {
 			t.Fatalf("itest: %v", err)
 		}
 	}
-	for _, m := range laptops {
+	for _, m := range commanders {
 		l.register(m)
 		if err := l.startMachine(m); err != nil {
 			t.Fatalf("itest: %v", err)
@@ -173,7 +173,7 @@ func (l *Lab) newMachine(role string, counts map[string]int, kind, state string)
 	}
 	if kind == KindMachine {
 		m.Volume = "caramelo-itest-" + l.Suite + "-" + alias + "-" + l.ID
-		if role == RoleClient {
+		if role == RoleCommander {
 			m.State = StateClean
 		}
 		if m.State == StateProvisioned {
@@ -187,7 +187,7 @@ func (l *Lab) register(m *Machine) {
 	if m.Kind == KindMachine {
 		l.machines = append(l.machines, m)
 	} else {
-		l.laptops = append(l.laptops, m)
+		l.commanders = append(l.commanders, m)
 	}
 	if _, ok := l.byRole[m.Role]; !ok {
 		l.byRole[m.Role] = m
@@ -225,7 +225,7 @@ func (l *Lab) cleanup() {
 }
 
 func (l *Lab) all() []*Machine {
-	return append(append([]*Machine(nil), l.machines...), l.laptops...)
+	return append(append([]*Machine(nil), l.machines...), l.commanders...)
 }
 
 func (l *Lab) names() []string {
@@ -256,14 +256,14 @@ func (l *Lab) unboundNote() string {
 	return "; unbound: " + strings.Join(l.unbound, ", ")
 }
 
-func (l *Lab) Laptop(role string) *Machine {
+func (l *Lab) Commander(role string) *Machine {
 	l.t.Helper()
-	for _, m := range l.laptops {
+	for _, m := range l.commanders {
 		if m.Role == role {
 			return m
 		}
 	}
-	l.t.Fatalf("itest: no laptop plays the %q role in suite %s", role, l.Suite)
+	l.t.Fatalf("itest: no commander plays the %q role in suite %s", role, l.Suite)
 	return nil
 }
 
@@ -277,12 +277,12 @@ func (l *Lab) roles() []string {
 
 func (l *Lab) Machines() []*Machine { return append([]*Machine(nil), l.machines...) }
 
-func (l *Lab) Laptops() []*Machine { return append([]*Machine(nil), l.laptops...) }
+func (l *Lab) Commanders() []*Machine { return append([]*Machine(nil), l.commanders...) }
 
-func (l *Lab) Nodes() []*Machine {
+func (l *Lab) Members() []*Machine {
 	var out []*Machine
 	for _, m := range l.machines {
-		if m.Role == RoleNode {
+		if m.Role == RoleMember {
 			out = append(out, m)
 		}
 	}

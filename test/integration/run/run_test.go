@@ -299,7 +299,7 @@ func (s *suite) testAndRun(t *testing.T) {
 
 	t.Run("stdin round-trips", func(t *testing.T) {
 		const payload = "caramelo reads stdin\n"
-		res := s.mustClient(t, clientOpts{Dir: s.repo, Stdin: strings.NewReader(payload)},
+		res := s.mustCommander(t, commanderOpts{Dir: s.repo, Stdin: strings.NewReader(payload)},
 			"run", envX, "--", "cat")
 		if !strings.Contains(res.Stdout, strings.TrimSpace(payload)) {
 			t.Errorf("stdout = %q, want %q", res.Stdout, payload)
@@ -308,7 +308,7 @@ func (s *suite) testAndRun(t *testing.T) {
 
 	t.Run("a silent command is not cut off", func(t *testing.T) {
 		started := time.Now()
-		res := s.client(t, clientOpts{Dir: s.repo, Timeout: itest.Scale(5 * time.Minute)},
+		res := s.commander(t, commanderOpts{Dir: s.repo, Timeout: itest.Scale(5 * time.Minute)},
 			"run", envX, "--", "sleep", "90")
 		if res.ExitCode != 0 {
 			t.Fatalf("sleep 90: exit %d after %s\nstderr:\n%s", res.ExitCode, time.Since(started), res.Stderr)
@@ -323,7 +323,7 @@ func (s *suite) codeUpdate(t *testing.T) {
 	s.needRepo(t)
 
 	const updated = "updated hello from"
-	env := s.clientEnv()
+	env := s.commanderEnv()
 	replaceInFile(t, s.repo, "greeting.py", `MESSAGE = "hello from"`, `MESSAGE = "`+updated+`"`)
 	itest.GitCommitAll(t, s.repo, env, "sampleapp: a different greeting")
 
@@ -418,7 +418,7 @@ func (s *suite) logs(t *testing.T) {
 		defer cancel()
 
 		cmd := exec.CommandContext(ctx, itest.BinaryPath(t), "logs", envX, "-f", "--tail", "1")
-		cmd.Dir, cmd.Env = s.repo, s.clientEnv()
+		cmd.Dir, cmd.Env = s.repo, s.commanderEnv()
 		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 		stdout, err := cmd.StdoutPipe()
 		if err != nil {
@@ -517,7 +517,7 @@ func (s *suite) dockerStack(t *testing.T) {
 	})
 
 	t.Run("a commit rebuilds", func(t *testing.T) {
-		env := s.clientEnv()
+		env := s.commanderEnv()
 		itest.Git(t, s.repo, env, "checkout", dockerBranch)
 		t.Cleanup(func() { itest.Git(t, s.repo, env, "checkout", defaultBranch) })
 		replaceInFile(t, s.repo, "greeting.py", `MESSAGE = `, `MESSAGE = "rebuilt " + `)
@@ -540,7 +540,7 @@ func (s *suite) serviceThatCannotStart(t *testing.T) {
 	t.Cleanup(func() { s.destroyEnv(t, envCrash, "--delete-branch") })
 
 	started := time.Now()
-	res := s.client(t, clientOpts{Dir: s.repo, Timeout: itest.Scale(5 * time.Minute)},
+	res := s.commander(t, commanderOpts{Dir: s.repo, Timeout: itest.Scale(5 * time.Minute)},
 		"up", envCrash, "--no-push", "--timeout", "45s")
 	if res.ExitCode != 1 {
 		t.Fatalf("up %s: exit %d, want 1\nstdout:\n%sstderr:\n%s", envCrash, res.ExitCode, res.Stdout, res.Stderr)
@@ -701,8 +701,8 @@ func (s *suite) parallelUp(t *testing.T) {
 		wg.Add(1)
 		go func(i int, name string) {
 			defer wg.Done()
-			results[i], errs[i] = itest.RunClient(context.Background(),
-				s.opts(clientOpts{Dir: s.repo, Timeout: itest.Scale(10 * time.Minute)}),
+			results[i], errs[i] = itest.RunCommander(context.Background(),
+				s.opts(commanderOpts{Dir: s.repo, Timeout: itest.Scale(10 * time.Minute)}),
 				"up", name, "--no-push", "--service", webService, "--json")
 		}(i, name)
 	}
@@ -972,6 +972,11 @@ func (s *suite) zzSecretsRollOutOnUp(t *testing.T) {
 		if out := strings.TrimSpace(found.Stdout); out != "" {
 			t.Errorf("the secret is in plaintext in Caramelo's own state: %s", out)
 		}
+		stray := dataDir + "/secrets"
+		probe := s.onBox(t, "sudo -n ls -ld "+itest.ShellQuote(stray)+" 2>/dev/null || true")
+		if out := strings.TrimSpace(probe.Stdout); out != "" {
+			t.Errorf("%s exists: an env-file directory was made beside the data directory: %s", stray, out)
+		}
 	})
 }
 
@@ -986,7 +991,7 @@ func (s *suite) zzDevAndReleaseSideBySide(t *testing.T) {
 		t.Fatalf("env create --release: mode %q, want %q", rel.Mode, cenv.ModeRelease)
 	}
 
-	res := s.client(t, clientOpts{Dir: s.repo, Timeout: itest.Scale(12 * time.Minute)},
+	res := s.commander(t, commanderOpts{Dir: s.repo, Timeout: itest.Scale(12 * time.Minute)},
 		"deploy", envM7Release, "--json", "--no-push")
 	if res.ExitCode != 0 {
 		t.Fatalf("deploy %s: exit %d\nstdout:\n%sstderr:\n%s",

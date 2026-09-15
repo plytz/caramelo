@@ -170,7 +170,7 @@ func (m *Manager) runDeploy(ctx context.Context, rec *state.EnvRecord, rel *rele
 
 			done = true
 			return r.handOff(ctx, unlock, (*deployRun).await), nil
-		case errors.Is(err, errClientGone):
+		case errors.Is(err, errCommanderGone):
 
 			done = true
 			return r.handOff(ctx, unlock, (*deployRun).watchAll), nil

@@ -41,7 +41,7 @@ func TestZZProductionComesBack(t *testing.T) {
 	if !hasVault(m) {
 		t.Skip("reboot suite: the provisioned machine has no vault key, so it predates M7")
 	}
-	refreshClient(t)
+	refreshCommander(t)
 
 	repo := pushReleaseApp(t, m)
 

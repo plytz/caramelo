@@ -22,13 +22,13 @@ func TestProvisionedMachineAnswersBothRoutes(t *testing.T) {
 		t.Fatalf("caramelod on %s: %v", m.Alias, err)
 	}
 
-	sshHome := itest.ClientHomeNoPeer(t, m)
-	overSSH := itest.ClientOK(t, itest.ClientOptions{Env: itest.ClientEnv(sshHome)},
-		"--machine", m.ClientTarget(t), "status", "--json")
+	sshHome := itest.CommanderHomeNoPeer(t, m)
+	overSSH := itest.CommanderOK(t, itest.CommanderOptions{Env: itest.CommanderEnv(sshHome)},
+		"--machine", m.CommanderTarget(t), "status", "--json")
 	checkStatus(t, "ssh", overSSH.Stdout, m.Hostname)
 
-	tunnelHome := itest.ClientHome(t, m)
-	overTunnel := itest.ClientOK(t, itest.ClientOptions{Env: itest.ClientEnv(tunnelHome)},
+	tunnelHome := itest.CommanderHome(t, m)
+	overTunnel := itest.CommanderOK(t, itest.CommanderOptions{Env: itest.CommanderEnv(tunnelHome)},
 		"--machine", m.TunnelTarget(t), "status", "--json")
 	checkStatus(t, "tunnel", overTunnel.Stdout, m.Hostname)
 }

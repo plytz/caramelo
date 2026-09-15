@@ -33,7 +33,7 @@ func (s *HostConfigStep) files(env *Env) []fileSpec {
 	files := []fileSpec{
 		{Path: ModulesFile, Content: modulesContent, Mode: "0644", Owner: "root", Group: "root"},
 		{Path: DelegateFile, Content: delegateContent, Mode: "0644", Owner: "root", Group: "root"},
-		{Path: TmpfilesFile, Content: tmpfilesContent(cfg.RunDir, cfg.User, cfg.Group), Mode: "0644", Owner: "root", Group: "root"},
+		{Path: TmpfilesFile, Content: tmpfilesContent(cfg.RunDir, cfg.SecretsDir(), cfg.User, cfg.Group), Mode: "0644", Owner: "root", Group: "root"},
 	}
 	if env.Opts.LowPorts {
 		files = append(files, fileSpec{Path: SysctlFile, Content: lowPortsContent, Mode: "0644", Owner: "root", Group: "root"})
@@ -41,9 +41,9 @@ func (s *HostConfigStep) files(env *Env) []fileSpec {
 	return files
 }
 
-func tmpfilesContent(runDir, user, group string) string {
-	return fmt.Sprintf("# Installed by caramelo: runtime directory for the caramelod API socket.\nd %s 0750 %s %s -\n",
-		runDir, user, group)
+func tmpfilesContent(runDir, secretsDir, user, group string) string {
+	return fmt.Sprintf("# Installed by caramelo: runtime directory for the caramelod API socket and the vault env-files.\nd %s 0750 %s %s -\nd %s 0700 %s %s -\n",
+		runDir, user, group, secretsDir, user, group)
 }
 
 const bridgeNFCallPath = "/proc/sys/net/bridge/bridge-nf-call-iptables"
@@ -89,6 +89,13 @@ func (s *HostConfigStep) Check(ctx context.Context, env *Env) (bool, string, err
 	}
 	if !runDir.Exists {
 		problems = append(problems, env.Config.RunDir+" missing")
+	}
+	secretsDir, err := statPath(ctx, env, env.Config.SecretsDir())
+	if err != nil {
+		return false, "", err
+	}
+	if !secretsDir.Exists {
+		problems = append(problems, env.Config.SecretsDir()+" missing")
 	}
 	if len(problems) > 0 {
 		return false, strings.Join(problems, "; "), nil

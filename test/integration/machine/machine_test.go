@@ -83,9 +83,9 @@ func TestBinaryRunsOnTheMachine(t *testing.T) {
 func TestMachinesSeeEachOther(t *testing.T) {
 	lab := itest.New(t, itest.Options{
 		Suite: "machine",
-		Roles: []string{itest.RoleHub, itest.RoleNode},
+		Roles: []string{itest.RoleHub, itest.RoleMember},
 	})
-	itest.NeedRoles(t, lab, itest.RoleHub, itest.RoleNode)
+	itest.NeedRoles(t, lab, itest.RoleHub, itest.RoleMember)
 	machines := lab.Machines()
 	if len(machines) != 2 {
 		t.Fatalf("expected two machines, got %d", len(machines))
@@ -182,14 +182,14 @@ func TestRestartKeepsTheVolume(t *testing.T) {
 	}
 }
 
-func TestLaptopCanSSHIntoTheMachine(t *testing.T) {
+func TestCommanderCanSSHIntoTheMachine(t *testing.T) {
 	lab := itest.New(t, itest.Options{
-		Suite:   "machine",
-		Roles:   []string{itest.RoleHub},
-		Laptops: []string{itest.RoleClient},
+		Suite:      "machine",
+		Roles:      []string{itest.RoleHub},
+		Commanders: []string{itest.RoleCommander},
 	})
 	m := lab.Machine(itest.RoleHub)
-	laptop := lab.Laptop(itest.RoleClient)
+	commander := lab.Commander(itest.RoleCommander)
 
 	ctx, cancel := context.WithTimeout(context.Background(), itest.Scale(3*time.Minute))
 	defer cancel()
@@ -197,7 +197,7 @@ func TestLaptopCanSSHIntoTheMachine(t *testing.T) {
 		t.Fatalf("sshd on %s: %v", m.Alias, err)
 	}
 	addr := m.MustAddress(t)
-	res := laptop.MustRun(t, "ssh -o BatchMode=yes -o ConnectTimeout=10 "+m.User()+"@"+addr+" hostname")
+	res := commander.MustRun(t, "ssh -o BatchMode=yes -o ConnectTimeout=10 "+m.User()+"@"+addr+" hostname")
 	if got := strings.TrimSpace(res.Stdout); got != m.Hostname {
 		t.Errorf("ssh hostname = %q, want %q", got, m.Hostname)
 	}

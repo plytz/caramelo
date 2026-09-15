@@ -38,6 +38,7 @@ type harness struct {
 	driver  *fakeDriver
 	repo    *fakeRepo
 	data    string
+	run     string
 	cfg     *config.App
 	loadErr error
 	out     bytes.Buffer
@@ -88,6 +89,7 @@ func newHarness(t *testing.T) *harness {
 		data: data, cfg: sampleConfig()}
 
 	run := t.TempDir()
+	h.run = run
 	m := New(store, driver, repo, ports.New(store, allowAll{}), nil, Dirs{Data: data, User: "caramelo", Run: run})
 
 	cipher, _, err := vault.CipherFromKeyFile(vault.KeyPath(t.TempDir()))
@@ -138,7 +140,7 @@ func (h *harness) status(name string) string {
 
 func TestCreateTwoEnvsGetDisjointBlocksAndDistinctVars(t *testing.T) {
 	h := newHarness(t)
-	ctx := WithIdentity(context.Background(), "laptop")
+	ctx := WithIdentity(context.Background(), "commander")
 
 	x, err := h.m.Create(ctx, CreateRequest{App: "shop", Name: "feat-x", From: "main"}, &h.out)
 	if err != nil {
@@ -155,7 +157,7 @@ func TestCreateTwoEnvsGetDisjointBlocksAndDistinctVars(t *testing.T) {
 	if x.Commit != mainCommit || y.Commit != featureCommit {
 		t.Errorf("commits = %q and %q, want %q and %q", x.Commit, y.Commit, mainCommit, featureCommit)
 	}
-	if x.CreatedBy != "laptop" {
+	if x.CreatedBy != "commander" {
 		t.Errorf("created_by = %q, want the session identity", x.CreatedBy)
 	}
 	if x.Worktree != WorktreePath(h.data, "shop", "feat-x") {

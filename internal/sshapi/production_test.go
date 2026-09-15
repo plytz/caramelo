@@ -214,7 +214,7 @@ func TestVaultExportRevealIsAnEvent(t *testing.T) {
 	d, store := newTestDaemon(t)
 	d.Vault = leakyVault{}
 	store.envs = []state.EnvRecord{{ID: 3, App: "shop", Name: "production", Mode: state.EnvModeRelease}}
-	ctx := WithSession(context.Background(), api.Session{Transport: "ssh", Identity: "laptop"})
+	ctx := WithSession(context.Background(), api.Session{Transport: "ssh", Identity: "commander"})
 
 	if _, err := d.VaultExport(ctx, api.VaultExportRequest{App: "shop", Env: "production"}); err != nil {
 		t.Fatal(err)
@@ -230,7 +230,7 @@ func TestVaultExportRevealIsAnEvent(t *testing.T) {
 		t.Fatalf("a revealed export wrote %d event(s), want 1", len(store.events))
 	}
 	ev := store.events[0]
-	if ev.EnvID != 3 || ev.Action != "secrets" || ev.Step != "export" || ev.Identity != "laptop" {
+	if ev.EnvID != 3 || ev.Action != "secrets" || ev.Step != "export" || ev.Identity != "commander" {
 		t.Errorf("event = %+v", ev)
 	}
 	if !strings.Contains(ev.Detail, "secret(s)") {
@@ -266,7 +266,7 @@ func TestVaultWritesAreEvents(t *testing.T) {
 	d, store := newTestDaemon(t)
 	d.Vault = &recordingVault{}
 	store.envs = []state.EnvRecord{{ID: 3, App: "shop", Name: "production", Mode: state.EnvModeRelease}}
-	ctx := WithSession(context.Background(), api.Session{Transport: "ssh", Identity: "laptop"})
+	ctx := WithSession(context.Background(), api.Session{Transport: "ssh", Identity: "commander"})
 
 	if _, err := d.VaultSet(ctx, api.VaultSetRequest{
 		Scope: vault.ScopeEnv, App: "shop", Env: "production",
@@ -278,7 +278,7 @@ func TestVaultWritesAreEvents(t *testing.T) {
 		t.Fatalf("a set wrote %d event(s), want 1", len(store.events))
 	}
 	set := store.events[0]
-	if set.EnvID != 3 || set.Action != "secrets" || set.Step != "set" || set.Identity != "laptop" {
+	if set.EnvID != 3 || set.Action != "secrets" || set.Step != "set" || set.Identity != "commander" {
 		t.Errorf("event = %+v", set)
 	}
 	for _, want := range []string{"STRIPE_KEY", "DB_PASSWORD", "env production"} {
@@ -310,7 +310,7 @@ func TestVaultWritesAreEvents(t *testing.T) {
 func TestVaultWritesWithNoEnvironmentAreStillEvents(t *testing.T) {
 	d, store := newTestDaemon(t)
 	d.Vault = &recordingVault{}
-	ctx := WithSession(context.Background(), api.Session{Transport: "ssh", Identity: "laptop"})
+	ctx := WithSession(context.Background(), api.Session{Transport: "ssh", Identity: "commander"})
 
 	if _, err := d.VaultSet(ctx, api.VaultSetRequest{
 		Scope: vault.ScopeMachine, Values: map[string]string{"REGISTRY_TOKEN": "t"},
@@ -321,7 +321,7 @@ func TestVaultWritesWithNoEnvironmentAreStillEvents(t *testing.T) {
 		t.Fatalf("a machine-scope set wrote %d event(s), want 1", len(store.events))
 	}
 	ev := store.events[0]
-	if ev.EnvID != 0 || ev.Action != "secrets" || ev.Step != "set" || ev.Identity != "laptop" {
+	if ev.EnvID != 0 || ev.Action != "secrets" || ev.Step != "set" || ev.Identity != "commander" {
 		t.Errorf("event = %+v", ev)
 	}
 	if !strings.Contains(ev.Detail, "machine scope") || !strings.Contains(ev.Detail, "REGISTRY_TOKEN") {
@@ -332,7 +332,7 @@ func TestVaultWritesWithNoEnvironmentAreStillEvents(t *testing.T) {
 func TestRevealWithNoEnvironmentIsStillAnEvent(t *testing.T) {
 	d, store := newTestDaemon(t)
 	d.Vault = leakyVault{}
-	ctx := WithSession(context.Background(), api.Session{Transport: "ssh", Identity: "laptop"})
+	ctx := WithSession(context.Background(), api.Session{Transport: "ssh", Identity: "commander"})
 
 	if _, err := d.VaultExport(ctx, api.VaultExportRequest{
 		App: "shop", Env: "no-such-env", Reveal: true,
@@ -343,7 +343,7 @@ func TestRevealWithNoEnvironmentIsStillAnEvent(t *testing.T) {
 		t.Fatalf("a reveal of an environment with no row wrote %d event(s), want 1", len(store.events))
 	}
 	ev := store.events[0]
-	if ev.EnvID != 0 || ev.Action != "secrets" || ev.Step != "export" || ev.Identity != "laptop" {
+	if ev.EnvID != 0 || ev.Action != "secrets" || ev.Step != "export" || ev.Identity != "commander" {
 		t.Errorf("event = %+v", ev)
 	}
 	if ev.App != "shop" || ev.Env != "no-such-env" {

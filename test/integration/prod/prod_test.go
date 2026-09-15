@@ -475,7 +475,7 @@ func TestSecondDeployUnderLoad(t *testing.T) {
 		}
 	})
 
-	t.Run("a second client saw every step", func(t *testing.T) {
+	t.Run("a second commander saw every step", func(t *testing.T) {
 		seen := feed.Stop(t)
 		if len(seen) == 0 {
 			t.Fatal("events --follow produced nothing while a deploy walked")
@@ -839,6 +839,9 @@ func TestASecretChangeRollsOut(t *testing.T) {
 		if left := secretsOnDisk(t, m); len(left) != 0 {
 			t.Errorf("%s still holds %v: an env-file lives for one docker run", secretsRunDir, left)
 		}
+		if stray := straySecretsOnDisk(t, m); stray != "" {
+			t.Errorf("%s exists: an env-file directory was made beside the data directory: %s", straySecretsDir, stray)
+		}
 		if left := buildsOnDisk(t, m, envProd); len(left) != 0 {
 			t.Errorf("%s's builds directory still holds %v: an export lives for one build", envProd, left)
 		}
@@ -859,7 +862,7 @@ func TestASecretChangeRollsOut(t *testing.T) {
 		if reveal.Identity == "" {
 			t.Errorf("the reveal event names nobody: %+v", reveal)
 		} else if who := whoAmI(t); reveal.Identity != who {
-			t.Errorf("the reveal event names %q, want the peer this client authenticates as (%q)",
+			t.Errorf("the reveal event names %q, want the peer this commander authenticates as (%q)",
 				reveal.Identity, who)
 		}
 	})
@@ -1019,7 +1022,7 @@ func TestMemoryLimitIsRealAndAnOOMIsAnEvent(t *testing.T) {
 
 	copyAs(t, repo, "caramelo.oom.yaml", "caramelo.yaml")
 	commitAll(t, "sampleapp: a service that allocates past its limit")
-	itest.Git(t, repo, clientEnv(), "branch", "-f", envOOM)
+	itest.Git(t, repo, commanderEnv(), "branch", "-f", envOOM)
 
 	createEnv(t, envOOM, "--from", envOOM, "--reset", "--no-deps")
 	t.Cleanup(func() { destroyEnv(t, envOOM) })
@@ -1071,7 +1074,7 @@ func TestMemoryLimitIsRealAndAnOOMIsAnEvent(t *testing.T) {
 	})
 
 	copyAs(t, repo, "caramelo.prod.yaml", "caramelo.yaml")
-	itest.Git(t, repo, clientEnv(), "checkout", branch)
+	itest.Git(t, repo, commanderEnv(), "checkout", branch)
 	commitAll(t, "sampleapp: back to the prod branch's file")
 }
 
@@ -1104,7 +1107,7 @@ func TestProductionSurvivesAPowerCycle(t *testing.T) {
 	if err := refreshEdgeTrust(); err != nil {
 		t.Fatalf("%v", err)
 	}
-	waitForClient(t)
+	waitForCommander(t)
 
 	t.Run("nothing had to be redeployed", func(t *testing.T) {
 		hist := releases(t, envProd)
@@ -1223,7 +1226,7 @@ func TestTheInterface(t *testing.T) {
 	bin := itest.BinaryPath(t)
 
 	t.Run("env list is a table on a terminal and the same table in a pipe", func(t *testing.T) {
-		pty, err := itest.PTYRun(ctx, repo, clientEnv(), bin, "env", "list", "--all")
+		pty, err := itest.PTYRun(ctx, repo, commanderEnv(), bin, "env", "list", "--all")
 		if err != nil {
 			t.Fatalf("%v", err)
 		}
@@ -1247,7 +1250,7 @@ func TestTheInterface(t *testing.T) {
 
 	t.Run("a deploy renders a live view on a terminal", func(t *testing.T) {
 		setVersion(t, "v8")
-		pty, err := itest.PTYRun(ctx, repo, clientEnv(), bin, "deploy", envStaging)
+		pty, err := itest.PTYRun(ctx, repo, commanderEnv(), bin, "deploy", envStaging)
 		if err != nil {
 			t.Fatalf("%v", err)
 		}
@@ -1270,13 +1273,13 @@ func TestTheInterface(t *testing.T) {
 		go func() {
 			defer close(done)
 			time.Sleep(itest.Scale(8 * time.Second))
-			res, err := clientExec(clientOpts{Dir: repo}, "secrets", "set", envStaging, "LIVE_VIEW_PROBE=1")
+			res, err := commanderExec(commanderOpts{Dir: repo}, "secrets", "set", envStaging, "LIVE_VIEW_PROBE=1")
 			if err != nil {
 				res.Stderr += err.Error()
 			}
 			probe <- res
 		}()
-		pty, _ := itest.PTYRun(short, repo, clientEnv(), bin, "events", "--follow")
+		pty, _ := itest.PTYRun(short, repo, commanderEnv(), bin, "events", "--follow")
 		<-done
 		if res := <-probe; res.ExitCode != 0 {
 			t.Fatalf("the secret the feed was meant to show could not be set: exit %d\n%s%s",

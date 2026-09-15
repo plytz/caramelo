@@ -322,9 +322,9 @@ func TestSocketTransportOnTheBox(t *testing.T) {
 	}
 }
 
-func TestClientWithoutMachine(t *testing.T) {
+func TestCommanderWithoutMachine(t *testing.T) {
 	home := t.TempDir()
-	res := itest.MustRunClient(t, itest.ClientOptions{Env: itest.ClientEnv(home)}, "status", "--json")
+	res := itest.MustRunCommander(t, itest.CommanderOptions{Env: itest.CommanderEnv(home)}, "status", "--json")
 	if res.ExitCode != 1 {
 		t.Errorf("exit = %d, want 1\nstdout:%s\nstderr:%s", res.ExitCode, res.Stdout, res.Stderr)
 	}
@@ -336,11 +336,11 @@ func TestClientWithoutMachine(t *testing.T) {
 	}
 }
 
-func TestClientWithMachineFlag(t *testing.T) {
+func TestCommanderWithMachineFlag(t *testing.T) {
 	m, _ := box(t)
-	home := itest.ClientHomeNoPeer(t, m)
-	res := itest.ClientOK(t, itest.ClientOptions{Env: itest.ClientEnv(home)},
-		"--machine", m.ClientTarget(t), "status", "--json")
+	home := itest.CommanderHomeNoPeer(t, m)
+	res := itest.CommanderOK(t, itest.CommanderOptions{Env: itest.CommanderEnv(home)},
+		"--machine", m.CommanderTarget(t), "status", "--json")
 	st := decodeStatus(t, res.Stdout)
 	if st.Transport != "ssh" {
 		t.Errorf("transport = %q, want ssh", st.Transport)

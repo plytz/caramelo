@@ -145,8 +145,8 @@ func FileSHA256(path string) (string, error) {
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
-func InstallClientBinaries(ctx context.Context, laptop, target *Machine) (string, error) {
-	laptopArch, err := laptop.Arch(ctx)
+func InstallCommanderBinaries(ctx context.Context, commander, target *Machine) (string, error) {
+	commanderArch, err := commander.Arch(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -154,14 +154,14 @@ func InstallClientBinaries(ctx context.Context, laptop, target *Machine) (string
 	if err != nil {
 		return "", err
 	}
-	bin, err := BinaryForArch(laptopArch)
+	bin, err := BinaryForArch(commanderArch)
 	if err != nil {
 		return "", err
 	}
-	if err := installExecutable(ctx, laptop, bin, RemoteBin); err != nil {
+	if err := installExecutable(ctx, commander, bin, RemoteBin); err != nil {
 		return "", err
 	}
-	if laptopArch == targetArch {
+	if commanderArch == targetArch {
 		return RemoteBin, nil
 	}
 	cross, err := BinaryForArch(targetArch)
@@ -169,7 +169,7 @@ func InstallClientBinaries(ctx context.Context, laptop, target *Machine) (string
 		return "", err
 	}
 	sibling := path.Join(path.Dir(RemoteBin), bootstrap.SiblingName("linux", targetArch))
-	if err := installExecutable(ctx, laptop, cross, sibling); err != nil {
+	if err := installExecutable(ctx, commander, cross, sibling); err != nil {
 		return "", err
 	}
 	return RemoteBin, nil

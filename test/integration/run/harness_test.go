@@ -45,9 +45,9 @@ const (
 )
 
 var (
-	clientTimeout = itest.Scale(8 * time.Minute)
-	curlTimeout   = itest.Scale(15 * time.Second)
-	udpBudget     = itest.Scale(30 * time.Second)
+	commanderTimeout = itest.Scale(8 * time.Minute)
+	curlTimeout      = itest.Scale(15 * time.Second)
+	udpBudget        = itest.Scale(30 * time.Second)
 )
 
 type suite struct {
@@ -87,8 +87,8 @@ func start(t *testing.T) *suite {
 	s := &suite{
 		lab:     lab,
 		m:       m,
-		home:    itest.ClientHomeNoPeer(t, m),
-		machine: m.ClientMachine(t),
+		home:    itest.CommanderHomeNoPeer(t, m),
+		machine: m.CommanderMachine(t),
 		tmp:     t.TempDir(),
 	}
 	t.Logf("machine %s", s.machine)
@@ -97,9 +97,9 @@ func start(t *testing.T) *suite {
 
 func (s *suite) refresh(t *testing.T) {
 	t.Helper()
-	s.machine = s.m.ClientMachine(t)
-	if err := itest.WriteClientHomeNoPeer(s.home, s.m); err != nil {
-		t.Fatalf("rewrite the client home after the power cycle: %v", err)
+	s.machine = s.m.CommanderMachine(t)
+	if err := itest.WriteCommanderHomeNoPeer(s.home, s.m); err != nil {
+		t.Fatalf("rewrite the commander home after the power cycle: %v", err)
 	}
 	t.Logf("machine %s", s.machine)
 }
@@ -111,38 +111,38 @@ func (s *suite) needRepo(t *testing.T) {
 	}
 }
 
-func (s *suite) clientEnv(extra ...string) []string {
+func (s *suite) commanderEnv(extra ...string) []string {
 	return itest.GitEnv(s.home, append([]string{"CARAMELO_MACHINE=" + s.machine}, extra...)...)
 }
 
-type clientOpts = itest.ClientOptions
+type commanderOpts = itest.CommanderOptions
 
-func (s *suite) opts(o clientOpts) clientOpts {
-	o.Env = s.clientEnv()
+func (s *suite) opts(o commanderOpts) commanderOpts {
+	o.Env = s.commanderEnv()
 	if o.Timeout == 0 {
-		o.Timeout = clientTimeout
+		o.Timeout = commanderTimeout
 	}
 	return o
 }
 
-func (s *suite) client(t *testing.T, o clientOpts, args ...string) itest.Result {
+func (s *suite) commander(t *testing.T, o commanderOpts, args ...string) itest.Result {
 	t.Helper()
-	return itest.MustRunClient(t, s.opts(o), args...)
+	return itest.MustRunCommander(t, s.opts(o), args...)
 }
 
 func (s *suite) inRepo(t *testing.T, args ...string) itest.Result {
 	t.Helper()
-	return s.client(t, clientOpts{Dir: s.repo}, args...)
+	return s.commander(t, commanderOpts{Dir: s.repo}, args...)
 }
 
-func (s *suite) mustClient(t *testing.T, o clientOpts, args ...string) itest.Result {
+func (s *suite) mustCommander(t *testing.T, o commanderOpts, args ...string) itest.Result {
 	t.Helper()
-	return itest.ClientOK(t, s.opts(o), args...)
+	return itest.CommanderOK(t, s.opts(o), args...)
 }
 
 func (s *suite) mustInRepo(t *testing.T, args ...string) itest.Result {
 	t.Helper()
-	return s.mustClient(t, clientOpts{Dir: s.repo}, args...)
+	return s.mustCommander(t, commanderOpts{Dir: s.repo}, args...)
 }
 
 func decode[T any](t *testing.T, what, stdout string) T {
@@ -363,7 +363,7 @@ func (s *suite) initSampleRepo(t *testing.T) string {
 		t.Fatalf("create the sample checkout: %v", err)
 	}
 	t.Logf("sample checkout: %s", dir)
-	env := s.clientEnv()
+	env := s.commanderEnv()
 
 	copyIn(t, dir, "app.py", "behaviour.py", "greeting.py", "version.py", "health.py", "echo.py",
 		"test_sampleapp.py", "caramelo.yaml")
@@ -391,7 +391,7 @@ func (s *suite) initSampleRepo(t *testing.T) string {
 
 func (s *suite) initM7Branch(t *testing.T) {
 	t.Helper()
-	env := s.clientEnv()
+	env := s.commanderEnv()
 	itest.Git(t, s.repo, env, "checkout", "-b", m7Branch, defaultBranch)
 	copyIn(t, s.repo, "pgwire.py", "migrate.py", "smoke.py")
 	copyAs(t, s.repo, "greeting.secret.py", "greeting.py")

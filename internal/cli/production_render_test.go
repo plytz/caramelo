@@ -23,13 +23,13 @@ func TestWriteBuildResult(t *testing.T) {
 		App: "shop", Commit: "1234567890abcdef1234567890abcdef12345678",
 		Tree: "abcdef0123456789", Ref: "v1.2.3",
 		Images:  map[string]string{"web": "caramelo/shop/web:abcdef012345"},
-		BuiltBy: "laptop", BuiltAt: at,
+		BuiltBy: "commander", BuiltAt: at,
 	}
 	var buf bytes.Buffer
 	if err := writeBuildResult(&buf, &api.BuildResult{App: "shop", Env: "production", Release: rel, Built: true}); err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"shop/production", "built", "v1.2.3", "caramelo/shop/web:abcdef012345", "laptop"} {
+	for _, want := range []string{"shop/production", "built", "v1.2.3", "caramelo/shop/web:abcdef012345", "commander"} {
 		if !strings.Contains(buf.String(), want) {
 			t.Errorf("build result has no %q:\n%s", want, buf.String())
 		}
@@ -68,7 +68,7 @@ func TestWriteDeployResult(t *testing.T) {
 			Window: 10 * time.Second, Elapsed: 4 * time.Second,
 			Requests: 120, Errors: 13, Rate: 0.108, MaxRate: 0.05, MinRequests: 20,
 		},
-		Routes: []string{"shop.test"}, Identity: "laptop",
+		Routes: []string{"shop.test"}, Identity: "commander",
 		StartedAt: start, FinishedAt: start.Add(30 * time.Second),
 		Error: "rolled back: the edge counted more errors than deploy.max_errors allows",
 	}
@@ -137,8 +137,8 @@ func TestWriteVaultResultNeverPrintsAValue(t *testing.T) {
 	res := &api.VaultResult{
 		App: "shop", Env: "production",
 		Entries: []vault.Entry{
-			{Ref: vault.AppRef("shop", "GREETING"), Version: 1, UpdatedBy: "laptop"},
-			{Ref: vault.EnvRef("shop", "production", "GREETING"), Version: 2, UpdatedBy: "laptop"},
+			{Ref: vault.AppRef("shop", "GREETING"), Version: 1, UpdatedBy: "commander"},
+			{Ref: vault.EnvRef("shop", "production", "GREETING"), Version: 2, UpdatedBy: "commander"},
 		},
 		Resolved: map[string]vault.Scope{"GREETING": vault.ScopeEnv},
 		Changed:  []string{"GREETING"},
@@ -246,7 +246,7 @@ func TestEventsPlainFeedIsTheOneRendering(t *testing.T) {
 		{App: "shop", Env: "production", Service: "web", Replica: 2, Action: "rollout",
 			Step: "flip", Status: progress.StatusChanged, Detail: "active", At: at},
 		{App: "shop", Env: "production", Action: "deploy", Step: "watch",
-			Status: progress.StatusOK, Detail: "10s, 0 errors", Identity: "laptop", At: at},
+			Status: progress.StatusOK, Detail: "10s, 0 errors", Identity: "commander", At: at},
 	}
 	for _, e := range events {
 		if err := w.Emit(e); err != nil {
@@ -268,7 +268,7 @@ func TestEventsPlainFeedIsTheOneRendering(t *testing.T) {
 	if !strings.Contains(lines[0], "shop/production") || !strings.Contains(lines[0], "rollout flip web-2") {
 		t.Errorf("row = %q, want the environment, the action and the replica", lines[0])
 	}
-	if !strings.Contains(lines[1], "(laptop)") {
+	if !strings.Contains(lines[1], "(commander)") {
 		t.Errorf("identity is not in the row: %q", lines[1])
 	}
 }
@@ -308,17 +308,17 @@ func (s *prodService) VaultList(_ context.Context, req api.VaultListRequest) (*a
 	return &res, nil
 }
 
-func TestClientRenderMatchesTheDaemonForProduction(t *testing.T) {
+func TestCommanderRenderMatchesTheDaemonForProduction(t *testing.T) {
 	at := time.Date(2026, 9, 10, 12, 0, 0, 0, time.UTC)
 	rel := &release.Release{
 		App: "shop", Commit: "1234567890abcdef1234567890abcdef12345678",
 		Tree: "abcdef0123456789", Ref: "v1.2.3",
 		Images:  map[string]string{"web": "caramelo/shop/web:abcdef012345"},
-		BuiltBy: "laptop", BuiltAt: at,
+		BuiltBy: "commander", BuiltAt: at,
 	}
 	deployed := &api.DeployResult{Deploy: &env.Deploy{
 		ID: 7, App: "shop", Env: "production", Kind: env.DeployKindDeploy,
-		Status: env.DeployPromoted, Release: rel, Identity: "laptop",
+		Status: env.DeployPromoted, Release: rel, Identity: "commander",
 		Steps: []env.DeployStep{
 			{Step: env.StepBuild, Status: env.StepOK, Detail: "1 image", Duration: 3 * time.Second},
 			{Step: env.StepSwitch, Status: env.StepOK, Detail: "1 host", Duration: 20 * time.Millisecond},
@@ -369,10 +369,10 @@ func TestClientRenderMatchesTheDaemonForProduction(t *testing.T) {
 			}
 			var b bytes.Buffer
 			if err := fn(&b, json.RawMessage(strings.TrimSpace(body))); err != nil {
-				t.Fatalf("client render: %v", err)
+				t.Fatalf("commander render: %v", err)
 			}
 			if b.String() != human {
-				t.Errorf("the client's rendering is not the daemon's.\n--- client ---\n%s\n--- daemon ---\n%s",
+				t.Errorf("the commander's rendering is not the daemon's.\n--- commander ---\n%s\n--- daemon ---\n%s",
 					b.String(), human)
 			}
 		})

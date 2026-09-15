@@ -21,7 +21,7 @@ import (
 func init() {
 	register(func(a *app) *cobra.Command {
 		e := &envCmd{a: a}
-		cmd := clientCmd(&cobra.Command{
+		cmd := commanderCmd(&cobra.Command{
 			Use:   "env",
 			Short: "Create, inspect and destroy isolated environments of an app",
 			Long: `An environment is an isolated, disposable copy of an app on the machine:
@@ -104,7 +104,7 @@ func (e *envCmd) preRun(cmd *cobra.Command, args []string) error {
 	if err := e.checkFleetFlags(cmd); err != nil {
 		return err
 	}
-	return e.a.forwardIfClient(cmd)
+	return e.a.forwardIfCommander(cmd)
 }
 
 func (e *envCmd) resolveFrom(cmd *cobra.Command) {

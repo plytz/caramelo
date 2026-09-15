@@ -45,16 +45,16 @@ func TestBootstrap(t *testing.T) {
 		t.Errorf("machine = %+v", first.Machine)
 	}
 	if !first.Verified {
-		t.Errorf("the API was not verified from the laptop\noutput:\n%s", firstRaw)
+		t.Errorf("the API was not verified from the commander\noutput:\n%s", firstRaw)
 	}
 	var st capi.Status
 	if err := json.Unmarshal(first.Status, &st); err != nil || st.Transport != remote.KindTunnel {
 		t.Errorf("status = %s (%v), want transport %s", first.Status, err, remote.KindTunnel)
 	}
 
-	cfg := clientConfig(t)
+	cfg := commanderConfig(t)
 	if cfg.DefaultMachine != machineName || cfg.Machines[machineName] != first.Machine.Address {
-		t.Errorf("client config = %+v, want default %s -> %s", cfg, machineName, first.Machine.Address)
+		t.Errorf("commander config = %+v, want default %s -> %s", cfg, machineName, first.Machine.Address)
 	}
 }
 
@@ -74,15 +74,15 @@ func TestNothingLeftInTmp(t *testing.T) {
 	}
 }
 
-func TestClientUsesTheNewDefaultMachine(t *testing.T) {
+func TestCommanderUsesTheNewDefaultMachine(t *testing.T) {
 	begin(t)
 	if firstErr != nil {
 		t.Skip("bootstrap failed")
 	}
-	st := laptopStatus(t)
+	st := commanderStatus(t)
 	if st.Transport != remote.KindTunnel {
-		t.Errorf("transport = %q, want %q: a bootstrapped laptop holds a peer key, "+
-			"which the client prefers over the system ssh", st.Transport, remote.KindTunnel)
+		t.Errorf("transport = %q, want %q: a bootstrapped commander holds a peer key, "+
+			"which the commander prefers over the system ssh", st.Transport, remote.KindTunnel)
 	}
 }
 
@@ -93,14 +93,14 @@ func TestBootstrapJoinedTheNetwork(t *testing.T) {
 	}
 
 	key := peerKeyDir + "/" + vpnclient.KeyFileName(machineName)
-	mode := strings.TrimSpace(laptop.MustRun(t, "stat -c %a "+itest.ShellQuote(key)).Stdout)
+	mode := strings.TrimSpace(commander.MustRun(t, "stat -c %a "+itest.ShellQuote(key)).Stdout)
 	if mode != "600" {
 		t.Errorf("%s mode = %s, want 600", key, mode)
 	}
 
-	peers := laptopPeers(t)
+	peers := commanderPeers(t)
 	if len(peers) == 0 {
-		t.Fatal("the machine has no peers after a bootstrap; the laptop was never admitted")
+		t.Fatal("the machine has no peers after a bootstrap; the commander was never admitted")
 	}
 	prefix, err := netip.ParsePrefix(vpn.DefaultSubnet)
 	if err != nil {
@@ -118,44 +118,44 @@ func TestBootstrapJoinedTheNetwork(t *testing.T) {
 		}
 	}
 
-	joined := laptopVPNState(t)
+	joined := commanderVPNState(t)
 	if joined.PeerName == "" || !joined.IP.IsValid() {
 		t.Errorf("vpn status = %+v, want the identity and address the bootstrap registered", joined)
 	}
 }
 
-func TestTheMachineAdmittedOnlyTheLaptop(t *testing.T) {
+func TestTheMachineAdmittedOnlyTheCommander(t *testing.T) {
 	begin(t)
 	if firstErr != nil {
 		t.Skip("bootstrap failed")
 	}
-	joined := laptopVPNState(t)
-	peers := laptopPeers(t)
+	joined := commanderVPNState(t)
+	peers := commanderPeers(t)
 	if len(peers) != 1 {
-		t.Fatalf("the machine has %d peers after one bootstrap, want exactly the laptop: %+v", len(peers), peers)
+		t.Fatalf("the machine has %d peers after one bootstrap, want exactly the commander: %+v", len(peers), peers)
 	}
 	if peers[0].PublicKey != joined.PublicKey {
-		t.Errorf("the admitted peer holds %q, and the laptop holds %q: the key the bootstrap passed "+
-			"as --peer is not this computer's", peers[0].PublicKey, joined.PublicKey)
+		t.Errorf("the admitted peer holds %q, and the commander holds %q: the key the bootstrap passed "+
+			"as --peer is not the commander's", peers[0].PublicKey, joined.PublicKey)
 	}
 	if peers[0].Name != joined.PeerName {
-		t.Errorf("the admitted peer is named %q and the laptop calls itself %q", peers[0].Name, joined.PeerName)
+		t.Errorf("the admitted peer is named %q and the commander calls itself %q", peers[0].Name, joined.PeerName)
 	}
 }
 
-func TestThePrivateKeyStayedOnTheLaptop(t *testing.T) {
+func TestThePrivateKeyStayedOnTheCommander(t *testing.T) {
 	m := begin(t)
 	if firstErr != nil {
 		t.Skip("bootstrap failed")
 	}
 	key := peerKeyDir + "/" + vpnclient.KeyFileName(machineName)
-	private := strings.TrimSpace(laptop.MustRun(t, "cat "+itest.ShellQuote(key)).Stdout)
+	private := strings.TrimSpace(commander.MustRun(t, "cat "+itest.ShellQuote(key)).Stdout)
 	if private == "" {
-		t.Fatalf("no private key at %s on %s", key, laptop.Alias)
+		t.Fatalf("no private key at %s on %s", key, commander.Alias)
 	}
 	res := m.MustRun(t, "sudo -n grep -rlF "+itest.ShellQuote(private)+" /var/lib/caramelo /etc/caramelo /tmp; true")
 	if found := strings.TrimSpace(res.Stdout); found != "" {
-		t.Errorf("the laptop's private key is on the machine, in %s", strings.Join(strings.Fields(found), " "))
+		t.Errorf("the commander's private key is on the machine, in %s", strings.Join(strings.Fields(found), " "))
 	}
 }
 
@@ -190,7 +190,7 @@ func TestTheMachineComesBackAfterAPowerCycle(t *testing.T) {
 	before := m.MustAddress(t)
 	itest.MustRestart(t, m)
 	if after := m.MustAddress(t); after != before {
-		t.Fatalf("%s came back at a new address (%s, was %s); the client config the bootstrap "+
+		t.Fatalf("%s came back at a new address (%s, was %s); the commander config the bootstrap "+
 			"wrote names the old one", m.Alias, after, before)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), m.Budget().For(3*time.Minute))
@@ -198,7 +198,7 @@ func TestTheMachineComesBackAfterAPowerCycle(t *testing.T) {
 	if err := itest.WaitForCaramelod(ctx, m); err != nil {
 		t.Fatalf("caramelod did not come back after the power cycle: %v", err)
 	}
-	st := laptopStatus(t)
+	st := commanderStatus(t)
 	if st.Transport != remote.KindTunnel {
 		t.Errorf("transport after the power cycle = %q, want %q", st.Transport, remote.KindTunnel)
 	}
@@ -207,50 +207,50 @@ func TestTheMachineComesBackAfterAPowerCycle(t *testing.T) {
 	}
 }
 
-func clientConfig(t *testing.T) remote.ClientConfig {
+func commanderConfig(t *testing.T) remote.CommanderConfig {
 	t.Helper()
 	local := filepath.Join(t.TempDir(), "config.yaml")
-	ctx, cancel := context.WithTimeout(context.Background(), laptop.Budget().For(time.Minute))
+	ctx, cancel := context.WithTimeout(context.Background(), commander.Budget().For(time.Minute))
 	defer cancel()
-	if err := laptop.Fetch(ctx, clientConfigPath, local); err != nil {
-		t.Fatalf("read the client config from %s: %v", laptop.Alias, err)
+	if err := commander.Fetch(ctx, commanderConfigPath, local); err != nil {
+		t.Fatalf("read the commander config from %s: %v", commander.Alias, err)
 	}
 	if info, err := os.Stat(local); err == nil && info.IsDir() {
 		local = filepath.Join(local, "config.yaml")
 	}
-	cfg, err := remote.LoadClientConfigFrom(local)
+	cfg, err := remote.LoadCommanderConfigFrom(local)
 	if err != nil {
 		t.Fatal(err)
 	}
 	return cfg
 }
 
-func laptopClient(t *testing.T, v any, args ...string) {
+func commanderJSON(t *testing.T, v any, args ...string) {
 	t.Helper()
-	res := laptop.MustRun(t, laptopBin+" "+strings.Join(args, " "))
+	res := commander.MustRun(t, commanderBin+" "+strings.Join(args, " "))
 	if err := json.Unmarshal([]byte(strings.TrimSpace(res.Stdout)), v); err != nil {
 		t.Fatalf("caramelo %s: %v\nstdout: %q\nstderr: %q", strings.Join(args, " "), err, res.Stdout, res.Stderr)
 	}
 }
 
-func laptopStatus(t *testing.T) capi.Status {
+func commanderStatus(t *testing.T) capi.Status {
 	t.Helper()
 	var st capi.Status
-	laptopClient(t, &st, "status", "--json")
+	commanderJSON(t, &st, "status", "--json")
 	return st
 }
 
-func laptopPeers(t *testing.T) []state.Peer {
+func commanderPeers(t *testing.T) []state.Peer {
 	t.Helper()
 	var peers []state.Peer
-	laptopClient(t, &peers, "peer", "list", "--json")
+	commanderJSON(t, &peers, "peer", "list", "--json")
 	return peers
 }
 
-func laptopVPNState(t *testing.T) vpnclient.State {
+func commanderVPNState(t *testing.T) vpnclient.State {
 	t.Helper()
 	var v vpnclient.State
-	laptopClient(t, &v, "vpn", "status", "--json")
+	commanderJSON(t, &v, "vpn", "status", "--json")
 	return v
 }
 
