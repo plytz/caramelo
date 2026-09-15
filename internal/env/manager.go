@@ -55,8 +55,6 @@ type Manager struct {
 
 	Edge edge.Client
 
-	drains sync.Map
-
 	Builder release.Builder
 
 	Images release.ImageStore
@@ -385,6 +383,18 @@ func decodeConfig(r *state.EnvRecord) (*config.App, error) {
 		return nil, fmt.Errorf("env %s/%s: decode config: %w", r.App, r.Name, err)
 	}
 	return cfg, nil
+}
+
+func (m *Manager) recordedConfig(rec *state.EnvRecord) *config.App {
+	if rec == nil {
+		return nil
+	}
+	cfg, err := decodeConfig(rec)
+	if err != nil {
+		m.logf("read the drain of env %s/%s from its recorded config: %v", rec.App, rec.Name, err)
+		return nil
+	}
+	return cfg
 }
 
 func progressf(w io.Writer, status, action, format string, args ...any) {

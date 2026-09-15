@@ -101,10 +101,11 @@ func (m *Manager) viaHosts(ctx context.Context, rec *state.EnvRecord) []fleet.Vi
 		m.logf("read the routes of %s/%s for the announcement: %v", rec.App, rec.Name, err)
 		return nil
 	}
+	cfg := m.recordedConfig(rec)
 	out := make([]fleet.ViaHost, 0, len(rows))
 	for _, r := range rows {
 		out = append(out, fleet.ViaHost{
-			Host: r.Host, Service: r.Service, Drain: m.drainFor(r.Host),
+			Host: r.Host, Service: r.Service, Drain: drainOf(cfg, r.Service),
 		})
 	}
 	return out

@@ -258,6 +258,30 @@ func TestDeployHoldsTheOldPoolThroughTheWatch(t *testing.T) {
 	}
 }
 
+func TestDeployPushesTheDrainOfTheReleaseItIsFlippingTo(t *testing.T) {
+	h, e, b := deployHarness(t, 1)
+	h.cfg.Services[0].Drain = 5 * time.Second
+	h.cfg.Deploy = &config.Deploy{Watch: time.Hour, Promote: config.PromoteManual}
+	h.mustCreate(CreateRequest{App: "shop", Name: "production", Production: true})
+	first := h.mustDeploy(DeployRequest{App: "shop", Env: "production", NoWatch: true})
+	h.waitStatus(first.ID, state.DeployWatching)
+	h.mustPromote()
+
+	h.cfg.Services[0].Drain = 120 * time.Second
+	h.push(b, "bbbbbbbbbbbb")
+	second := h.mustDeploy(DeployRequest{App: "shop", Env: "production", NoWatch: true})
+	h.waitStatus(second.ID, state.DeployWatching)
+
+	r, ok := e.table().Route(prodHost)
+	if !ok {
+		t.Fatalf("the edge does not serve %s\n%s", prodHost, h.out.String())
+	}
+	if r.Drain != 120*time.Second {
+		t.Errorf("route drain = %s while the deploy is watching, want the flipped release's 2m0s", r.Drain)
+	}
+	h.mustPromote()
+}
+
 func TestDeployCarriesThePerReplicaRollout(t *testing.T) {
 	h, _, b := deployHarness(t, 1)
 	h.cfg.Deploy = &config.Deploy{Watch: shortWatch}
@@ -596,6 +620,35 @@ func TestRollbackInsideTheWindowIsAFlipBack(t *testing.T) {
 	}
 }
 
+func TestARollbackPutsTheDrainOfThePreviousReleaseBack(t *testing.T) {
+	h, e, b := deployHarness(t, 1)
+	h.cfg.Services[0].Drain = 5 * time.Second
+	h.cfg.Deploy = &config.Deploy{Watch: time.Hour, Promote: config.PromoteManual}
+	h.mustCreate(CreateRequest{App: "shop", Name: "production", Production: true})
+	first := h.mustDeploy(DeployRequest{App: "shop", Env: "production", NoWatch: true})
+	h.waitStatus(first.ID, state.DeployWatching)
+	h.mustPromote()
+
+	h.cfg.Services[0].Drain = 120 * time.Second
+	h.push(b, "bbbbbbbbbbbb")
+	second := h.mustDeploy(DeployRequest{App: "shop", Env: "production", NoWatch: true})
+	h.waitStatus(second.ID, state.DeployWatching)
+
+	if _, err := h.m.Rollback(context.Background(), RollbackRequest{App: "shop", Env: "production"}, &h.out); err != nil {
+		t.Fatalf("Rollback: %v\n%s", err, h.out.String())
+	}
+	if err := h.m.PushRoutes(context.Background()); err != nil {
+		t.Fatalf("PushRoutes: %v\n%s", err, h.out.String())
+	}
+	r, ok := e.table().Route(prodHost)
+	if !ok {
+		t.Fatalf("the edge does not serve %s\n%s", prodHost, h.out.String())
+	}
+	if r.Drain != 5*time.Second {
+		t.Errorf("route drain = %s after the rollback, want the release that is serving again (5s)", r.Drain)
+	}
+}
+
 func TestRollbackOutsideTheWindowDeploysThePreviousRelease(t *testing.T) {
 	h, _, b := deployHarness(t, 1)
 	h.cfg.Deploy = &config.Deploy{Watch: shortWatch}
@@ -691,6 +744,8 @@ func (h *harness) restart() *Manager {
 	m.LoadConfig, m.Detect = h.m.LoadConfig, h.m.Detect
 	m.DialTCP, m.HTTPStatus = h.m.DialTCP, h.m.HTTPStatus
 	m.Edge, m.Builder, m.Secrets, m.Now = h.m.Edge, h.m.Builder, h.m.Secrets, h.m.Now
+	m.Dirs = h.m.Dirs
+	m.SetFleetWiring(h.m.FleetWiringOf())
 	return h.daemon(m)
 }
 

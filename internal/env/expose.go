@@ -123,7 +123,6 @@ func (m *Manager) publishRunning(ctx context.Context, rec *state.EnvRecord, cfg 
 	if err := m.recordTargets(ctx, route{id: row.ID, host: host}, replicas); err != nil {
 		return err
 	}
-	m.rememberDrain(host, drainOf(cfg, service))
 	if len(replicas) > 0 {
 		progressf(progress, "changed", "route", "%s → %s", host, plural(len(replicas), "replica"))
 	}
@@ -166,7 +165,6 @@ func (m *Manager) Unexpose(ctx context.Context, req UnexposeRequest, progress io
 		if err := m.Store.DeleteRoute(ctx, r.ID); err != nil {
 			return nil, fmt.Errorf("remove route %s: %w", r.Host, err)
 		}
-		m.forgetDrain(r.Host)
 		changed = append(changed, r.Host)
 		m.event(ctx, rec.ID, "unexpose", "ok", r.Host)
 		progressf(progress, "changed", "route", "%s removed", r.Host)
@@ -409,12 +407,6 @@ func (m *Manager) planRoutes(ctx context.Context, rec *state.EnvRecord, p *upPla
 		}
 	}
 
-	for service, r := range p.routes {
-		for _, one := range r.all() {
-			m.rememberDrain(one.host, drainOf(p.cfg, service))
-		}
-	}
-
 	if len(wanted) > 0 {
 		keep := make(map[string]route, len(wanted))
 		for _, s := range wanted {
@@ -425,26 +417,6 @@ func (m *Manager) planRoutes(ctx context.Context, rec *state.EnvRecord, p *upPla
 		p.routes = keep
 	}
 	return nil
-}
-
-func (m *Manager) rememberDrain(host string, d time.Duration) {
-	if host == "" || d <= 0 {
-		return
-	}
-	m.drains.Store(edge.NormalizeHost(host), d)
-}
-
-func (m *Manager) forgetDrain(host string) {
-	m.drains.Delete(edge.NormalizeHost(host))
-}
-
-func (m *Manager) drainFor(host string) time.Duration {
-	if v, ok := m.drains.Load(edge.NormalizeHost(host)); ok {
-		if d, ok := v.(time.Duration); ok {
-			return d
-		}
-	}
-	return 0
 }
 
 func (m *Manager) Routes(ctx context.Context, app, name string) ([]edge.Route, error) {
@@ -460,9 +432,10 @@ func (m *Manager) envRoutes(ctx context.Context, rec *state.EnvRecord) ([]edge.R
 	if err != nil {
 		return nil, fmt.Errorf("read the routes of env %q: %w", rec.Name, err)
 	}
+	cfg := m.recordedConfig(rec)
 	out := make([]edge.Route, 0, len(rows))
 	for _, r := range rows {
-		route, err := m.routeOf(ctx, rec.App, rec.Name, r)
+		route, err := m.routeOf(ctx, *rec, cfg, r)
 		if err != nil {
 			return nil, err
 		}
@@ -471,7 +444,7 @@ func (m *Manager) envRoutes(ctx context.Context, rec *state.EnvRecord) ([]edge.R
 	return out, nil
 }
 
-func (m *Manager) routeOf(ctx context.Context, app, env string, r state.Route) (edge.Route, error) {
+func (m *Manager) routeOf(ctx context.Context, rec state.EnvRecord, cfg *config.App, r state.Route) (edge.Route, error) {
 	targets, err := m.Store.Targets(ctx, r.ID)
 	if err != nil {
 		return edge.Route{}, fmt.Errorf("read the targets of route %s: %w", r.Host, err)
@@ -479,10 +452,10 @@ func (m *Manager) routeOf(ctx context.Context, app, env string, r state.Route) (
 	route := edge.Route{
 		Host:      r.Host,
 		Kind:      edge.Kind(r.Kind),
-		App:       app,
-		Env:       env,
+		App:       rec.App,
+		Env:       rec.Name,
 		Service:   r.Service,
-		Drain:     m.drainFor(r.Host),
+		Drain:     drainOf(cfg, r.Service),
 		CreatedAt: r.CreatedAt,
 	}
 	if route.Kind == "" {
@@ -513,6 +486,7 @@ func (m *Manager) table(ctx context.Context) (edge.Table, error) {
 	for _, e := range envs {
 		byID[e.ID] = e
 	}
+	configs := make(map[int64]*config.App, len(envs))
 	t := edge.Table{UpdatedAt: m.now()}
 	for _, r := range rows {
 		e, ok := byID[r.EnvID]
@@ -520,7 +494,12 @@ func (m *Manager) table(ctx context.Context) (edge.Table, error) {
 
 			continue
 		}
-		route, err := m.routeOf(ctx, e.App, e.Name, r)
+		cfg, seen := configs[r.EnvID]
+		if !seen {
+			cfg = m.recordedConfig(&e)
+			configs[r.EnvID] = cfg
+		}
+		route, err := m.routeOf(ctx, e, cfg, r)
 		if err != nil {
 			return edge.Table{}, err
 		}
@@ -638,7 +617,6 @@ func (m *Manager) dropRoutes(ctx context.Context, rec *state.EnvRecord, progress
 		if err := m.Store.DeleteRoute(ctx, r.ID); err != nil {
 			return fmt.Errorf("remove route %s: %w", r.Host, err)
 		}
-		m.forgetDrain(r.Host)
 		progressf(progress, "changed", "route", "%s removed", r.Host)
 	}
 	return m.pushRoutes(ctx, progress)

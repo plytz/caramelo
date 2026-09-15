@@ -60,6 +60,7 @@ file:
     owner: caramelo
     contents:
       - feat-x.shop.test
+      - '"drain": 5000000000'
 
   /run/caramelo/edge.sock:
     exists: true

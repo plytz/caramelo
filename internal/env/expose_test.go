@@ -1,7 +1,9 @@
 package env
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"io"
 	"net/netip"
 	"strings"
@@ -9,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/plytz/caramelo/internal/config"
 	"github.com/plytz/caramelo/internal/edge"
 )
 
@@ -365,7 +368,93 @@ func TestThePushedTableCarriesTheServicesDrain(t *testing.T) {
 	}
 }
 
-func TestUnexposeForgetsTheDrain(t *testing.T) {
+func TestARestartedManagerStillPushesTheConfiguredDrain(t *testing.T) {
+	h, e := edgeHarness(t, 1)
+	h.cfg.Services[0].Drain = 7 * time.Second
+	h.mustCreate(CreateRequest{App: "shop", Name: "feat-x"})
+	h.mustUp(UpRequest{App: "shop", Name: "feat-x"})
+
+	h.loadErr = errors.New("caramelo.yaml is unreadable after a restart")
+	h.cfg.Services[0].Drain = 11 * time.Second
+
+	next := h.restart()
+	if err := next.PushRoutes(context.Background()); err != nil {
+		t.Fatalf("PushRoutes after a restart: %v\n%s", err, h.out.String())
+	}
+	r, ok := e.table().Route(webHost)
+	if !ok {
+		t.Fatalf("the edge holds no route for %s\n%s", webHost, h.out.String())
+	}
+	if r.Drain != 7*time.Second {
+		t.Errorf("drain after restart = %s, want 7s", r.Drain)
+	}
+}
+
+func TestUpPushesADrainThatChangedSinceTheLastUp(t *testing.T) {
+	h, e := edgeHarness(t, 1)
+	h.cfg.Services[0].Drain = 7 * time.Second
+	h.mustCreate(CreateRequest{App: "shop", Name: "feat-x"})
+	h.mustUp(UpRequest{App: "shop", Name: "feat-x"})
+
+	h.cfg.Services[0].Drain = 11 * time.Second
+	h.mustUp(UpRequest{App: "shop", Name: "feat-x"})
+
+	r, ok := e.table().Route(webHost)
+	if !ok {
+		t.Fatalf("the edge holds no route for %s\n%s", webHost, h.out.String())
+	}
+	if r.Drain != 11*time.Second {
+		t.Errorf("route drain = %s after a second up, want the new 11s", r.Drain)
+	}
+}
+
+func TestAServiceWithNoDrainIsPushedWithTheDefault(t *testing.T) {
+	h, e := edgeHarness(t, 1)
+	h.mustCreate(CreateRequest{App: "shop", Name: "feat-x"})
+	h.mustUp(UpRequest{App: "shop", Name: "feat-x"})
+
+	r, ok := e.table().Route(webHost)
+	if !ok {
+		t.Fatalf("the edge holds no route for %s\n%s", webHost, h.out.String())
+	}
+	if r.Drain != config.DefaultDrain {
+		t.Errorf("route drain = %s, want the default %s", r.Drain, config.DefaultDrain)
+	}
+}
+
+func TestARouteWhoseRecordedConfigCannotBeReadFallsToTheDefault(t *testing.T) {
+	h, e := edgeHarness(t, 1)
+	h.cfg.Services[0].Drain = 7 * time.Second
+	h.mustCreate(CreateRequest{App: "shop", Name: "feat-x"})
+	h.mustUp(UpRequest{App: "shop", Name: "feat-x"})
+
+	var logs bytes.Buffer
+	h.m.Log = &logs
+	id := h.envID("feat-x")
+	h.store.mu.Lock()
+	for i := range h.store.envs {
+		if h.store.envs[i].ID == id {
+			h.store.envs[i].ConfigJSON = `{"deps":`
+		}
+	}
+	h.store.mu.Unlock()
+
+	if err := h.m.PushRoutes(context.Background()); err != nil {
+		t.Fatalf("PushRoutes: %v\n%s", err, h.out.String())
+	}
+	r, ok := e.table().Route(webHost)
+	if !ok {
+		t.Fatalf("the edge holds no route for %s\n%s", webHost, h.out.String())
+	}
+	if r.Drain != config.DefaultDrain {
+		t.Errorf("route drain = %s, want the default %s when the recorded config cannot be read", r.Drain, config.DefaultDrain)
+	}
+	if got := logs.String(); !strings.Contains(got, "shop/feat-x") {
+		t.Errorf("log = %q, want it to name the environment whose config could not be read", got)
+	}
+}
+
+func TestUnexposeTakesTheRouteOffTheEdge(t *testing.T) {
 	h, e := edgeHarness(t, 1)
 	h.cfg.Services[0].Drain = 7 * time.Second
 	h.mustCreate(CreateRequest{App: "shop", Name: "feat-x"})
@@ -373,9 +462,6 @@ func TestUnexposeForgetsTheDrain(t *testing.T) {
 
 	if _, err := h.m.Unexpose(context.Background(), UnexposeRequest{App: "shop", Name: "feat-x"}, &h.out); err != nil {
 		t.Fatalf("Unexpose: %v", err)
-	}
-	if d := h.m.drainFor(webHost); d != 0 {
-		t.Errorf("drain of an unexposed host = %s, want nothing remembered", d)
 	}
 	if _, ok := e.table().Route(webHost); ok {
 		t.Error("the edge still holds the route that was unexposed")
