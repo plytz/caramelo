@@ -2,7 +2,9 @@ package env
 
 import (
 	"context"
+	"errors"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
@@ -508,9 +510,68 @@ func TestNoSecretsMeansNoEnvFile(t *testing.T) {
 		}
 	}
 
-	entries, err := os.ReadDir(h.m.secretsDir())
+	dir, err := vault.SecretsDir(h.run)
+	if err != nil {
+		t.Fatalf("SecretsDir(%q): %v", h.run, err)
+	}
+	entries, err := os.ReadDir(dir)
 	if err == nil && len(entries) != 0 {
-		t.Errorf("%s holds %d files", h.m.secretsDir(), len(entries))
+		t.Errorf("%s holds %d files", dir, len(entries))
+	}
+}
+
+func TestASecretIsNeverWrittenBesideTheDataDirectory(t *testing.T) {
+	h := upHarness(t)
+	h.mustCreate(CreateRequest{App: "shop", Name: "feat-x"})
+	h.setSecret(t, "feat-x", "TOKEN", "beside-the-data-dir")
+	files := h.captureEnvFiles()
+	h.m.Dirs.Run = ""
+
+	_, err := h.m.Up(context.Background(), UpRequest{App: "shop", Name: "feat-x"}, &h.out)
+	if err == nil {
+		t.Fatalf("Up delivered a secret with no run directory\n%s", h.out.String())
+	}
+	if !errors.Is(err, vault.ErrNoRunDir) {
+		t.Errorf("Up failed with %v, want an error that is %v", err, vault.ErrNoRunDir)
+	}
+	if len(files) != 0 {
+		t.Errorf("an env-file was written and read back: %v", files)
+	}
+
+	stray := filepath.Join(h.data, vault.SecretsDirName)
+	if _, err := os.Stat(stray); !os.IsNotExist(err) {
+		t.Errorf("%s exists beside the data directory (%v)", stray, err)
+	}
+
+	h.driver.mu.Lock()
+	defer h.driver.mu.Unlock()
+	for _, spec := range h.driver.specs {
+		if spec.EnvFile != "" {
+			t.Errorf("%s was given the env-file %s", spec.Name, spec.EnvFile)
+		}
+	}
+}
+
+func TestAnEnvironmentWithNoSecretComesUpWithoutARunDirectory(t *testing.T) {
+	h := upHarness(t)
+	h.mustCreate(CreateRequest{App: "shop", Name: "feat-x"})
+	h.m.Dirs.Run = ""
+
+	if _, err := h.m.Up(context.Background(), UpRequest{App: "shop", Name: "feat-x"}, &h.out); err != nil {
+		t.Fatalf("Up refused an environment that has no secret: %v\n%s", err, h.out.String())
+	}
+
+	spec, ok := h.specFor(ReplicaContainerName("shop", "feat-x", "web", 1))
+	if !ok {
+		t.Fatal("no spec for the web container")
+	}
+	if spec.EnvFile != "" {
+		t.Errorf("%s was given the env-file %s", spec.Name, spec.EnvFile)
+	}
+
+	stray := filepath.Join(h.data, vault.SecretsDirName)
+	if _, err := os.Stat(stray); !os.IsNotExist(err) {
+		t.Errorf("%s exists beside the data directory (%v)", stray, err)
 	}
 }
 

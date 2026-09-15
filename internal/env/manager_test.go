@@ -38,6 +38,7 @@ type harness struct {
 	driver  *fakeDriver
 	repo    *fakeRepo
 	data    string
+	run     string
 	cfg     *config.App
 	loadErr error
 	out     bytes.Buffer
@@ -88,6 +89,7 @@ func newHarness(t *testing.T) *harness {
 		data: data, cfg: sampleConfig()}
 
 	run := t.TempDir()
+	h.run = run
 	m := New(store, driver, repo, ports.New(store, allowAll{}), nil, Dirs{Data: data, User: "caramelo", Run: run})
 
 	cipher, _, err := vault.CipherFromKeyFile(vault.KeyPath(t.TempDir()))

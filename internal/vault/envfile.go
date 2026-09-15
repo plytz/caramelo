@@ -259,8 +259,8 @@ func sortedKeys(m map[string]string) []string {
 }
 
 func EnsureSecretsDir(dir string) error {
-	if strings.TrimSpace(dir) == "" {
-		return nil
+	if strings.TrimSpace(dir) == "" || !filepath.IsAbs(dir) {
+		return ErrNoRunDir
 	}
 	if err := os.MkdirAll(dir, SecretsDirMode); err != nil {
 		return fmt.Errorf("create %s: %w", dir, err)

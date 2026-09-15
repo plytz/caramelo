@@ -31,6 +31,7 @@ const (
 	edgeControlSocket = "/run/caramelo/edge.sock"
 	vaultKeyPath      = "/var/lib/caramelo/vault.key"
 	secretsRunDir     = "/run/caramelo/secrets"
+	straySecretsDir   = "/mnt/caramelo/secrets"
 )
 
 var clientTimeout = itest.Scale(10 * time.Minute)
@@ -530,6 +531,12 @@ func secretsOnDisk(t *testing.T, m *itest.Machine) []string {
 	t.Helper()
 	res := onBox(t, m, "sudo ls -1A "+secretsRunDir+" 2>/dev/null || true")
 	return strings.Fields(res.Stdout)
+}
+
+func straySecretsOnDisk(t *testing.T, m *itest.Machine) string {
+	t.Helper()
+	res := onBox(t, m, "sudo ls -ld "+straySecretsDir+" 2>/dev/null || true")
+	return strings.TrimSpace(res.Stdout)
 }
 
 func buildsOnDisk(t *testing.T, m *itest.Machine, env string) []string {

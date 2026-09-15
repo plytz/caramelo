@@ -19,6 +19,9 @@ file:
     group: caramelo
     mode: "0600"
 
+  /mnt/caramelo/secrets:
+    exists: false
+
 service:
   caramelo-edge.socket:
     enabled: true

@@ -839,6 +839,9 @@ func TestASecretChangeRollsOut(t *testing.T) {
 		if left := secretsOnDisk(t, m); len(left) != 0 {
 			t.Errorf("%s still holds %v: an env-file lives for one docker run", secretsRunDir, left)
 		}
+		if stray := straySecretsOnDisk(t, m); stray != "" {
+			t.Errorf("%s exists: an env-file directory was made beside the data directory: %s", straySecretsDir, stray)
+		}
 		if left := buildsOnDisk(t, m, envProd); len(left) != 0 {
 			t.Errorf("%s's builds directory still holds %v: an export lives for one build", envProd, left)
 		}

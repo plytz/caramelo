@@ -684,7 +684,7 @@ func TestReleasesIsTheDeployHistory(t *testing.T) {
 
 func (h *harness) restart() *Manager {
 	m := New(h.store, h.driver, h.repo, ports.New(h.store, allowAll{}), h.m.Runner,
-		Dirs{Data: h.data, User: "caramelo"})
+		Dirs{Data: h.data, User: "caramelo", Run: h.run})
 	m.Version = h.m.Version
 	m.ReadyInterval, m.Timeout = h.m.ReadyInterval, h.m.Timeout
 	m.UpTimeout, m.StopTimeout, m.WatchInterval = h.m.UpTimeout, h.m.StopTimeout, h.m.WatchInterval
