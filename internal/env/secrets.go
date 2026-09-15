@@ -191,7 +191,11 @@ func (m *Manager) withSecrets(spec *runtime.ContainerSpec, secret map[string]str
 	if len(secret) == 0 {
 		return &vault.EnvFile{}, nil
 	}
-	f, err := vault.WriteEnvFile(m.secretsDir(), spec.Name, secret)
+	dir, err := m.secretsDir()
+	if err != nil {
+		return nil, fmt.Errorf("deliver the secrets of %s: %w", spec.Name, err)
+	}
+	f, err := vault.WriteEnvFile(dir, spec.Name, secret)
 	if err != nil {
 		return nil, err
 	}
@@ -199,11 +203,7 @@ func (m *Manager) withSecrets(spec *runtime.ContainerSpec, secret map[string]str
 	return f, nil
 }
 
-func (m *Manager) secretsDir() string {
-	if m.Dirs.Run == "" {
-
-		return vault.SecretsDir(m.Dirs.Data)
-	}
+func (m *Manager) secretsDir() (string, error) {
 	return vault.SecretsDir(m.Dirs.Run)
 }
 

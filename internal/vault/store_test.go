@@ -204,7 +204,11 @@ func TestPathsAgreeWithServerconfig(t *testing.T) {
 	if got, want := cfg.VaultKeyPath(), KeyPath("/var/lib/caramelo"); got != want {
 		t.Errorf("VaultKeyPath = %q, want %q", got, want)
 	}
-	if got, want := cfg.SecretsDir(), SecretsDir("/run/caramelo"); got != want {
+	want, err := SecretsDir("/run/caramelo")
+	if err != nil {
+		t.Fatalf("SecretsDir: %v", err)
+	}
+	if got := cfg.SecretsDir(); got != want {
 		t.Errorf("SecretsDir = %q, want %q", got, want)
 	}
 }

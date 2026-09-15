@@ -8,8 +8,17 @@ import (
 	"testing"
 )
 
+func mustSecretsDir(t *testing.T, runDir string) string {
+	t.Helper()
+	dir, err := SecretsDir(runDir)
+	if err != nil {
+		t.Fatalf("SecretsDir(%q): %v", runDir, err)
+	}
+	return dir
+}
+
 func TestEnvFileLifecycle(t *testing.T) {
-	dir := SecretsDir(t.TempDir())
+	dir := mustSecretsDir(t, t.TempDir())
 	f, err := WriteEnvFile(dir, "caramelo-shop-production-web-1", map[string]string{
 		"DB_PASSWORD": "chosen",
 		"API_KEY":     "k",
@@ -70,7 +79,7 @@ func TestEnvFileLifecycle(t *testing.T) {
 }
 
 func TestWriteEnvFileWithNothingToWrite(t *testing.T) {
-	dir := SecretsDir(t.TempDir())
+	dir := mustSecretsDir(t, t.TempDir())
 	f, err := WriteEnvFile(dir, "web", nil)
 	if err != nil {
 		t.Fatalf("WriteEnvFile: %v", err)

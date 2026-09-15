@@ -196,6 +196,8 @@ var (
 	ErrNoKey = errors.New("vault: no key")
 
 	ErrNotImplemented = errors.New("vault: not implemented")
+
+	ErrNoRunDir = errors.New("vault: the run directory for secrets must be an absolute path")
 )
 
 const KeyFile = "vault.key"
@@ -208,7 +210,12 @@ const KeySize = 32
 
 const SecretsDirName = "secrets"
 
-func SecretsDir(runDir string) string { return filepath.Join(runDir, SecretsDirName) }
+func SecretsDir(runDir string) (string, error) {
+	if strings.TrimSpace(runDir) == "" || !filepath.IsAbs(runDir) {
+		return "", ErrNoRunDir
+	}
+	return filepath.Join(runDir, SecretsDirName), nil
+}
 
 const (
 	SecretsDirMode  = 0o700

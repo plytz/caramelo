@@ -972,6 +972,11 @@ func (s *suite) zzSecretsRollOutOnUp(t *testing.T) {
 		if out := strings.TrimSpace(found.Stdout); out != "" {
 			t.Errorf("the secret is in plaintext in Caramelo's own state: %s", out)
 		}
+		stray := dataDir + "/secrets"
+		probe := s.onBox(t, "sudo -n ls -ld "+itest.ShellQuote(stray)+" 2>/dev/null || true")
+		if out := strings.TrimSpace(probe.Stdout); out != "" {
+			t.Errorf("%s exists: an env-file directory was made beside the data directory: %s", stray, out)
+		}
 	})
 }
 

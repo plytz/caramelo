@@ -455,7 +455,7 @@ func newEnvDaemon(t *testing.T) (*Daemon, *envStore, *envRepo) {
 	repo := newEnvRepo()
 
 	m := env.New(store, emptyRuntime{}, repo, &fixedPorts{}, nil,
-		env.Dirs{Data: d.Config.DataDir, User: ""})
+		env.Dirs{Data: d.Config.DataDir, User: "", Run: d.Config.RunDir})
 	m.Version = "test"
 
 	m.LoadConfig = func(string) (*config.App, error) { return nil, os.ErrNotExist }

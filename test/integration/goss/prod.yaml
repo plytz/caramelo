@@ -12,6 +12,8 @@ file:
     owner: caramelo
     group: caramelo
     mode: "0700"
+  /mnt/caramelo/secrets:
+    exists: false
 
   /mnt/caramelo/apps/sampleapp/envs/production:
     exists: true
