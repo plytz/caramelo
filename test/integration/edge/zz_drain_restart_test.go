@@ -30,7 +30,7 @@ func edgeStatusWhenAnswering(t *testing.T, within time.Duration) cedge.Status {
 	deadline := time.Now().Add(within)
 	last := "it never ran"
 	for {
-		res, err := clientExec(clientOpts{Dir: repo}, "edge", "status", "--json")
+		res, err := commanderExec(commanderOpts{Dir: repo}, "edge", "status", "--json")
 		switch {
 		case err != nil:
 			last = err.Error()
