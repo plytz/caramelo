@@ -135,7 +135,7 @@ func TestExposeViaHubRecordsTheChoiceAndAnnouncesIt(t *testing.T) {
 	}
 }
 
-func TestAPrivateMemberRefusesViaNodeNamingTheFlagItWasJoinedWith(t *testing.T) {
+func TestAPrivateMemberRefusesViaMemberNamingTheFlagItWasJoinedWith(t *testing.T) {
 	h := newHarness(t)
 	h.onFleet("nx2", hub("hub", "amd64", 0, nil), member("nx2", "arm64", 0, nil))
 	h.wire(func(w *FleetWiring) { w.Role = fleet.RoleMember })
@@ -145,7 +145,7 @@ func TestAPrivateMemberRefusesViaNodeNamingTheFlagItWasJoinedWith(t *testing.T) 
 	h.mustCreate(CreateRequest{App: "shop", Name: "feat-x", From: "main"})
 
 	_, err := h.m.Expose(context.Background(), ExposeRequest{
-		App: "shop", Name: "feat-x", Host: "feat-x.shop.test", Via: config.ViaNode,
+		App: "shop", Name: "feat-x", Host: "feat-x.shop.test", Via: config.ViaMember,
 	}, &h.out)
 	if err == nil || !strings.Contains(err.Error(), "--private") {
 		t.Fatalf("error = %v, want one naming the flag the machine was joined with", err)

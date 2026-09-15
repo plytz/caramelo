@@ -46,5 +46,5 @@ func OverSSH() bool {
 func Relogin(ctx context.Context, m *Machine) error { return m.Relogin(ctx) }
 
 func bindsToInventory(m *Machine) bool {
-	return m.Kind == KindMachine && (m.Role == RoleHub || m.Role == RoleNode)
+	return m.Kind == KindMachine && (m.Role == RoleHub || m.Role == RoleMember)
 }

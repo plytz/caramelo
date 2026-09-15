@@ -37,26 +37,26 @@ const (
 )
 
 const (
-	hostPeer   = itest.LabPeerName
-	clientPeer = "vpn-itest-client"
-	agentPeer  = "vpn-itest-agent"
+	hostPeer      = itest.LabPeerName
+	commanderPeer = "vpn-itest-commander"
+	agentPeer     = "vpn-itest-agent"
 )
 
-var clientTimeout = itest.Scale(5 * time.Minute)
+var commanderTimeout = itest.Scale(5 * time.Minute)
 
 type suite struct {
-	lab    *itest.Lab
-	box    *itest.Machine
-	client *itest.Machine
+	lab       *itest.Lab
+	box       *itest.Machine
+	commander *itest.Machine
 
 	home      string
 	repo      string
 	noSSHPath string
 	tmp       string
 
-	boxIP    string
-	clientIP string
-	tunnel   string
+	boxIP       string
+	commanderIP string
+	tunnel      string
 
 	envAddress string
 }
@@ -66,16 +66,16 @@ func start(t *testing.T) *suite {
 	lab := itest.New(t, itest.Options{
 		Suite: "vpn",
 		State: itest.StateProvisioned,
-		Roles: []string{itest.RoleHub, itest.RoleClient},
+		Roles: []string{itest.RoleHub, itest.RoleCommander},
 	})
-	itest.NeedRoles(t, lab, itest.RoleHub, itest.RoleClient)
+	itest.NeedRoles(t, lab, itest.RoleHub, itest.RoleCommander)
 	s := &suite{
-		lab:    lab,
-		box:    lab.Machine(itest.RoleHub),
-		client: lab.Machine(itest.RoleClient),
-		tmp:    t.TempDir(),
+		lab:       lab,
+		box:       lab.Machine(itest.RoleHub),
+		commander: lab.Machine(itest.RoleCommander),
+		tmp:       t.TempDir(),
 	}
-	itest.MustReset(t, s.client, itest.StateClean)
+	itest.MustReset(t, s.commander, itest.StateClean)
 
 	ctx, cancel := context.WithTimeout(context.Background(), itest.Scale(10*time.Minute))
 	defer cancel()
@@ -86,12 +86,12 @@ func start(t *testing.T) *suite {
 		t.Fatalf("seed the run images onto %s: %v", s.box.Alias, err)
 	}
 	s.boxIP = s.box.MustAddress(t)
-	s.clientIP = s.client.MustAddress(t)
+	s.commanderIP = s.commander.MustAddress(t)
 	s.tunnel = s.recordMachine(t)
 
-	s.prepareClient(t)
+	s.prepareCommander(t)
 
-	s.home = itest.ClientHome(t, s.box)
+	s.home = itest.CommanderHome(t, s.box)
 	path, err := itest.NoSSHPath(filepath.Join(s.tmp, "no-ssh-bin"), os.Getenv("PATH"))
 	if err != nil {
 		t.Fatalf("build a PATH with no ssh on it: %v", err)
@@ -99,27 +99,27 @@ func start(t *testing.T) *suite {
 	s.noSSHPath = path
 	s.repo = s.initSampleRepo(t)
 
-	t.Logf("machine %s at %s (tunnel target %s), laptop %s at %s",
-		s.box.Alias, s.boxIP, s.tunnel, s.client.Alias, s.clientIP)
+	t.Logf("machine %s at %s (tunnel target %s), commander %s at %s",
+		s.box.Alias, s.boxIP, s.tunnel, s.commander.Alias, s.commanderIP)
 	return s
 }
 
-func (s *suite) prepareClient(t *testing.T) {
+func (s *suite) prepareCommander(t *testing.T) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), itest.Scale(10*time.Minute))
 	defer cancel()
-	if err := itest.InstallBinaryOn(ctx, s.client); err != nil {
-		t.Fatalf("install the binary on %s: %v", s.client.Alias, err)
+	if err := itest.InstallBinaryOn(ctx, s.commander); err != nil {
+		t.Fatalf("install the binary on %s: %v", s.commander.Alias, err)
 	}
-	if err := s.prepareClientDNS(ctx); err != nil {
-		t.Fatalf("prepare %s: %v", s.client.Alias, err)
+	if err := s.prepareCommanderDNS(ctx); err != nil {
+		t.Fatalf("prepare %s: %v", s.commander.Alias, err)
 	}
-	if err := s.seedClientSSHKey(ctx); err != nil {
-		t.Fatalf("prepare %s: %v", s.client.Alias, err)
+	if err := s.seedCommanderSSHKey(ctx); err != nil {
+		t.Fatalf("prepare %s: %v", s.commander.Alias, err)
 	}
 }
 
-func (s *suite) prepareClientDNS(ctx context.Context) error {
+func (s *suite) prepareCommanderDNS(ctx context.Context) error {
 	script := `set -e
 ns=$(awk '/^nameserver/ {print $2; exit}' /etc/resolv.conf || true)
 missing=""
@@ -141,40 +141,40 @@ if [ -n "$ns" ]; then
   sudo resolvectl domain eth0 '~.'
 fi
 resolvectl status >/dev/null
-sudo loginctl enable-linger ` + s.client.User() + `
+sudo loginctl enable-linger ` + s.commander.User() + `
 for i in $(seq 60); do [ -d /run/user/$(id -u) ] && break; sleep 1; done
 [ -d /run/user/$(id -u) ]`
-	res, err := s.client.Run(ctx, script)
+	res, err := s.commander.Run(ctx, script)
 	if err != nil {
 		return err
 	}
 	if res.ExitCode != 0 {
 		return fmt.Errorf("split DNS and a user session on %s: exit %d: %s",
-			s.client.Alias, res.ExitCode, strings.TrimSpace(res.Stderr))
+			s.commander.Alias, res.ExitCode, strings.TrimSpace(res.Stderr))
 	}
 	return nil
 }
 
-func (s *suite) seedClientSSHKey(ctx context.Context) error {
+func (s *suite) seedCommanderSSHKey(ctx context.Context) error {
 	key, _, err := itest.LabSSHKey()
 	if err != nil {
 		return err
 	}
-	home := itest.HomeOf(s.client)
-	if err := s.client.Copy(ctx, key, home+"/.ssh/lab_key"); err != nil {
+	home := itest.HomeOf(s.commander)
+	if err := s.commander.Copy(ctx, key, home+"/.ssh/lab_key"); err != nil {
 		return err
 	}
 	cfg := fmt.Sprintf("Host %s\\n  IdentityFile %s/.ssh/lab_key\\n  IdentitiesOnly yes\\n"+
 		"  StrictHostKeyChecking no\\n  UserKnownHostsFile /dev/null\\n  LogLevel ERROR\\n", s.boxIP, home)
 	cmd := fmt.Sprintf("chmod 600 %s/.ssh/lab_key && printf '%s' > %s/.ssh/config && chmod 600 %s/.ssh/config",
 		home, cfg, home, home)
-	res, err := s.client.Run(ctx, cmd)
+	res, err := s.commander.Run(ctx, cmd)
 	if err != nil {
 		return err
 	}
 	if res.ExitCode != 0 {
 		return fmt.Errorf("seed the ssh key on %s: exit %d: %s",
-			s.client.Alias, res.ExitCode, strings.TrimSpace(res.Stderr))
+			s.commander.Alias, res.ExitCode, strings.TrimSpace(res.Stderr))
 	}
 	return nil
 }
@@ -217,7 +217,7 @@ func (s *suite) recordMachine(t *testing.T) string {
 	return s.box.HostIP()
 }
 
-func (s *suite) clientEnv(extra ...string) []string {
+func (s *suite) commanderEnv(extra ...string) []string {
 	env := itest.GitEnv(s.home, append([]string{"CARAMELO_MACHINE=" + s.tunnel}, extra...)...)
 	return itest.EnvWithPath(env, s.noSSHPath)
 }
@@ -226,8 +226,8 @@ func (s *suite) withSSH(extra ...string) []string {
 	return itest.GitEnv(s.home, append([]string{"CARAMELO_MACHINE=" + s.tunnel}, extra...)...)
 }
 
-func (s *suite) opts(env []string) itest.ClientOptions {
-	return itest.ClientOptions{Dir: s.repo, Env: env, Timeout: clientTimeout}
+func (s *suite) opts(env []string) itest.CommanderOptions {
+	return itest.CommanderOptions{Dir: s.repo, Env: env, Timeout: commanderTimeout}
 }
 
 func decode[T any](t *testing.T, what, stdout string) T {
@@ -243,16 +243,16 @@ func decodeInto(stdout string, v any) error {
 	return json.Unmarshal([]byte(strings.TrimSpace(stdout)), v)
 }
 
-func (s *suite) runOnClient(t *testing.T, cmd string, timeout time.Duration) itest.Result {
+func (s *suite) runOnCommander(t *testing.T, cmd string, timeout time.Duration) itest.Result {
 	t.Helper()
 	if timeout == 0 {
 		timeout = itest.Scale(time.Minute)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	res, err := s.client.Run(ctx, inSession(cmd))
+	res, err := s.commander.Run(ctx, inSession(cmd))
 	if err != nil {
-		t.Fatalf("[%s] %s: %v", s.client.Alias, cmd, err)
+		t.Fatalf("[%s] %s: %v", s.commander.Alias, cmd, err)
 	}
 	return res
 }
@@ -262,23 +262,23 @@ func inSession(cmd string) string {
 		"export DBUS_SESSION_BUS_ADDRESS=unix:path=$XDG_RUNTIME_DIR/bus; " + cmd
 }
 
-func (s *suite) clientCaramelo(t *testing.T, args string) itest.Result {
+func (s *suite) commanderCaramelo(t *testing.T, args string) itest.Result {
 	t.Helper()
-	return s.runOnClient(t, itest.CarameloBinary+" "+args, itest.Scale(3*time.Minute))
+	return s.runOnCommander(t, itest.CarameloBinary+" "+args, itest.Scale(3*time.Minute))
 }
 
-func (s *suite) sudoClientCaramelo(t *testing.T, args string) itest.Result {
+func (s *suite) sudoCommanderCaramelo(t *testing.T, args string) itest.Result {
 	t.Helper()
-	return s.runOnClient(t, "sudo -n "+itest.CarameloBinary+" "+args, itest.Scale(3*time.Minute))
+	return s.runOnCommander(t, "sudo -n "+itest.CarameloBinary+" "+args, itest.Scale(3*time.Minute))
 }
 
-func (s *suite) writeClientConfig(t *testing.T, machine string) {
+func (s *suite) writeCommanderConfig(t *testing.T, machine string) {
 	t.Helper()
-	home := itest.HomeOf(s.client)
+	home := itest.HomeOf(s.commander)
 	cmd := fmt.Sprintf("mkdir -p %s/.config/caramelo && "+
 		"printf 'default_machine: %s\\n' > %s/.config/caramelo/config.yaml", home, machine, home)
-	if res := s.runOnClient(t, cmd, itest.Scale(time.Minute)); res.ExitCode != 0 {
-		t.Fatalf("writing the client config on %s: exit %d: %s", s.client.Alias, res.ExitCode, res.Stderr)
+	if res := s.runOnCommander(t, cmd, itest.Scale(time.Minute)); res.ExitCode != 0 {
+		t.Fatalf("writing the commander config on %s: exit %d: %s", s.commander.Alias, res.ExitCode, res.Stderr)
 	}
 }
 
@@ -340,8 +340,8 @@ func machineAddress(t *testing.T) netip.Addr {
 	return netip.AddrFrom4(b)
 }
 
-func (s *suite) clientKeyPath() string {
-	return filepath.Join(itest.HomeOf(s.client), ".config", "caramelo", vpnclient.KeyDir,
+func (s *suite) commanderKeyPath() string {
+	return filepath.Join(itest.HomeOf(s.commander), ".config", "caramelo", vpnclient.KeyDir,
 		vpnclient.KeyFileName(s.boxIP))
 }
 
@@ -369,7 +369,7 @@ func (s *suite) internalRemote(t *testing.T) string {
 
 func (s *suite) machineHostname(t *testing.T) string {
 	t.Helper()
-	res := itest.ClientOK(t, s.opts(s.clientEnv()), "status", "--json")
+	res := itest.CommanderOK(t, s.opts(s.commanderEnv()), "status", "--json")
 	st := decode[capi.Status](t, "status", res.Stdout)
 	if st.Hostname == "" {
 		t.Fatal("status reported no hostname")
@@ -383,18 +383,18 @@ func (s *suite) gitOverTunnelEnv(t *testing.T) []string {
 	if err != nil {
 		t.Fatalf("the binary under test: %v", err)
 	}
-	return s.clientEnv("GIT_SSH_COMMAND="+bin+" git-ssh", "GIT_SSH_VARIANT=ssh")
+	return s.commanderEnv("GIT_SSH_COMMAND="+bin+" git-ssh", "GIT_SSH_VARIANT=ssh")
 }
 
 func (s *suite) showEnv(t *testing.T, name string) envDetail {
 	t.Helper()
-	res := itest.ClientOK(t, s.opts(s.clientEnv()), "env", "show", name, "--json")
+	res := itest.CommanderOK(t, s.opts(s.commanderEnv()), "env", "show", name, "--json")
 	return decode[envDetail](t, "env show "+name, res.Stdout)
 }
 
 func (s *suite) listPeers(t *testing.T, env []string) map[string]state.Peer {
 	t.Helper()
-	res := itest.ClientOK(t, s.opts(env), "peer", "list", "--json")
+	res := itest.CommanderOK(t, s.opts(env), "peer", "list", "--json")
 	var peers []state.Peer
 	if err := decodeInto(res.Stdout, &peers); err != nil {
 		t.Fatalf("peer list --json: %v\nstdout: %q", err, res.Stdout)
@@ -421,7 +421,7 @@ func listenerFor(s *itest.ConnectSession, name string, proto vpn.Protocol) (vpnc
 
 func (s *suite) envURLs(t *testing.T, name string) map[string]cenv.URL {
 	t.Helper()
-	res := itest.ClientOK(t, s.opts(s.clientEnv()), "env", "url", name, "--json")
+	res := itest.CommanderOK(t, s.opts(s.commanderEnv()), "env", "url", name, "--json")
 	var urls []cenv.URL
 	if err := decodeInto(res.Stdout, &urls); err != nil {
 		t.Fatalf("env url %s --json: %v\nstdout: %q", name, err, res.Stdout)
@@ -435,9 +435,9 @@ func (s *suite) envURLs(t *testing.T, name string) map[string]cenv.URL {
 
 func (s *suite) upEnv(t *testing.T, name string) {
 	t.Helper()
-	o := s.opts(s.clientEnv())
+	o := s.opts(s.commanderEnv())
 	o.Timeout = itest.Scale(8 * time.Minute)
-	itest.ClientOK(t, o, "up", name, "--json")
+	itest.CommanderOK(t, o, "up", name, "--json")
 }
 
 func redisPing(t *testing.T, local string) string {

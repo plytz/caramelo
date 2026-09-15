@@ -144,9 +144,9 @@ func (m *Machine) PTYRun(ctx context.Context, dir string, env []string, argv ...
 	return m.drv.pty(ctx, dir, env, line)
 }
 
-func PTYRunOnLaptop(ctx context.Context, m *Machine, dir string, env []string, argv ...string) (PTYResult, error) {
+func PTYRunOnCommander(ctx context.Context, m *Machine, dir string, env []string, argv ...string) (PTYResult, error) {
 	if m == nil {
-		return PTYResult{}, errors.New("PTYRunOnLaptop: no machine to run on")
+		return PTYResult{}, errors.New("PTYRunOnCommander: no machine to run on")
 	}
 	return m.PTYRun(ctx, dir, env, argv...)
 }

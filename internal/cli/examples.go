@@ -257,7 +257,7 @@ caramelo server status
 sudo caramelo server uninstall --yes`,
 
 	"caramelo server setup": `
-caramelo server setup --target you@box                          # from the laptop, over ssh
+caramelo server setup --target you@box                          # from the commander, over ssh
 caramelo server setup --target you@box --edge --acme-email ops@example.com
 caramelo server setup --target you@box --name prod --data-dir /mnt/big
 caramelo server setup --target you@box --peer agent-7 Nq0Xw2mS8VbZ1YtR7dK3jL5pQ9cF4hG6uI8oP0aB2wE=
@@ -321,7 +321,7 @@ sudo caramelo vpn uninstall`,
 	"caramelo vpn up": `
 caramelo vpn up                                     # join the default machine's network
 caramelo vpn up --machine box
-caramelo vpn up --name laptop                       # the peer name this computer joins as
+caramelo vpn up --name laptop                       # the peer name the commander joins as
 caramelo vpn up --transparent                       # through the installed transparent mode`,
 }
 

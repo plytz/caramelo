@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	LabPeerName    = "lab-client"
-	labPeerKeyFile = "lab-client"
+	LabPeerName    = "lab-commander"
+	labPeerKeyFile = "lab-commander"
 	VPNPort        = 4021
 )
 

@@ -25,7 +25,7 @@ every connection, and the key's name is the identity logged with every command.`
 		}
 		asGroup(cmd)
 		cmd.AddCommand(a.keyAddCmd(), a.keyListCmd(), a.keyRemoveCmd())
-		return clientCmd(cmd)
+		return commanderCmd(cmd)
 	})
 }
 

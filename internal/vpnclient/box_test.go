@@ -323,7 +323,7 @@ func TestStatusOfAnUnjoinedMachineStillHasAKey(t *testing.T) {
 		t.Errorf("mode = %q, want off", st.Mode)
 	}
 	if st.PublicKey == "" {
-		t.Fatal("no public key: an unjoined client cannot be admitted by a peer")
+		t.Fatal("no public key: an unjoined commander cannot be admitted by a peer")
 	}
 	kp, err := keys.Load("box")
 	if err != nil {

@@ -237,11 +237,11 @@ func setupArgs(flags *pflag.FlagSet) []string {
 }
 
 func recordMachine(name string, address remote.Target) (*machineEntry, error) {
-	path, err := remote.ClientConfigPath()
+	path, err := remote.CommanderConfigPath()
 	if err != nil {
 		return nil, err
 	}
-	cfg, err := remote.LoadClientConfigFrom(path)
+	cfg, err := remote.LoadCommanderConfigFrom(path)
 	if err != nil {
 		return nil, err
 	}
@@ -252,7 +252,7 @@ func recordMachine(name string, address remote.Target) (*machineEntry, error) {
 	if cfg.DefaultMachine == "" {
 		cfg.DefaultMachine = name
 	}
-	if err := remote.SaveClientConfigTo(path, cfg); err != nil {
+	if err := remote.SaveCommanderConfigTo(path, cfg); err != nil {
 		return nil, err
 	}
 	return &machineEntry{Name: name, Address: address.String(), Default: cfg.DefaultMachine == name, Config: path}, nil
@@ -362,7 +362,7 @@ func bootstrapPlan(target remote.Target, f bootstrapFlags) string {
 		fmt.Fprintf(&b, "  edge      ports 80 and 443, certificates from %s\n", edgeSource(cfg))
 	}
 	fmt.Fprintf(&b, "  keys      %s\n", keys)
-	fmt.Fprintf(&b, "  client    records the machine as %q in the client config\n", nameOr(f.name, target.Host))
+	fmt.Fprintf(&b, "  commander records the machine as %q in the commander config\n", nameOr(f.name, target.Host))
 	return b.String()
 }
 
@@ -391,7 +391,7 @@ func localUser() string {
 }
 
 var (
-	clientPeerKey = ensurePeerKey
+	commanderPeerKey = ensurePeerKey
 
 	joinMachine = func(ctx context.Context, machine string, ctl vpnclient.Control) error {
 
@@ -423,13 +423,13 @@ func (a *app) bootstrapPeer(f bootstrapFlags, machine string) (setup.PeerSpec, e
 	if !f.peer.Empty() {
 		return f.peer, nil
 	}
-	if f.dryRun || clientPeerKey == nil {
+	if f.dryRun || commanderPeerKey == nil {
 		return setup.PeerSpec{}, nil
 	}
-	peer, err := clientPeerKey(machine)
+	peer, err := commanderPeerKey(machine)
 	if err != nil {
 
-		fmt.Fprintf(a.stderr, "[bootstrap] warning: no key for this computer: %v\n", err)
+		fmt.Fprintf(a.stderr, "[bootstrap] warning: no key for the commander: %v\n", err)
 		return setup.PeerSpec{}, nil
 	}
 	return peer, nil

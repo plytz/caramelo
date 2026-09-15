@@ -298,7 +298,7 @@ func TestResolveSetupConfigRejectsABadNetwork(t *testing.T) {
 }
 
 func TestSetupRefusesAnUnusablePeerBeforeTouchingTheMachine(t *testing.T) {
-	noClientConfig(t)
+	noCommanderConfig(t)
 	code, _, stderr := run(t, "server", "setup", "--yes", "--peer", "laptop nonsense")
 	if code != ExitUsage {
 		t.Fatalf("exit = %d, want %d\n%s", code, ExitUsage, stderr)

@@ -50,11 +50,11 @@ type exitError struct{ code int }
 func (e *exitError) Error() string { return fmt.Sprintf("exit %d", e.code) }
 
 const (
-	kindClient = "client"
-	kindLocal  = "local"
+	kindCommander = "commander"
+	kindLocal     = "local"
 )
 
-func clientCmd(cmd *cobra.Command) *cobra.Command { return kindCmd(cmd, kindClient) }
+func commanderCmd(cmd *cobra.Command) *cobra.Command { return kindCmd(cmd, kindCommander) }
 
 func localCmd(cmd *cobra.Command) *cobra.Command { return kindCmd(cmd, kindLocal) }
 
@@ -66,10 +66,10 @@ func kindCmd(cmd *cobra.Command, kind string) *cobra.Command {
 	return cmd
 }
 
-func isClient(cmd *cobra.Command) bool {
+func isCommander(cmd *cobra.Command) bool {
 	for c := cmd; c != nil; c = c.Parent() {
 		switch c.Annotations["kind"] {
-		case kindClient:
+		case kindCommander:
 			return true
 		case kindLocal:
 			return false
@@ -86,8 +86,8 @@ var forward = func(ctx context.Context, a *app) (int, error) {
 	return ExitError, errors.New("no daemon transport available")
 }
 
-func (a *app) forwardIfClient(cmd *cobra.Command) error {
-	if !isClient(cmd) || a.service != nil || cmd.HasSubCommands() {
+func (a *app) forwardIfCommander(cmd *cobra.Command) error {
+	if !isCommander(cmd) || a.service != nil || cmd.HasSubCommands() {
 		return nil
 	}
 	code, err := a.forwardRendered(cmd.Context(), cmd)
@@ -163,7 +163,7 @@ types the same commands. 'caramelo manual' is the complete reference.`,
 		if err := a.setProgress(); err != nil {
 			return err
 		}
-		return a.forwardIfClient(cmd)
+		return a.forwardIfCommander(cmd)
 	}
 	root.SetFlagErrorFunc(func(cmd *cobra.Command, err error) error {
 		return &usageError{err}

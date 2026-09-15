@@ -32,7 +32,7 @@ var EdgeImages = append(append([]string{}, RunImages...), PebbleImage)
 var ProdImages = EdgeImages
 
 func GitEnv(home string, extra ...string) []string {
-	env := ClientEnv(home,
+	env := CommanderEnv(home,
 		"GIT_CONFIG_GLOBAL=/dev/null",
 		"GIT_CONFIG_SYSTEM=/dev/null",
 		"GIT_TERMINAL_PROMPT=0",
@@ -74,7 +74,7 @@ func GitRemoteAt(addr, app string) string {
 
 func (m *Machine) GitRemote(t testing.TB, app string) string {
 	t.Helper()
-	return GitRemoteAt(m.ClientMachine(t), app)
+	return GitRemoteAt(m.CommanderMachine(t), app)
 }
 
 func (m *Machine) GitTunnelRemote(t testing.TB, app string) string {

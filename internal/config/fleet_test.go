@@ -27,8 +27,8 @@ envs:
 	}
 
 	for _, env := range []string{"staging", "feat-x"} {
-		if got := app.ViaOf(env); got != ViaNode {
-			t.Errorf("via of %s = %q, want %q", env, got, ViaNode)
+		if got := app.ViaOf(env); got != ViaMember {
+			t.Errorf("via of %s = %q, want %q", env, got, ViaMember)
 		}
 		if got := app.MachineOf(env); got != "" {
 			t.Errorf("machine of %s = %q, want the file not to pin one", env, got)
@@ -51,9 +51,9 @@ envs:
 	if app.PlacementOf() != PlacementAuto {
 		t.Errorf("placement = %q, want %q", app.PlacementOf(), PlacementAuto)
 	}
-	if app.ViaOf("production") != ViaNode || app.MachineOf("production") != "" {
+	if app.ViaOf("production") != ViaMember || app.MachineOf("production") != "" {
 		t.Errorf("v3 production = via %q machine %q, want %q and none",
-			app.ViaOf("production"), app.MachineOf("production"), ViaNode)
+			app.ViaOf("production"), app.MachineOf("production"), ViaMember)
 	}
 
 	if o, _ := app.Override("production"); o.Empty() {
@@ -101,13 +101,13 @@ func TestPlacementAndViaDefaults(t *testing.T) {
 	for _, tc := range []struct {
 		in   string
 		want Via
-	}{{"", ViaNode}, {" node ", ViaNode}, {"Hub", ViaHub}} {
+	}{{"", ViaMember}, {" member ", ViaMember}, {"Hub", ViaHub}} {
 		got, err := ParseVia(tc.in)
 		if err != nil || got != tc.want {
 			t.Errorf("ParseVia(%q) = %q, %v", tc.in, got, err)
 		}
 	}
-	if Placement("").String() != string(PlacementAuto) || Via("").String() != string(ViaNode) {
+	if Placement("").String() != string(PlacementAuto) || Via("").String() != string(ViaMember) {
 		t.Error("the zero value must print as the default")
 	}
 }

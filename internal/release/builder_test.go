@@ -30,7 +30,7 @@ func TestBuildToolchainStack(t *testing.T) {
 	tree := h.tree(commit)
 
 	var out bytes.Buffer
-	res, err := h.b.Build(withIdentity(context.Background(), "laptop"),
+	res, err := h.b.Build(withIdentity(context.Background(), "commander"),
 		BuildRequest{App: "shop", Env: h.branch}, &out)
 	if err != nil {
 		t.Fatalf("Build: %v", err)
@@ -49,7 +49,7 @@ func TestBuildToolchainStack(t *testing.T) {
 	if res.Release.ID == 0 {
 		t.Error("the release was not recorded")
 	}
-	if res.Release.BuiltBy != "laptop" {
+	if res.Release.BuiltBy != "commander" {
 		t.Errorf("BuiltBy = %q, want the caller", res.Release.BuiltBy)
 	}
 

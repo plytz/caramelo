@@ -109,10 +109,10 @@ func (b *suiteTB) runCleanups() {
 }
 
 var (
-	suiteT  *suiteTB
-	lab     *itest.Lab
-	machine *itest.Machine
-	laptop  *itest.Machine
+	suiteT    *suiteTB
+	lab       *itest.Lab
+	machine   *itest.Machine
+	commander *itest.Machine
 
 	skipReason string
 	startErr   error
@@ -142,12 +142,12 @@ func start() (err error) {
 
 	opts := itest.Options{Suite: "setup", Roles: []string{itest.RoleHub}}
 	if !itest.OverSSH() {
-		opts.Laptops = []string{itest.RoleClient}
+		opts.Commanders = []string{itest.RoleCommander}
 	}
 	lab = itest.New(suiteT, opts)
 	machine = lab.Machine(itest.RoleHub)
 	if !itest.OverSSH() {
-		laptop = lab.Laptop(itest.RoleClient)
+		commander = lab.Commander(itest.RoleCommander)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), lab.Budget().Setup)

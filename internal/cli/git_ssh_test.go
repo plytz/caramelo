@@ -129,8 +129,8 @@ func TestGitSSHIsLocalAndHidden(t *testing.T) {
 	if !cmd.Hidden {
 		t.Error("git-ssh is listed in help")
 	}
-	if isClient(cmd) {
-		t.Error("git-ssh is marked as a client command; it would be forwarded through itself")
+	if isCommander(cmd) {
+		t.Error("git-ssh is marked as a commander command; it would be forwarded through itself")
 	}
 	if !cmd.DisableFlagParsing {
 		t.Error("cobra would parse ssh's flags as its own")

@@ -32,17 +32,17 @@ func useSystemConfigDir(t *testing.T, dir string) {
 	t.Cleanup(func() { systemConfigDir = old })
 }
 
-func useClientConfig(t *testing.T, c remote.ClientConfig) {
+func useCommanderConfig(t *testing.T, c remote.CommanderConfig) {
 	t.Helper()
 	dir := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", dir)
 	path := filepath.Join(dir, "caramelo", "config.yaml")
-	if err := remote.SaveClientConfigTo(path, c); err != nil {
+	if err := remote.SaveCommanderConfigTo(path, c); err != nil {
 		t.Fatal(err)
 	}
 }
 
-func noClientConfig(t *testing.T) {
+func noCommanderConfig(t *testing.T) {
 	t.Helper()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 }
@@ -80,7 +80,7 @@ func writeServerConfig(t *testing.T, runDir string) string {
 }
 
 func TestResolveTransportUsesTheLocalSocket(t *testing.T) {
-	noClientConfig(t)
+	noCommanderConfig(t)
 	runDir := testutil.ShortDir(t)
 	useSystemConfigDir(t, writeServerConfig(t, runDir))
 	socket := makeSocket(t, runDir, false)
@@ -99,7 +99,7 @@ func TestResolveTransportUsesTheLocalSocket(t *testing.T) {
 
 func TestResolveTransportMachineLocalForcesTheSocket(t *testing.T) {
 
-	useClientConfig(t, remote.ClientConfig{DefaultMachine: "box"})
+	useCommanderConfig(t, remote.CommanderConfig{DefaultMachine: "box"})
 	useSystemConfigDir(t, t.TempDir())
 
 	got, err := resolveTransport(context.Background(), &app{machine: "local"})
@@ -115,7 +115,7 @@ func TestResolveTransportMachineLocalForcesTheSocket(t *testing.T) {
 }
 
 func TestResolveTransportMachineFlagBeatsTheSocket(t *testing.T) {
-	noClientConfig(t)
+	noCommanderConfig(t)
 	runDir := testutil.ShortDir(t)
 	useSystemConfigDir(t, writeServerConfig(t, runDir))
 	makeSocket(t, runDir, false)
@@ -133,7 +133,7 @@ func TestResolveTransportMachineFlagBeatsTheSocket(t *testing.T) {
 }
 
 func TestResolveTransportMachineName(t *testing.T) {
-	useClientConfig(t, remote.ClientConfig{Machines: map[string]string{"box": "alex@10.0.0.5:4023"}})
+	useCommanderConfig(t, remote.CommanderConfig{Machines: map[string]string{"box": "alex@10.0.0.5:4023"}})
 	useSystemConfigDir(t, t.TempDir())
 
 	got, err := resolveTransport(context.Background(), &app{machine: "box"})
@@ -146,7 +146,7 @@ func TestResolveTransportMachineName(t *testing.T) {
 }
 
 func TestResolveTransportDefaultMachine(t *testing.T) {
-	useClientConfig(t, remote.ClientConfig{
+	useCommanderConfig(t, remote.CommanderConfig{
 		DefaultMachine: "box",
 		Machines:       map[string]string{"box": "alex@10.0.0.5"},
 	})
@@ -163,7 +163,7 @@ func TestResolveTransportDefaultMachine(t *testing.T) {
 }
 
 func TestResolveTransportWithNothingConfigured(t *testing.T) {
-	noClientConfig(t)
+	noCommanderConfig(t)
 	useSystemConfigDir(t, t.TempDir())
 
 	_, err := resolveTransport(context.Background(), &app{})
@@ -179,7 +179,7 @@ func TestResolveTransportWithNothingConfigured(t *testing.T) {
 }
 
 func TestForwardSocketReportsARefusedSocket(t *testing.T) {
-	noClientConfig(t)
+	noCommanderConfig(t)
 	runDir := testutil.ShortDir(t)
 	useSystemConfigDir(t, writeServerConfig(t, runDir))
 	socket := makeSocket(t, runDir, true)
@@ -199,7 +199,7 @@ func TestForwardSocketReportsARefusedSocket(t *testing.T) {
 }
 
 func TestResolveTransportRejectsABadMachine(t *testing.T) {
-	noClientConfig(t)
+	noCommanderConfig(t)
 	useSystemConfigDir(t, t.TempDir())
 	if _, err := resolveTransport(context.Background(), &app{machine: "alex@box:notaport"}); err == nil {
 		t.Fatal("want an error for an unparseable machine")
@@ -225,7 +225,7 @@ func (forwardService) AddKey(ctx context.Context, name, options, line string) (*
 func (forwardService) RemoveKey(context.Context, string) error { return nil }
 
 func TestForwardOverTheSocketEndToEnd(t *testing.T) {
-	noClientConfig(t)
+	noCommanderConfig(t)
 	dir := t.TempDir()
 	cfg := serverconfig.Default()
 	cfg.APIListen = serverconfig.APIListenPublic
@@ -309,7 +309,7 @@ func TestForwardOverSSHEndToEnd(t *testing.T) {
 	if _, err := exec.LookPath("ssh"); err != nil {
 		t.Skip("no ssh binary on this machine")
 	}
-	noClientConfig(t)
+	noCommanderConfig(t)
 	dir := t.TempDir()
 	cfg := serverconfig.Default()
 	cfg.APIListen = serverconfig.APIListenPublic

@@ -17,9 +17,9 @@ const (
 const TargetDocker = "docker"
 
 const (
-	RoleHub    = "hub"
-	RoleNode   = "node"
-	RoleClient = "client"
+	RoleHub       = "hub"
+	RoleMember    = "member"
+	RoleCommander = "commander"
 )
 
 const (

@@ -89,7 +89,7 @@ func apiTry(t *testing.T, timeout time.Duration, args ...string) itest.Result {
 	return itest.SSHAPIRun(t, opts, args...)
 }
 
-func clientEnv(t *testing.T, extra ...string) []string {
+func commanderEnv(t *testing.T, extra ...string) []string {
 	t.Helper()
 	if _, err := box.HostPortProto(itest.VPNPort, "udp"); err != nil {
 		t.Fatalf("reboot suite: %v", err)
@@ -125,10 +125,10 @@ func atLeast(deadline time.Time, budget time.Duration) time.Time {
 	return deadline
 }
 
-func refreshClient(t *testing.T) {
+func refreshCommander(t *testing.T) {
 	t.Helper()
-	if err := itest.WriteClientHome(home, box); err != nil {
-		t.Fatalf("rewrite the client home after the power cycle: %v", err)
+	if err := itest.WriteCommanderHome(home, box); err != nil {
+		t.Fatalf("rewrite the commander home after the power cycle: %v", err)
 	}
 }
 

@@ -38,7 +38,7 @@ type secretsCmd struct {
 
 func (a *app) secretsCmd() *cobra.Command {
 	s := &secretsCmd{a: a}
-	cmd := clientCmd(&cobra.Command{
+	cmd := commanderCmd(&cobra.Command{
 		Use:   "secrets",
 		Short: "The machine's vault: scoped secrets, encrypted at rest",
 		Long: `A secret belongs to one of three scopes: the machine (every app), an app
@@ -91,7 +91,7 @@ func (s *secretsCmd) preRun(cmd *cobra.Command, args []string) error {
 	if err := s.injectEnv(cmd, args); err != nil {
 		return err
 	}
-	return s.a.forwardIfClient(cmd)
+	return s.a.forwardIfCommander(cmd)
 }
 
 func (s *secretsCmd) injectEnv(cmd *cobra.Command, args []string) error {

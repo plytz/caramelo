@@ -39,10 +39,10 @@ command: it ships a binary for the target's own architecture over ssh, runs
 'caramelo server setup' there as root, takes a one-time join token from the hub
 and redeems it, and returns once the machine answers in 'caramelo machine list'.
 
-TARGET is an ssh destination the machine you are typing on can reach
-(you@box.example.com). The box itself never needs an inbound port: from the
-join onwards it dials the hub and keeps the tunnel alive, which is why a box
-behind a home router joins exactly like a box in a rack.
+TARGET is an ssh destination the commander can reach (you@box.example.com).
+The box itself never needs an inbound port: from the join onwards it dials the
+hub and keeps the tunnel alive, which is why a box behind a home router joins
+exactly like a box in a rack.
 
 Adding a box that is already a member re-runs setup and changes nothing else.`,
 		Args: exactArgs(1),
@@ -103,7 +103,7 @@ It is printed once because only its hash is stored: nothing can ever print it
 again, and a copy of the machine's state database is not a way into the fleet.
 It is good for one machine and it expires.
 
-Use it when the laptop cannot ssh to the box that is joining. On the box:
+Use it when the commander cannot ssh to the box that is joining. On the box:
 
     sudo caramelo machine join <hub endpoint> --token <token>`,
 		Args: exactArgs(0),
@@ -254,7 +254,7 @@ one.`,
 				return err
 			}
 		}
-		return a.forwardIfClient(cmd)
+		return a.forwardIfCommander(cmd)
 	}
 	f := cmd.Flags()
 	f.BoolVar(&force, "force", false, "destroy the environments the machine holds instead of refusing")

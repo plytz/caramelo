@@ -54,7 +54,7 @@ type Cmd = bootstrap.Cmd
 
 func useScriptedTarget(t *testing.T, report setup.Report, verify func(address string) (json.RawMessage, error)) *scriptedShell {
 	t.Helper()
-	noClientConfig(t)
+	noCommanderConfig(t)
 	placeholderLinuxSibling(t)
 	sh := &scriptedShell{report: report}
 	prevShell, prevVerify, prevJoin := newBootstrapShell, verifyMachine, joinMachine
@@ -126,19 +126,19 @@ func TestSetupTargetBootstrapsRecordsAndVerifies(t *testing.T) {
 		t.Errorf("status = %s", res.Status)
 	}
 
-	cfg, err := remote.LoadClientConfig()
+	cfg, err := remote.LoadCommanderConfig()
 	if err != nil {
 		t.Fatal(err)
 	}
 	if cfg.DefaultMachine != "prod" || cfg.Machines["prod"] != "caramelo@box.example:4022" {
-		t.Errorf("client config = %+v", cfg)
+		t.Errorf("commander config = %+v", cfg)
 	}
 }
 
 func TestSetupTargetHumanOutputAndCustomPort(t *testing.T) {
 	sh := useScriptedTarget(t, greenReport(), okVerify)
 
-	if err := remote.SaveClientConfig(remote.ClientConfig{DefaultMachine: "first", Machines: map[string]string{"first": "caramelo@a:4022"}}); err != nil {
+	if err := remote.SaveCommanderConfig(remote.CommanderConfig{DefaultMachine: "first", Machines: map[string]string{"first": "caramelo@a:4022"}}); err != nil {
 		t.Fatal(err)
 	}
 	code, stdout, _ := run(t, "server", "setup", "--target", "10.0.0.5:2222", "--yes", "--ssh-port", "5022")
@@ -153,9 +153,9 @@ func TestSetupTargetHumanOutputAndCustomPort(t *testing.T) {
 			t.Errorf("stdout lacks %q:\n%s", want, stdout)
 		}
 	}
-	cfg, _ := remote.LoadClientConfig()
+	cfg, _ := remote.LoadCommanderConfig()
 	if cfg.DefaultMachine != "first" || cfg.Machines["10.0.0.5"] != "caramelo@10.0.0.5:5022" {
-		t.Errorf("client config = %+v", cfg)
+		t.Errorf("commander config = %+v", cfg)
 	}
 }
 
@@ -177,7 +177,7 @@ func TestSetupTargetDryRunRecordsNothing(t *testing.T) {
 	if !strings.Contains(joined, "--dry-run") {
 		t.Errorf("--dry-run not forwarded:\n%s", joined)
 	}
-	cfg, _ := remote.LoadClientConfig()
+	cfg, _ := remote.LoadCommanderConfig()
 	if len(cfg.Machines) != 0 {
 		t.Errorf("dry run recorded a machine: %+v", cfg)
 	}
@@ -216,7 +216,7 @@ func TestSetupTargetUnreachableAPIIsAnError(t *testing.T) {
 		}
 	}
 
-	cfg, _ := remote.LoadClientConfig()
+	cfg, _ := remote.LoadCommanderConfig()
 	if cfg.Machines["box"] == "" {
 		t.Errorf("machine not recorded: %+v", cfg)
 	}
@@ -281,7 +281,7 @@ func TestSetupTargetReportNamesThePlatform(t *testing.T) {
 	}
 }
 
-func TestSetupTargetAdmitsThisComputerAsAPeer(t *testing.T) {
+func TestSetupTargetAdmitsTheCommanderAsAPeer(t *testing.T) {
 	sh := useScriptedTarget(t, greenReport(), okVerify)
 	code, stdout, stderr := run(t, "server", "setup", "--target", "root@box", "--yes", "--json")
 	if code != ExitOK {
@@ -289,7 +289,7 @@ func TestSetupTargetAdmitsThisComputerAsAPeer(t *testing.T) {
 	}
 	setupLine := lastSetupLine(sh)
 	if !strings.Contains(setupLine, "--peer ") {
-		t.Fatalf("the setup line does not admit this computer: %q", setupLine)
+		t.Fatalf("the setup line does not admit the commander: %q", setupLine)
 	}
 
 	var res bootstrapResult
@@ -434,7 +434,7 @@ func TestSetupTargetReportsHowItVerified(t *testing.T) {
 		t.Fatalf("exit %d", code)
 	}
 	if joined != "box" {
-		t.Errorf("this computer joined %q, want the machine it just set up", joined)
+		t.Errorf("the commander joined %q, want the machine it just set up", joined)
 	}
 	var res bootstrapResult
 	if err := json.Unmarshal([]byte(stdout), &res); err != nil {

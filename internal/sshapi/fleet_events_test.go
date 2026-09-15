@@ -54,7 +54,7 @@ func TestEnvShowFallsBackToTheDirectoryWhenTheMachineWillNotAnswer(t *testing.T)
 	ctx := context.Background()
 	if err := store.PutDirectoryEntry(ctx, state.DirectoryRow{
 		App: "shop", Env: "feat-x", Machine: "m1", Address: "10.80.1.1",
-		Owner: "laptop", Mode: "dev", UpdatedAt: time.Unix(1, 0),
+		Owner: "commander", Mode: "dev", UpdatedAt: time.Unix(1, 0),
 	}); err != nil {
 		t.Fatalf("write the directory row: %v", err)
 	}
@@ -72,7 +72,7 @@ func TestEnvShowFallsBackToTheDirectoryWhenTheMachineWillNotAnswer(t *testing.T)
 	if !det.Unreachable {
 		t.Error("the answer does not say the machine is unreachable")
 	}
-	if det.Machine != "m1" || det.Env.Owner != "laptop" {
+	if det.Machine != "m1" || det.Env.Owner != "commander" {
 		t.Errorf("the answer is %+v, want what the directory holds", det.Env)
 	}
 }

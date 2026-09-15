@@ -130,7 +130,7 @@ func TestTransportStringNamesWhereTheCommandWent(t *testing.T) {
 }
 
 func TestTransportIsAnnouncedUnderCarameloDebug(t *testing.T) {
-	noClientConfig(t)
+	noCommanderConfig(t)
 	useSystemConfigDir(t, t.TempDir())
 	t.Setenv("CARAMELO_DEBUG", "1")
 

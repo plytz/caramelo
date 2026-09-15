@@ -11,60 +11,60 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const ClientConfigFile = "config.yaml"
+const CommanderConfigFile = "config.yaml"
 
-type ClientConfig struct {
+type CommanderConfig struct {
 	DefaultMachine string `yaml:"default_machine,omitempty"`
 
 	Machines map[string]string `yaml:"machines,omitempty"`
 }
 
-func ClientConfigPath() (string, error) {
+func CommanderConfigPath() (string, error) {
 	dir, err := userdir.Config()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(dir, "caramelo", ClientConfigFile), nil
+	return filepath.Join(dir, "caramelo", CommanderConfigFile), nil
 }
 
-func LoadClientConfig() (ClientConfig, error) {
-	path, err := ClientConfigPath()
+func LoadCommanderConfig() (CommanderConfig, error) {
+	path, err := CommanderConfigPath()
 	if err != nil {
-		return ClientConfig{}, err
+		return CommanderConfig{}, err
 	}
-	return LoadClientConfigFrom(path)
+	return LoadCommanderConfigFrom(path)
 }
 
-func LoadClientConfigFrom(path string) (ClientConfig, error) {
+func LoadCommanderConfigFrom(path string) (CommanderConfig, error) {
 	b, err := os.ReadFile(path)
 	if errors.Is(err, fs.ErrNotExist) {
-		return ClientConfig{}, nil
+		return CommanderConfig{}, nil
 	}
 	if err != nil {
-		return ClientConfig{}, fmt.Errorf("read %s: %w", path, err)
+		return CommanderConfig{}, fmt.Errorf("read %s: %w", path, err)
 	}
-	var c ClientConfig
+	var c CommanderConfig
 	if err := yaml.Unmarshal(b, &c); err != nil {
-		return ClientConfig{}, fmt.Errorf("parse %s: %w", path, err)
+		return CommanderConfig{}, fmt.Errorf("parse %s: %w", path, err)
 	}
 	return c, nil
 }
 
-func SaveClientConfig(c ClientConfig) error {
-	path, err := ClientConfigPath()
+func SaveCommanderConfig(c CommanderConfig) error {
+	path, err := CommanderConfigPath()
 	if err != nil {
 		return err
 	}
-	return SaveClientConfigTo(path, c)
+	return SaveCommanderConfigTo(path, c)
 }
 
-func SaveClientConfigTo(path string, c ClientConfig) error {
+func SaveCommanderConfigTo(path string, c CommanderConfig) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return fmt.Errorf("create %s: %w", filepath.Dir(path), err)
 	}
 	b, err := yaml.Marshal(c)
 	if err != nil {
-		return fmt.Errorf("encode client config: %w", err)
+		return fmt.Errorf("encode commander config: %w", err)
 	}
 	tmp := path + ".tmp"
 	if err := os.WriteFile(tmp, b, 0o600); err != nil {
@@ -76,11 +76,11 @@ func SaveClientConfigTo(path string, c ClientConfig) error {
 	return nil
 }
 
-func (c ClientConfig) Resolve(name string) (Target, error) {
+func (c CommanderConfig) Resolve(name string) (Target, error) {
 	if addr, ok := c.Machines[name]; ok {
 		t, err := ParseTarget(addr)
 		if err != nil {
-			return Target{}, fmt.Errorf("machine %q in client config: %w", name, err)
+			return Target{}, fmt.Errorf("machine %q in commander config: %w", name, err)
 		}
 		return t, nil
 	}

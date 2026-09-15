@@ -378,7 +378,7 @@ func TestPlanPush(t *testing.T) {
 func TestEnvCreateForwardsTheCurrentBranch(t *testing.T) {
 
 	t.Setenv("CARAMELO_APP", "shop")
-	noClientConfig(t)
+	noCommanderConfig(t)
 	useSystemConfigDir(t, t.TempDir())
 	fakeGit(t, map[string]string{
 		"rev-parse --git-dir":         ".git",
@@ -397,7 +397,7 @@ func TestEnvCreateForwardsTheCurrentBranch(t *testing.T) {
 
 func TestEnvCreateKeepsAnExplicitFrom(t *testing.T) {
 	t.Setenv("CARAMELO_APP", "shop")
-	noClientConfig(t)
+	noCommanderConfig(t)
 	useSystemConfigDir(t, t.TempDir())
 	fakeGit(t, map[string]string{
 		"rev-parse --git-dir":         ".git",
@@ -428,7 +428,7 @@ func TestEnvCreateOutsideACheckoutLeavesFromToTheDaemon(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Setenv("CARAMELO_APP", "shop")
-			noClientConfig(t)
+			noCommanderConfig(t)
 			useSystemConfigDir(t, t.TempDir())
 			fakeGit(t, answers)
 			fwd := &fakeForward{}
@@ -447,7 +447,7 @@ func TestEnvCreateOutsideACheckoutLeavesFromToTheDaemon(t *testing.T) {
 func TestEnvDestroyNeedsYesWithNoTerminal(t *testing.T) {
 
 	t.Setenv("CARAMELO_APP", "shop")
-	noClientConfig(t)
+	noCommanderConfig(t)
 	useSystemConfigDir(t, t.TempDir())
 	fakeGit(t, nil)
 	fwd := &fakeForward{}
@@ -467,7 +467,7 @@ func TestEnvDestroyNeedsYesWithNoTerminal(t *testing.T) {
 
 func TestEnvDestroyWithYesIsForwarded(t *testing.T) {
 	t.Setenv("CARAMELO_APP", "shop")
-	noClientConfig(t)
+	noCommanderConfig(t)
 	useSystemConfigDir(t, t.TempDir())
 	fakeGit(t, nil)
 	fwd := &fakeForward{}
@@ -516,9 +516,9 @@ func TestGitSSHCommandCarriesTheClientsOptions(t *testing.T) {
 
 func TestEnvCreatePushesBeforeForwarding(t *testing.T) {
 	t.Setenv("CARAMELO_APP", "shop")
-	noClientConfig(t)
+	noCommanderConfig(t)
 	useSystemConfigDir(t, t.TempDir())
-	useClientConfig(t, remote.ClientConfig{
+	useCommanderConfig(t, remote.CommanderConfig{
 		DefaultMachine: "box",
 		Machines:       map[string]string{"box": "caramelo@box:4022"},
 	})
@@ -562,9 +562,9 @@ func TestEnvCreatePushesBeforeForwarding(t *testing.T) {
 
 func TestEnvCreateReportsAFailedPushAndDoesNotForward(t *testing.T) {
 	t.Setenv("CARAMELO_APP", "shop")
-	noClientConfig(t)
+	noCommanderConfig(t)
 	useSystemConfigDir(t, t.TempDir())
-	useClientConfig(t, remote.ClientConfig{
+	useCommanderConfig(t, remote.CommanderConfig{
 		DefaultMachine: "box",
 		Machines:       map[string]string{"box": "caramelo@box:4022"},
 	})

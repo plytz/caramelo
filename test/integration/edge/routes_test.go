@@ -155,7 +155,7 @@ func TestFourEnvironmentsAtOnce(t *testing.T) {
 		wg.Add(1)
 		go func(i int, name string) {
 			defer wg.Done()
-			results[i], errs[i] = clientExec(clientOpts{Dir: repo, Timeout: itest.Scale(12 * time.Minute)},
+			results[i], errs[i] = commanderExec(commanderOpts{Dir: repo, Timeout: itest.Scale(12 * time.Minute)},
 				"up", name, "--no-push", "--json")
 		}(i, name)
 	}

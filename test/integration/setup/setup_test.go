@@ -481,10 +481,10 @@ func TestZZSaveProvisioned(t *testing.T) {
 func clientFor(t *testing.T, m *itest.Machine) *itest.Machine {
 	t.Helper()
 	if m.Target() == itest.TargetDocker {
-		return laptop
+		return commander
 	}
 	t.Logf("%s is not a container: the published port is probed from the machine itself, because a "+
-		"client container on the host reaches it through NAT and would never see its own address in the access log",
+		"commander container on the host reaches it through NAT and would never see its own address in the access log",
 		m.Alias)
 	return m
 }

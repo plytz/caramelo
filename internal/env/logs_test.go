@@ -118,7 +118,7 @@ func TestLogsWritesALineThatArrivedInPieces(t *testing.T) {
 	}
 }
 
-func TestLogsFollowEndsWhenTheClientGoesAway(t *testing.T) {
+func TestLogsFollowEndsWhenTheCommanderGoesAway(t *testing.T) {
 	h := upHarness(t)
 	h.mustCreate(CreateRequest{App: "shop", Name: "feat-x"})
 	h.mustUp(UpRequest{App: "shop", Name: "feat-x"})
@@ -139,7 +139,7 @@ func TestLogsFollowEndsWhenTheClientGoesAway(t *testing.T) {
 			t.Fatalf("logs -f ended with %v, want nil: being cancelled is how it ends", err)
 		}
 	case <-time.After(2 * time.Second):
-		t.Fatal("logs -f did not end when the client went away")
+		t.Fatal("logs -f did not end when the commander went away")
 	}
 }
 

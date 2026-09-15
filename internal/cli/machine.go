@@ -15,7 +15,7 @@ import (
 
 func init() {
 	register(func(a *app) *cobra.Command {
-		cmd := clientCmd(&cobra.Command{
+		cmd := commanderCmd(&cobra.Command{
 			Use:   "machine",
 			Short: "Inspect this machine, and the fleet it is part of",
 			Long: `The machine record describes the box: CPU, memory, disks, OS, network,

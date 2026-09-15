@@ -134,7 +134,7 @@ func TestConfigShowWithTooManyArgumentsIsAUsageError(t *testing.T) {
 		t.Fatalf("exit = %d, want %d (stderr %q)", code, ExitUsage, stderr)
 	}
 	if svc.asked != [2]string{} {
-		t.Errorf("the daemon was called with %v; the client should have refused", svc.asked)
+		t.Errorf("the daemon was called with %v; the commander should have refused", svc.asked)
 	}
 }
 
@@ -145,7 +145,7 @@ func TestConfigShowRejectsAnInvalidEnvironmentName(t *testing.T) {
 		t.Fatalf("exit = %d, want %d (stderr %q)", code, ExitUsage, stderr)
 	}
 	if svc.asked != [2]string{} {
-		t.Errorf("the daemon was called with %v; the client should have refused", svc.asked)
+		t.Errorf("the daemon was called with %v; the commander should have refused", svc.asked)
 	}
 }
 

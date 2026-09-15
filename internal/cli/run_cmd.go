@@ -35,7 +35,7 @@ func (t *envTargets) addTargetFlags(cmd *cobra.Command) {
 		"environment to act on (default: the positional argument, or the worktree you are in)")
 
 	cmd.PersistentPreRunE = t.preRun
-	clientCmd(cmd)
+	commanderCmd(cmd)
 }
 
 func (t *envTargets) preRun(cmd *cobra.Command, args []string) error {
@@ -60,7 +60,7 @@ func (t *envTargets) preRun(cmd *cobra.Command, args []string) error {
 			return err
 		}
 	}
-	return t.a.forwardIfClient(cmd)
+	return t.a.forwardIfCommander(cmd)
 }
 
 func (t *envTargets) resolveApp(cmd *cobra.Command) error {

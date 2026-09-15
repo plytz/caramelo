@@ -49,7 +49,7 @@ nothing.
 
 With --target the same setup runs on another machine, from here: the binary is
 shipped over ssh, setup runs there as root (root login or passwordless sudo),
-the machine is recorded in the client config and the API is checked from here.`,
+the machine is recorded in the commander config and the API is checked from here.`,
 
 		Args: rangeArgs(0, 1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -161,7 +161,7 @@ the machine is recorded in the client config and the API is checked from here.`,
 	f.BoolVar(&dryRun, "dry-run", false, "report what would change, change nothing")
 	f.BoolVar(&noPkgs, "no-packages", false, "assume Docker is already installed")
 	f.StringVar(&target, "target", "", "set up another machine from here: [user@]host[:port] for ssh (default user: yours, port 22)")
-	f.StringVar(&name, "name", "", "name to record the --target machine under in the client config (default: its host)")
+	f.StringVar(&name, "name", "", "name to record the --target machine under in the commander config (default: its host)")
 	f.StringVar(&targetBinary, "binary", "", "the caramelo binary to ship to --target (default: this one; or caramelo-<os>-<arch> beside it, or the same release downloaded for the target, when the target is another platform)")
 	f.StringVar(&targetRelease, "release", "",
 		"ship this release of caramelo to the target instead of this binary: a tag such as v0.0.1, downloaded from GitHub for the target's platform")

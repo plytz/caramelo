@@ -28,7 +28,7 @@ func TestM7CommandsAreRegistered(t *testing.T) {
 	}
 }
 
-func TestM7CommandsAreClientCommands(t *testing.T) {
+func TestM7CommandsAreCommanderCommands(t *testing.T) {
 	root := NewRootCmd(&bytes.Buffer{}, &bytes.Buffer{})
 	for _, path := range [][]string{
 		{"build"}, {"deploy"}, {"promote"}, {"rollback"}, {"releases"}, {"events"},
@@ -38,8 +38,8 @@ func TestM7CommandsAreClientCommands(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%v: %v", path, err)
 		}
-		if !isClient(cmd) {
-			t.Errorf("caramelo %s is not a client command", cmd.CommandPath())
+		if !isCommander(cmd) {
+			t.Errorf("caramelo %s is not a commander command", cmd.CommandPath())
 		}
 	}
 }
