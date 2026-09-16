@@ -10,6 +10,7 @@ func TestM6CommandsAreRegistered(t *testing.T) {
 	root := NewRootCmd(&bytes.Buffer{}, &bytes.Buffer{})
 	for _, path := range [][]string{
 		{"edge"}, {"edge", "status"}, {"edge", "enable"}, {"edge", "disable"}, {"edge", "ca"},
+		{"edge", "prune"},
 		{"env", "expose"}, {"env", "unexpose"},
 	} {
 		cmd, _, err := root.Find(path)
@@ -34,6 +35,7 @@ func TestM6EdgeCommandKinds(t *testing.T) {
 	}{
 		{[]string{"edge", "status"}, true},
 		{[]string{"edge", "ca"}, true},
+		{[]string{"edge", "prune"}, true},
 		{[]string{"edge", "enable"}, false},
 		{[]string{"edge", "disable"}, false},
 		{[]string{"edge"}, false},
@@ -79,6 +81,7 @@ func TestM6StubArities(t *testing.T) {
 	for _, args := range [][]string{
 		{"edge", "status", "extra"},
 		{"edge", "ca", "extra"},
+		{"edge", "prune", "extra"},
 		{"env", "expose"},
 		{"env", "expose", "feat-x", "extra"},
 		{"env", "unexpose"},
@@ -104,6 +107,8 @@ func TestM6StubFlags(t *testing.T) {
 		{[]string{"edge", "enable"}, "acme-ca"},
 		{[]string{"edge", "enable"}, "tls"},
 		{[]string{"edge", "enable"}, "no-http3"},
+		{[]string{"edge", "prune"}, "older-than"},
+		{[]string{"edge", "prune"}, "dry-run"},
 		{[]string{"logs"}, "edge"},
 		{[]string{"server", "setup"}, "edge"},
 		{[]string{"server", "setup"}, "acme-email"},

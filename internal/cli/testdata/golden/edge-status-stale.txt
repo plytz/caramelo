@@ -1,0 +1,19 @@
+edge running, version v0.1.0
+  certificates  acme (https://acme-v02.api.letsencrypt.org/directory)
+  http/3        true
+  listening     tcp 0.0.0.0:80, tcp 0.0.0.0:443, udp 0.0.0.0:443
+
+HOST              ENV              SERVICE  REPLICA  STATE     PORT   IN-FLIGHT
+feat-x.shop.test  shop/feat-x      web      1        active    20003  0
+feat-x.shop.test  shop/feat-x      web      2        draining  20004  3
+api.shop.test     shop/production  api      -        -         -      -
+
+1 draining
+
+CERTIFICATE       STATE             ISSUER                EXPIRES                           MANAGED
+api.shop.test     live              E7                    2026-12-01T12:00:00Z (1992h0m0s)  true
+feat-x.shop.test  live              E7                    2026-12-01T12:00:00Z (1992h0m0s)  true
+feat-x.shop.test  stale (internal)  Caramelo Internal CA  2026-07-01T12:00:00Z (expired)    false
+
+1 stale: from an issuer this machine no longer uses, so nothing serves or renews them.
+'caramelo edge prune' removes the ones certs_keep no longer keeps.

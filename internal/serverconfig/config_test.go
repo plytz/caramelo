@@ -8,8 +8,11 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/plytz/caramelo/internal/edge/certs"
 )
 
 func TestDefault(t *testing.T) {
@@ -530,6 +533,8 @@ func TestValidateEdgeKeys(t *testing.T) {
 		{"an acme_ca in the clear", func(c *Config) { c.ACMECA = "http://ca.internal/dir" }, "acme_ca"},
 		{"an acme_email that is not one", func(c *Config) { c.ACMEEmail = "ops.example.com" }, "acme_email"},
 		{"an edge with no way to get a certificate", func(c *Config) { c.Edge = true }, "acme_email is required"},
+		{"a certs_keep that is not a duration", func(c *Config) { c.CertsKeep = "a month" }, "certs_keep"},
+		{"a negative certs_keep", func(c *Config) { c.CertsKeep = "-720h" }, "certs_keep"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			c := Default()
@@ -551,6 +556,8 @@ func TestValidateEdgeKeys(t *testing.T) {
 		{"acme with an address", func(c *Config) { c.Edge, c.ACMEEmail = true, "ops@example.com" }},
 		{"acme against a test CA", func(c *Config) { c.Edge, c.ACMECA = true, "https://pebble:14000/dir" }},
 		{"an internal CA", func(c *Config) { c.Edge, c.TLS = true, "internal" }},
+		{"a retention of its own", func(c *Config) { c.Edge, c.TLS, c.CertsKeep = true, "internal", "168h" }},
+		{"a retention of nothing at all", func(c *Config) { c.Edge, c.TLS, c.CertsKeep = true, "internal", "0s" }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			c := Default()
@@ -580,5 +587,62 @@ func TestEdgePaths(t *testing.T) {
 	c.ACMECA = "https://pebble:14000/dir"
 	if got := c.ACMEDirectory(); got != c.ACMECA {
 		t.Errorf("ACMEDirectory() = %q, want %q", got, c.ACMECA)
+	}
+}
+
+func TestCertsKeepDuration(t *testing.T) {
+	c := Default()
+	keep, err := c.CertsKeepDuration()
+	if err != nil {
+		t.Fatalf("an unset certs_keep: %v", err)
+	}
+	if keep != certs.DefaultKeepStale {
+		t.Errorf("an unset certs_keep = %s, want the store's own default %s", keep, certs.DefaultKeepStale)
+	}
+	for in, want := range map[string]time.Duration{
+		"168h":  168 * time.Hour,
+		" 24h ": 24 * time.Hour,
+		"0s":    0,
+	} {
+		c.CertsKeep = in
+		got, err := c.CertsKeepDuration()
+		if err != nil || got != want {
+			t.Errorf("certs_keep %q = %s, %v; want %s", in, got, err, want)
+		}
+	}
+	for _, in := range []string{"a month", "30 days", "-1h", "720"} {
+		c.CertsKeep = in
+		if _, err := c.CertsKeepDuration(); err == nil {
+			t.Errorf("certs_keep %q was accepted", in)
+		}
+	}
+}
+
+func TestCertsKeepSurvivesARoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	c := Default()
+	c.Edge, c.ACMEEmail, c.CertsKeep = true, "ops@example.com", "168h"
+	if err := Save(dir, c, 0o640); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	back, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if back.CertsKeep != "168h" {
+		t.Errorf("certs_keep came back %q", back.CertsKeep)
+	}
+
+	plain := Default()
+	plain.Edge, plain.ACMEEmail = true, "ops@example.com"
+	if err := Save(dir, plain, 0o640); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	b, err := os.ReadFile(Path(dir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(b), "certs_keep") {
+		t.Errorf("a machine that never set a retention has certs_keep in its config.yaml:\n%s", b)
 	}
 }

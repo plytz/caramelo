@@ -555,6 +555,17 @@ func (e *Edge) Counts(_ context.Context, since time.Time) (*Counts, error) {
 	return &Counts{Since: since, At: e.now(), Hosts: e.router.Counts(since)}, nil
 }
 
+func (e *Edge) Prune(ctx context.Context, req certs.PruneRequest) (*certs.PruneResult, error) {
+	res, err := e.issuer.Prune(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	if res == nil {
+		return nil, errors.New("edge: the certificate manager pruned nothing and said nothing")
+	}
+	return res, nil
+}
+
 func (e *Edge) CA(ctx context.Context) (*certs.CA, error) {
 	ca, err := e.issuer.CA(ctx)
 	if err != nil {

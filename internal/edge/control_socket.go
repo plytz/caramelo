@@ -209,6 +209,15 @@ func (s *controlServer) dispatch(ctx context.Context, req Request, write func(Re
 			return write(Response{Error: err.Error()})
 		}
 		return write(Response{OK: true, Counts: counts})
+	case OpPrune:
+		if req.Prune == nil {
+			return write(Response{Error: "edge: prune without a request"})
+		}
+		pruned, err := s.h.Prune(ctx, *req.Prune)
+		if err != nil {
+			return write(Response{Error: err.Error()})
+		}
+		return write(Response{OK: true, Pruned: pruned})
 	case OpSubscribe:
 		err := s.h.Subscribe(ctx, req.Since, func(e Event) error {
 			ev := e
@@ -327,6 +336,17 @@ func (c *socketClient) Counts(ctx context.Context, since time.Time) (*Counts, er
 		return nil, c.wrap(errors.New("no counts in the answer"))
 	}
 	return res.Counts, nil
+}
+
+func (c *socketClient) Prune(ctx context.Context, req certs.PruneRequest) (*certs.PruneResult, error) {
+	res, err := c.send(ctx, Request{Op: OpPrune, Prune: &req})
+	if err != nil {
+		return nil, err
+	}
+	if res.Pruned == nil {
+		return nil, c.wrap(errors.New("no result in the answer"))
+	}
+	return res.Pruned, nil
 }
 
 func (c *socketClient) Subscribe(ctx context.Context, since time.Time, fn func(Event) error) error {

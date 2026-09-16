@@ -9,10 +9,12 @@ import (
 	"io/fs"
 	"net/http"
 	"os"
+	"path"
 	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/caddyserver/certmagic"
 	"go.uber.org/zap"
@@ -140,37 +142,100 @@ func (m *manager) HTTPChallengeHandler(next http.Handler) http.Handler {
 	return m.acme.HTTPChallengeHandler(next)
 }
 
+var certsPrefix = path.Dir(certmagic.StorageKeys.CertsPrefix("x"))
+
+const pruneLockName = "caramelo_certs_prune"
+
+type storedCertificate struct {
+	Certificate
+
+	crtKey string
+
+	sitePrefix string
+
+	treePrefix string
+
+	unreadable error
+}
+
 func (m *manager) Certificates(ctx context.Context) ([]Certificate, error) {
+	stored, err := m.stored(ctx)
+	if err != nil {
+		return nil, err
+	}
 	var out []Certificate
-	for _, issuer := range m.issuers {
-		prefix := certmagic.StorageKeys.CertsPrefix(issuer.IssuerKey())
-		keys, err := m.storage.List(ctx, prefix, true)
+	for _, s := range stored {
+		if s.unreadable != nil {
+			continue
+		}
+		out = append(out, s.Certificate)
+	}
+	return out, nil
+}
+
+func (m *manager) stored(ctx context.Context) ([]storedCertificate, error) {
+	trees, err := m.storage.List(ctx, certsPrefix, false)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("certs: listing %s: %w", certsPrefix, err)
+	}
+	var out []storedCertificate
+	for _, tree := range trees {
+		issuerKey, state := m.issuerOf(path.Base(tree))
+		keys, err := m.storage.List(ctx, tree, true)
 		if err != nil {
 			if errors.Is(err, fs.ErrNotExist) {
 				continue
 			}
-			return nil, fmt.Errorf("certs: listing %s: %w", prefix, err)
+			return nil, fmt.Errorf("certs: listing %s: %w", tree, err)
 		}
 		for _, key := range keys {
 			if !strings.HasSuffix(key, ".crt") {
 				continue
 			}
+			s := storedCertificate{
+				crtKey:     key,
+				sitePrefix: path.Dir(key),
+				treePrefix: tree,
+			}
 			c, err := m.certificateAt(ctx, key)
 			if err != nil {
 
 				m.logf("certs: %s: %v", key, err)
-				continue
+				s.unreadable = err
+				c = Certificate{
+					Host:      normalizeHost(path.Base(s.sitePrefix)),
+					IssuerKey: issuerKey,
+					State:     state,
+				}
 			}
-			out = append(out, c)
+			s.Certificate = c
+			out = append(out, s)
 		}
 	}
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].Host != out[j].Host {
 			return out[i].Host < out[j].Host
 		}
+		if out[i].State != out[j].State {
+			return out[i].State == Live
+		}
 		return out[i].NotAfter.Before(out[j].NotAfter)
 	})
 	return out, nil
+}
+
+func (m *manager) issuerOf(dir string) (string, CertificateState) {
+	for _, issuer := range m.issuers {
+		key := issuer.IssuerKey()
+
+		if certmagic.StorageKeys.Safe(key) == dir {
+			return key, Live
+		}
+	}
+	return dir, Stale
 }
 
 func (m *manager) certificateAt(ctx context.Context, key string) (Certificate, error) {
@@ -184,7 +249,126 @@ func (m *manager) certificateAt(ctx context.Context, key string) (Certificate, e
 	}
 	c := certificateFrom(leaf)
 	c.Managed = m.storage.Exists(ctx, strings.TrimSuffix(key, ".crt")+".json")
+	issuerKey, state := m.issuerOf(issuerDirOf(key))
+	c.IssuerKey, c.State = issuerKey, state
+	c.Managed = c.Managed && state == Live
 	return c, nil
+}
+
+func issuerDirOf(key string) string {
+	rest, ok := strings.CutPrefix(key, certsPrefix+"/")
+	if !ok {
+		return ""
+	}
+	dir, _, _ := strings.Cut(rest, "/")
+	return dir
+}
+
+func (m *manager) Prune(ctx context.Context, req PruneRequest) (*PruneResult, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+	keep := req.Keep()
+	res := &PruneResult{KeepFor: keep, DryRun: req.DryRun}
+
+	stored, err := m.stored(ctx)
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now()
+	var victims []storedCertificate
+	for _, s := range stored {
+		if s.State != Stale {
+			continue
+		}
+		removable, err := m.removable(ctx, s, keep, now)
+		if err != nil {
+			m.logf("certs: %s: kept: %v", s.crtKey, err)
+			res.Kept = append(res.Kept, s.Certificate)
+			continue
+		}
+		if !removable {
+			res.Kept = append(res.Kept, s.Certificate)
+			continue
+		}
+		victims = append(victims, s)
+	}
+	if len(victims) == 0 || req.DryRun {
+		for _, v := range victims {
+			res.Removed = append(res.Removed, v.Certificate)
+		}
+		return res, nil
+	}
+
+	if err := m.storage.Lock(ctx, pruneLockName); err != nil {
+		return nil, fmt.Errorf("certs: locking the certificate store to prune it: %w", err)
+	}
+	defer func() { _ = m.storage.Unlock(context.WithoutCancel(ctx), pruneLockName) }()
+
+	trees := map[string]bool{}
+	for _, v := range victims {
+		removable, err := m.removable(ctx, v, keep, now)
+		if err != nil {
+			m.logf("certs: %s: kept: %v", v.crtKey, err)
+			res.Kept = append(res.Kept, v.Certificate)
+			continue
+		}
+		if !removable {
+			res.Kept = append(res.Kept, v.Certificate)
+			continue
+		}
+		if err := m.storage.Delete(ctx, v.sitePrefix); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return res, fmt.Errorf("certs: removing %s: %w", v.sitePrefix, err)
+		}
+		trees[v.treePrefix] = true
+		res.Removed = append(res.Removed, v.Certificate)
+		if m.cfg.OnChange != nil {
+			m.cfg.OnChange(Pruned, v.Certificate, "")
+		}
+	}
+	for tree := range trees {
+		if err := m.removeEmptyTree(ctx, tree); err != nil {
+			m.logf("certs: %s: %v", tree, err)
+		}
+	}
+	return res, nil
+}
+
+func (m *manager) removable(ctx context.Context, s storedCertificate, keep time.Duration, now time.Time) (bool, error) {
+	if s.State != Stale {
+		return false, nil
+	}
+	if s.unreadable != nil {
+		return false, s.unreadable
+	}
+	info, err := m.storage.Stat(ctx, s.crtKey)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return false, nil
+		}
+		return false, fmt.Errorf("when it was last written: %w", err)
+	}
+	if keep == 0 {
+		return true, nil
+	}
+	return s.Expired(now) && now.Sub(info.Modified) >= keep, nil
+}
+
+func (m *manager) removeEmptyTree(ctx context.Context, tree string) error {
+	left, err := m.storage.List(ctx, tree, false)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil
+		}
+		return fmt.Errorf("listing what is left of %s: %w", tree, err)
+	}
+	if len(left) > 0 {
+		return nil
+	}
+	if err := m.storage.Delete(ctx, tree); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("removing the empty %s: %w", tree, err)
+	}
+	return nil
 }
 
 func (m *manager) CA(context.Context) (CA, error) {

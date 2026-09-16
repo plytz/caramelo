@@ -85,6 +85,8 @@ const (
 	Loaded Change = "loaded"
 
 	Failed Change = "failed"
+
+	Pruned Change = "pruned"
 )
 
 type ChangeFunc func(change Change, cert Certificate, detail string)
@@ -116,6 +118,27 @@ func (c Config) Validate() error {
 	return nil
 }
 
+type CertificateState string
+
+const (
+	Live CertificateState = "live"
+
+	Stale CertificateState = "stale"
+)
+
+var CertificateStates = []CertificateState{Live, Stale}
+
+func (s CertificateState) Valid() bool {
+	for _, k := range CertificateStates {
+		if k == s {
+			return true
+		}
+	}
+	return false
+}
+
+func (s CertificateState) String() string { return string(s) }
+
 type Certificate struct {
 	Host string `json:"host"`
 
@@ -127,10 +150,49 @@ type Certificate struct {
 	NotAfter  time.Time `json:"not_after,omitempty"`
 
 	Managed bool `json:"managed"`
+
+	IssuerKey string `json:"issuer_key,omitempty"`
+
+	State CertificateState `json:"state,omitempty"`
 }
 
 func (c Certificate) Expired(t time.Time) bool {
 	return !c.NotAfter.IsZero() && t.After(c.NotAfter)
+}
+
+const DefaultKeepStale = 30 * 24 * time.Hour
+
+type PruneRequest struct {
+	KeepFor *time.Duration `json:"keep_for,omitempty"`
+
+	DryRun bool `json:"dry_run,omitempty"`
+}
+
+func (r PruneRequest) Keep() time.Duration {
+	if r.KeepFor == nil {
+		return DefaultKeepStale
+	}
+	return *r.KeepFor
+}
+
+func (r PruneRequest) Validate() error {
+	if r.KeepFor != nil && *r.KeepFor < 0 {
+		return fmt.Errorf("certs: keep stale certificates for %s: want a positive duration, "+
+			"or 0 to remove every certificate from an issuer this machine no longer uses", *r.KeepFor)
+	}
+	return nil
+}
+
+func KeepFor(d time.Duration) *time.Duration { return &d }
+
+type PruneResult struct {
+	KeepFor time.Duration `json:"keep_for"`
+
+	DryRun bool `json:"dry_run,omitempty"`
+
+	Removed []Certificate `json:"removed,omitempty"`
+
+	Kept []Certificate `json:"kept,omitempty"`
 }
 
 type CA struct {
@@ -149,6 +211,8 @@ type Issuer interface {
 	HTTPChallengeHandler(next http.Handler) http.Handler
 
 	Certificates(ctx context.Context) ([]Certificate, error)
+
+	Prune(ctx context.Context, req PruneRequest) (*PruneResult, error)
 
 	CA(ctx context.Context) (CA, error)
 

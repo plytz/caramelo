@@ -1,10 +1,12 @@
 package edge
 
 import (
+	"bufio"
 	"context"
+	"encoding/json"
 	"errors"
-	"github.com/plytz/caramelo/internal/testutil"
 	"io/fs"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,6 +15,7 @@ import (
 	"time"
 
 	"github.com/plytz/caramelo/internal/edge/certs"
+	"github.com/plytz/caramelo/internal/testutil"
 )
 
 type fakeHandler struct {
@@ -25,6 +28,9 @@ type fakeHandler struct {
 
 	counts    *Counts
 	countsErr error
+
+	prunes   []certs.PruneRequest
+	pruneErr error
 }
 
 func newFakeHandler() *fakeHandler {
@@ -82,6 +88,28 @@ func (f *fakeHandler) CA(context.Context) (*certs.CA, error) {
 		return nil, errors.New("this machine issues from a public CA; there is nothing to trust by hand")
 	}
 	return f.ca, nil
+}
+
+func (f *fakeHandler) Prune(_ context.Context, req certs.PruneRequest) (*certs.PruneResult, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.pruneErr != nil {
+		return nil, f.pruneErr
+	}
+	f.prunes = append(f.prunes, req)
+	return &certs.PruneResult{
+		KeepFor: req.Keep(),
+		DryRun:  req.DryRun,
+		Removed: []certs.Certificate{{
+			Host: "feat-i.shop.internal", IssuerKey: "internal", State: certs.Stale,
+		}},
+	}, nil
+}
+
+func (f *fakeHandler) pruned() []certs.PruneRequest {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]certs.PruneRequest{}, f.prunes...)
 }
 
 func (f *fakeHandler) pushed() []Table {
@@ -239,4 +267,79 @@ func TestTheControlSocketIsTheDaemonUsersAlone(t *testing.T) {
 		t.Fatalf("ListenSocket over a stale socket: %v", err)
 	}
 	ln2.Close()
+}
+
+func TestAPruneCrossesTheControlSocket(t *testing.T) {
+	h := newFakeHandler()
+	c, _ := serveControl(t, h)
+
+	keep := 48 * time.Hour
+	res, err := c.Prune(t.Context(), certs.PruneRequest{KeepFor: &keep, DryRun: true})
+	if err != nil {
+		t.Fatalf("Prune: %v", err)
+	}
+	got := h.pruned()
+	if len(got) != 1 || got[0].KeepFor == nil || *got[0].KeepFor != keep || !got[0].DryRun {
+		t.Fatalf("the edge was asked %+v, want the retention and the dry run as they were sent", got)
+	}
+	if res.KeepFor != keep || !res.DryRun {
+		t.Errorf("result = %+v, want the retention it ran with", res)
+	}
+	if len(res.Removed) != 1 || res.Removed[0].Host != "feat-i.shop.internal" {
+		t.Fatalf("result = %+v, want the removed certificate", res)
+	}
+	if res.Removed[0].IssuerKey != "internal" || res.Removed[0].State != certs.Stale {
+		t.Errorf("removed = %+v, want the issuer key and the state carried across", res.Removed[0])
+	}
+
+	none, err := c.Prune(t.Context(), certs.PruneRequest{})
+	if err != nil {
+		t.Fatalf("Prune with no retention: %v", err)
+	}
+	if none.KeepFor != certs.DefaultKeepStale {
+		t.Errorf("a request with no retention ran with %s, want the default", none.KeepFor)
+	}
+}
+
+func TestAPruneWithNoRequestIsAnAnswerAndNotAHangUp(t *testing.T) {
+	h := newFakeHandler()
+	c, path := serveControl(t, h)
+
+	conn, err := net.Dial("unix", path)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close()
+	if _, err := conn.Write([]byte(`{"op":"prune"}` + "\n")); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	sc := bufio.NewScanner(conn)
+	if !sc.Scan() {
+		t.Fatalf("the edge hung up on a prune with no request: %v", sc.Err())
+	}
+	var res Response
+	if err := json.Unmarshal(sc.Bytes(), &res); err != nil {
+		t.Fatalf("the answer is not a response: %v (%q)", err, sc.Text())
+	}
+	if res.OK || !strings.Contains(res.Error, "prune") {
+		t.Errorf("answer = %+v, want a refusal naming the operation", res)
+	}
+	if len(h.pruned()) != 0 {
+		t.Error("a prune with no request reached the edge anyway")
+	}
+
+	if _, err := c.Status(t.Context()); err != nil {
+		t.Errorf("Status after a refusal: %v", err)
+	}
+}
+
+func TestAPruneThatFailsIsTheEdgesReason(t *testing.T) {
+	h := newFakeHandler()
+	h.pruneErr = errors.New("the certificate store is closed")
+	c, _ := serveControl(t, h)
+
+	if _, err := c.Prune(t.Context(), certs.PruneRequest{}); err == nil ||
+		!strings.Contains(err.Error(), "store is closed") {
+		t.Errorf("Prune = %v, want the edge's reason", err)
+	}
 }

@@ -194,7 +194,7 @@ func (d *Daemon) envEdge(ctx context.Context, app, name string) ([]edge.Route, [
 	}
 	var held []certs.Certificate
 	for _, c := range st.Certificates {
-		if hosts[edge.NormalizeHost(c.Host)] {
+		if hosts[edge.NormalizeHost(c.Host)] && c.State != certs.Stale {
 			held = append(held, c)
 		}
 	}
@@ -341,6 +341,31 @@ func (d *Daemon) EdgeCA(ctx context.Context) (*certs.CA, error) {
 			"certificate, so expose something and try again")
 	}
 	return ca, nil
+}
+
+func (d *Daemon) EdgePrune(ctx context.Context, req certs.PruneRequest) (*certs.PruneResult, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+	if req.KeepFor == nil {
+		keep, err := d.Config.CertsKeepDuration()
+		if err != nil {
+			return nil, err
+		}
+		req.KeepFor = &keep
+	}
+	client, err := d.edgeControl()
+	if err != nil {
+		return nil, err
+	}
+	res, err := client.Prune(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("prune the machine's certificate store: %w", err)
+	}
+	if res == nil {
+		return nil, errors.New("the edge answered nothing")
+	}
+	return res, nil
 }
 
 func (d *Daemon) EdgeCounts(ctx context.Context, since time.Time) (*edge.Counts, error) {

@@ -56,6 +56,7 @@ type testIssuer struct {
 	issued   map[string]int
 	failCert error
 	gone     []string
+	pruned   []certs.PruneRequest
 }
 
 func (i *testIssuer) Unmanage(hosts []string) {
@@ -166,6 +167,19 @@ func (i *testIssuer) Certificates(context.Context) ([]certs.Certificate, error) 
 		})
 	}
 	return out, nil
+}
+
+func (i *testIssuer) Prune(_ context.Context, req certs.PruneRequest) (*certs.PruneResult, error) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	i.pruned = append(i.pruned, req)
+	return &certs.PruneResult{KeepFor: req.Keep(), DryRun: req.DryRun}, nil
+}
+
+func (i *testIssuer) prunes() []certs.PruneRequest {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	return append([]certs.PruneRequest{}, i.pruned...)
 }
 
 func (i *testIssuer) CA(context.Context) (certs.CA, error) {
