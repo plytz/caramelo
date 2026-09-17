@@ -58,8 +58,8 @@ file:
       - "edge: false"
       - "tls: acme"
       - "http3: true"
-      - /^\s+backend: file$/
-      - /^\s+size_bytes: 4294967296$/
+      - '/^\s+backend: file$/'
+      - '/^\s+size_bytes: 4294967296$/'
 
   /var/lib/caramelo:
     exists: true
