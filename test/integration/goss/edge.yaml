@@ -100,6 +100,11 @@ command:
     stdout:
       - feat-x.shop.test.crt
 
+  ls /var/lib/caramelo/edge/certs/certificates | wc -l:
+    exit-status: 0
+    stdout:
+      - /^1$/
+
   sudo -u caramelo env XDG_RUNTIME_DIR=/run/user/$(id -u caramelo) DOCKER_HOST=unix:///run/user/$(id -u caramelo)/docker.sock docker ps --filter label=caramelo.env=feat-x:
     exit-status: 0
     stdout:

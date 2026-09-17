@@ -1,0 +1,1 @@
+nothing to prune: every certificate in the store is the configured issuer's

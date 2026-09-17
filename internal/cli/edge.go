@@ -52,6 +52,7 @@ Use 'caramelo edge status' to ask a machine what its edge is doing.`,
 			a.edgeEnableCmd(),
 			a.edgeDisableCmd(),
 			a.edgeCACmd(),
+			a.edgePruneCmd(),
 		)
 		return cmd
 	})
@@ -140,6 +141,11 @@ stopped, and since M7 unhealthy for a replica the health loop took out and held
 for an old pool a deploy is keeping) and how many requests it is holding, and
 each certificate with the CA that issued it and when it expires.
 
+The certificate table accounts for the whole store, not only what is served:
+changing 'tls' or 'acme_ca' leaves the old issuer's certificates on disk, and
+they are listed as stale with the issuer key they were stored under. Nothing
+renews or serves them; 'caramelo edge prune' is what removes them.
+
 On a machine whose edge is switched off this says so and exits 0.`,
 		Args: exactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -148,15 +154,17 @@ On a machine whose edge is switched off this says so and exits 0.`,
 				return err
 			}
 			return a.printer().Result(st, func(w io.Writer) error {
-				return writeEdgeStatus(w, st)
+				return writeEdgeStatus(w, st, time.Now())
 			})
 		},
 	})
 }
 
-func writeEdgeStatus(w io.Writer, st *edge.Status) error { return edgeStatusView(st).Write(w) }
+func writeEdgeStatus(w io.Writer, st *edge.Status, now time.Time) error {
+	return edgeStatusView(st, now).Write(w)
+}
 
-func edgeStatusView(st *edge.Status) *ui.View {
+func edgeStatusView(st *edge.Status, now time.Time) *ui.View {
 	if st == nil {
 		return ui.NewView().Text("no edge")
 	}
@@ -169,7 +177,7 @@ func edgeStatusView(st *edge.Status) *ui.View {
 		head += ", version " + st.Version
 	}
 	if !st.StartedAt.IsZero() {
-		head += fmt.Sprintf(", up %s", time.Since(st.StartedAt).Round(time.Second))
+		head += fmt.Sprintf(", up %s", now.Sub(st.StartedAt).Round(time.Second))
 	}
 	v := ui.NewView().Text("%s", head)
 	if st.Error != "" {
@@ -202,7 +210,7 @@ func edgeStatusView(st *edge.Status) *ui.View {
 			v.Blank().Text("%s", line)
 		}
 	}
-	return v.Section(edgeCertificatesTable(st.Certificates))
+	return v.Section(edgeCertificatesTable(st.Certificates, now))
 }
 
 func describeIngress(in *edge.IngressStatus) string {
@@ -262,12 +270,12 @@ func edgeRoutesTable(routes []edge.Route) *ui.Table {
 	return t
 }
 
-func edgeCertificatesTable(list []certs.Certificate) *ui.Table {
+func edgeCertificatesTable(list []certs.Certificate, now time.Time) *ui.Table {
 	if len(list) == 0 {
 		return nil
 	}
-	t := ui.NewTable("CERTIFICATE", "ISSUER", "EXPIRES", "MANAGED")
-	now := time.Now()
+	t := ui.NewTable("CERTIFICATE", "STATE", "ISSUER", "EXPIRES", "MANAGED")
+	stale := 0
 	for _, c := range list {
 		expires := "-"
 		if !c.NotAfter.IsZero() {
@@ -277,9 +285,30 @@ func edgeCertificatesTable(list []certs.Certificate) *ui.Table {
 				expires = c.NotAfter.Local().Format(time.RFC3339) + " (expired)"
 			}
 		}
-		t.Row(c.Host, strOrDash(c.Issuer), expires, fmt.Sprintf("%v", c.Managed))
+		if c.State == certs.Stale {
+			stale++
+		}
+		t.Row(c.Host, certificateState(c), strOrDash(c.Issuer), expires, fmt.Sprintf("%v", c.Managed))
+	}
+	if stale > 0 {
+		t.Note("\n%d stale: from an issuer this machine no longer uses, so nothing serves or renews them.", stale)
+		t.Note("'caramelo edge prune' removes the ones certs_keep no longer keeps.")
 	}
 	return t
+}
+
+func certificateState(c certs.Certificate) string {
+	switch c.State {
+	case certs.Stale:
+		if c.IssuerKey == "" {
+			return string(certs.Stale)
+		}
+		return fmt.Sprintf("%s (%s)", certs.Stale, c.IssuerKey)
+	case certs.Live:
+		return string(certs.Live)
+	default:
+		return "-"
+	}
 }
 
 func (a *app) edgeEnableCmd() *cobra.Command {
@@ -414,6 +443,103 @@ A machine issuing from a public CA has nothing to trust by hand and says so.`,
 			})
 		},
 	})
+}
+
+func (a *app) edgePruneCmd() *cobra.Command {
+	var (
+		olderThan time.Duration
+		dryRun    bool
+	)
+	cmd := commanderCmd(&cobra.Command{
+		Use:   "prune",
+		Short: "Remove certificates left behind by an issuer this machine no longer uses",
+		Long: `A machine that moved from one certificate authority to another — a different
+'acme_ca', a switch to 'tls: internal' and back — keeps the old issuer's
+certificates and private keys on disk under that issuer's own name. They are
+what 'caramelo edge status' calls stale: nothing serves them, nothing renews
+them, and nothing removed them until now.
+
+prune removes a stale certificate once its leaf has expired and its files have
+been untouched for at least the machine's certs_keep (720h by default, a key
+in config.yaml). Both conditions have to hold, so a certificate that could
+still be served is kept, and a store rewritten by a restore is kept too.
+
+The certificates of the issuer this machine does use are out of reach, as are
+the internal CA's root, the ACME account, the challenge tokens and the staples.
+
+  caramelo edge prune --dry-run          # what would go, and what the retention keeps
+  caramelo edge prune --older-than 168h  # a week instead of the machine's certs_keep
+  caramelo edge prune --older-than 0     # every stale certificate, expired or not`,
+		Args: exactArgs(0),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			req := certs.PruneRequest{DryRun: dryRun}
+			if cmd.Flags().Changed("older-than") {
+				req.KeepFor = certs.KeepFor(olderThan)
+			}
+			res, err := a.service.EdgePrune(cmd.Context(), req)
+			if err != nil {
+				return err
+			}
+			return a.printer().Result(res, func(w io.Writer) error {
+				return writeEdgePrune(w, res)
+			})
+		},
+	})
+	f := cmd.Flags()
+	f.DurationVar(&olderThan, "older-than", 0,
+		"keep a stale certificate this long after it was last written (default: the machine's "+
+			"certs_keep); 0 removes every stale certificate, expired or not")
+	f.BoolVar(&dryRun, "dry-run", false, "say what would be removed and remove nothing")
+	return cmd
+}
+
+func writeEdgePrune(w io.Writer, r *certs.PruneResult) error { return edgePruneView(r).Write(w) }
+
+func edgePruneView(r *certs.PruneResult) *ui.View {
+	if r == nil {
+		return ui.NewView().Text("the edge pruned nothing and said nothing")
+	}
+	v := ui.NewView()
+	switch {
+	case len(r.Removed) == 0 && len(r.Kept) == 0:
+		return v.Text("nothing to prune: every certificate in the store is the configured issuer's")
+	case len(r.Removed) == 0 && r.DryRun:
+		v.Text("nothing would be removed")
+	case len(r.Removed) == 0:
+		v.Text("nothing was removed")
+	case r.DryRun:
+		v.Text("%d certificate(s) would be removed", len(r.Removed))
+	default:
+		v.Text("%d certificate(s) removed", len(r.Removed))
+	}
+	v.Section(prunedCertificatesTable(r.Removed))
+	if len(r.Kept) > 0 {
+		v.Blank().Text("%s", keptLine(r))
+	}
+	return v
+}
+
+func prunedCertificatesTable(list []certs.Certificate) *ui.Table {
+	if len(list) == 0 {
+		return nil
+	}
+	t := ui.NewTable("CERTIFICATE", "ISSUER KEY", "EXPIRED")
+	for _, c := range list {
+		expired := "-"
+		if !c.NotAfter.IsZero() {
+			expired = c.NotAfter.Local().Format(time.RFC3339)
+		}
+		t.Row(c.Host, strOrDash(c.IssuerKey), expired)
+	}
+	return t
+}
+
+func keptLine(r *certs.PruneResult) string {
+	if r.KeepFor == 0 {
+		return fmt.Sprintf("%d kept: the edge could not read them, so it removed nothing of theirs",
+			len(r.Kept))
+	}
+	return fmt.Sprintf("%d kept: still valid, or last written less than %s ago", len(r.Kept), r.KeepFor)
 }
 
 func caDescription(ca *certs.CA) string {

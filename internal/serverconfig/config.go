@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 
@@ -83,6 +84,8 @@ type Config struct {
 	ACMECA string `yaml:"acme_ca"`
 
 	ACMEEmail string `yaml:"acme_email"`
+
+	CertsKeep string `yaml:"certs_keep,omitempty"`
 
 	HTTP3 bool `yaml:"http3"`
 
@@ -160,6 +163,18 @@ func (c Config) ACMEDirectory() string {
 	return c.ACMECA
 }
 
+func (c Config) CertsKeepDuration() (time.Duration, error) {
+	keep := strings.TrimSpace(c.CertsKeep)
+	if keep == "" {
+		return certs.DefaultKeepStale, nil
+	}
+	d, err := time.ParseDuration(keep)
+	if err != nil || d < 0 {
+		return 0, fmt.Errorf("certs_keep %q: want a duration such as 720h", c.CertsKeep)
+	}
+	return d, nil
+}
+
 func validateEdge(c Config) []error {
 	var errs []error
 	if c.TLS != "" && !slices.Contains(TLSValues, c.TLS) {
@@ -181,6 +196,9 @@ func validateEdge(c Config) []error {
 		if i := strings.IndexByte(email, '@'); i <= 0 || i == len(email)-1 || strings.ContainsAny(email, " \t") {
 			errs = append(errs, fmt.Errorf("acme_email %q: want an email address", email))
 		}
+	}
+	if _, err := c.CertsKeepDuration(); err != nil {
+		errs = append(errs, err)
 	}
 	if c.Edge && c.TLS == string(certs.ModeACME) &&
 		strings.TrimSpace(c.ACMEEmail) == "" && strings.TrimSpace(c.ACMECA) == "" {

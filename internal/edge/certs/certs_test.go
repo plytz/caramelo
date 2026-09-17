@@ -4,10 +4,13 @@ import (
 	"context"
 	"errors"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/caddyserver/certmagic"
 )
 
 func TestParseMode(t *testing.T) {
@@ -78,5 +81,65 @@ func TestCertificateExpired(t *testing.T) {
 func TestStorageLayout(t *testing.T) {
 	if !strings.HasPrefix(StoreDir, "edge/") {
 		t.Errorf("StoreDir = %q, want it under the edge's own directory", StoreDir)
+	}
+}
+
+func TestCertificateStateIsAClosedVocabulary(t *testing.T) {
+	for _, s := range CertificateStates {
+		if !s.Valid() {
+			t.Errorf("%q is in CertificateStates and not valid", s)
+		}
+		if s.String() != string(s) {
+			t.Errorf("%q prints as %q", s, s.String())
+		}
+	}
+	for _, s := range []CertificateState{"", "archived", "expired"} {
+		if s.Valid() {
+			t.Errorf("%q is not one of %v", s, CertificateStates)
+		}
+	}
+	if Live == Stale {
+		t.Fatal("live and stale are the same word")
+	}
+}
+
+func TestTheDerivedCertificatesPrefixIsCertmagics(t *testing.T) {
+	for _, key := range []string{internalIssuerKey, "acme-v02.api.example.test-directory"} {
+		prefix := certmagic.StorageKeys.CertsPrefix(key)
+		if got := path.Dir(prefix); got != certsPrefix {
+			t.Errorf("CertsPrefix(%q) = %q, whose parent is %q; the listing walks %q",
+				key, prefix, got, certsPrefix)
+		}
+	}
+	if issuerDirOf(certmagic.StorageKeys.SiteCert("an issuer:1", "feat-x.shop.test")) !=
+		certmagic.StorageKeys.Safe("an issuer:1") {
+		t.Error("the issuer directory read back from a site key is not the one certmagic wrote")
+	}
+	if issuerDirOf("somewhere/else/feat-x.crt") != "" {
+		t.Error("a key outside the certificate prefix was read as an issuer tree")
+	}
+}
+
+func TestTheRetentionDefaultsToThirtyDays(t *testing.T) {
+	if DefaultKeepStale != 720*time.Hour {
+		t.Errorf("DefaultKeepStale = %s, want 720h", DefaultKeepStale)
+	}
+	if got := (PruneRequest{}).Keep(); got != DefaultKeepStale {
+		t.Errorf("a request that names no retention keeps for %s, want the default %s",
+			got, DefaultKeepStale)
+	}
+	if got := (PruneRequest{KeepFor: KeepFor(0)}).Keep(); got != 0 {
+		t.Errorf("--older-than 0 was read as %s; 0 is the explicit escape, not the default", got)
+	}
+	if got := (PruneRequest{KeepFor: KeepFor(time.Hour)}).Keep(); got != time.Hour {
+		t.Errorf("a request for 1h keeps for %s", got)
+	}
+	if err := (PruneRequest{KeepFor: KeepFor(-time.Second)}).Validate(); err == nil {
+		t.Error("a negative retention validated")
+	}
+	for _, req := range []PruneRequest{{}, {KeepFor: KeepFor(0)}, {KeepFor: KeepFor(time.Hour)}} {
+		if err := req.Validate(); err != nil {
+			t.Errorf("%+v: %v", req, err)
+		}
 	}
 }
