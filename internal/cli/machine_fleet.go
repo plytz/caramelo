@@ -50,7 +50,7 @@ Adding a box that is already a member re-runs setup and changes nothing else.`,
 			if err := checkDoorFlags(edge, private); err != nil {
 				return err
 			}
-			if err := checkBinarySource(binary, release); err != nil {
+			if err := checkBinarySource(cmd.Flags(), args[0], binary, release); err != nil {
 				return err
 			}
 			if binary != "" {
