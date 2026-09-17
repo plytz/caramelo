@@ -166,6 +166,7 @@ caramelo machine add you@pi --binary ./caramelo-linux-arm64   # ship a binary fo
 caramelo machine add you@second-box --release v0.0.1   # ship that release instead of this build`,
 
 	"caramelo machine join": `
+sudo caramelo server setup --yes                    # join needs what setup makes
 sudo caramelo machine join hub.example.com:4021 --token "$(cat token)"
 sudo caramelo machine join hub.example.com:4021 --token - --name eu-1 < token`,
 
