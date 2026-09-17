@@ -73,7 +73,7 @@ func TestRunRendersTheResourceLimits(t *testing.T) {
 	}
 	wantArgv(t, f, "docker run --detach --name caramelo-shop-production-web-1 "+
 		"--log-opt max-size=10m --log-opt max-file=5 "+
-		"--memory 536870912 --cpus 1.5 "+
+		"--memory 536870912 --memory-swap 536870912 --cpus 1.5 "+
 		"caramelo/shop/web:a1b2c3d4e5f6")
 }
 
