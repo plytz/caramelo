@@ -479,11 +479,16 @@ func readNftables(ctx context.Context, run runner.Runner) (*state, error) {
 		return &state{manager: ManagerNone, detail: "nftables is installed, the ruleset is empty"}, nil
 	}
 	rs := parseNftables(out)
-	detail := "nftables holds a ruleset"
-	if len(rs.chains) > 0 {
-		detail += fmt.Sprintf(" with %d inet input chain(s)", len(rs.chains))
-	} else {
-		detail += " this reader does not decide from (no inet input chain)"
+	detail := "nftables holds " + rs.describe()
+	switch {
+	case len(rs.chains) > 0:
+		detail += fmt.Sprintf(", %d inet input chain(s)", len(rs.chains))
+	case rs.unsure:
+		detail += ", input chains this reader does not decide from"
+	case rs.filtersEarly:
+		detail += ", a filter on prerouting this reader does not decide from"
+	default:
+		detail += "; no chain hooks input, so nothing here filters inbound traffic"
 	}
 	return &state{manager: ManagerNftables, detail: detail, decide: rs.decide}, nil
 }
@@ -504,8 +509,20 @@ type nftRule struct {
 }
 
 type nftRuleset struct {
-	chains []nftChain
-	unsure bool
+	chains       []nftChain
+	tables       []string
+	unsure       bool
+	filtersEarly bool
+}
+
+func (rs nftRuleset) describe() string {
+	switch len(rs.tables) {
+	case 0:
+		return "a ruleset with no table"
+	case 1:
+		return "table " + rs.tables[0]
+	}
+	return "tables " + strings.Join(rs.tables, ", ")
 }
 
 func (rs nftRuleset) decide(p PortSpec) (Verdict, string) {
@@ -537,8 +554,10 @@ func (rs nftRuleset) decide(p PortSpec) (Verdict, string) {
 		return VerdictOpen, accepted
 	case drops != "":
 		return VerdictBlocked, drops
-	case rs.unsure || len(rs.chains) == 0:
+	case rs.unsure || rs.filtersEarly:
 		return VerdictUnknown, ""
+	case len(rs.chains) == 0:
+		return VerdictOpen, "no chain hooks input in " + rs.describe()
 	}
 	return VerdictOpen, ""
 }
@@ -553,6 +572,7 @@ func parseNftables(out string) nftRuleset {
 			fields := strings.Fields(line)
 			if len(fields) >= 3 {
 				family, table = fields[1], fields[2]
+				rs.tables = append(rs.tables, family+" "+table)
 			}
 			chain = nil
 		case strings.HasPrefix(line, "chain "):
@@ -570,6 +590,8 @@ func parseNftables(out string) nftRuleset {
 		case chain != nil && strings.Contains(line, "hook input"):
 			chain.policy = strings.Trim(fieldAfter(line, "policy"), ";")
 			chain.name += "|input"
+		case chain != nil && strings.Contains(line, "type filter hook prerouting"):
+			rs.filtersEarly = true
 		case chain != nil && (strings.Contains(line, "jump ") || strings.Contains(line, "goto ")):
 			chain.rules = append(chain.rules, nftRule{line: line})
 		case chain != nil:

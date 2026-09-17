@@ -391,7 +391,7 @@ func TestSetupStopsWhenTheTunnelPortIsDropped(t *testing.T) {
 	install := strings.Join([]string{
 		"sudo nft add table inet " + table,
 		"sudo nft add chain inet " + table + " input '{ type filter hook input priority 0 ; }'",
-		fmt.Sprintf("sudo nft add rule inet %s udp dport %d drop", table, vpn.DefaultListenPort),
+		fmt.Sprintf("sudo nft add rule inet %s input udp dport %d drop", table, vpn.DefaultListenPort),
 	}, " && ")
 	res, err := m.Run(ctx, install)
 	if err != nil {

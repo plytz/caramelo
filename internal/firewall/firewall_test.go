@@ -120,6 +120,29 @@ const nftAcceptUnderDropPolicy = `table inet filter {
 }
 `
 
+const nftNoInputHook = `table ip docker-bridges {
+	chain filter-forward {
+		type filter hook forward priority 0; policy accept;
+	}
+	chain nat-postrouting {
+		type nat hook postrouting priority 100; policy accept;
+	}
+}
+table ip6 docker-bridges {
+	chain filter-forward {
+		type filter hook forward priority 0; policy accept;
+	}
+}
+`
+
+const nftFiltersPrerouting = `table inet raw {
+	chain pre {
+		type filter hook prerouting priority -300; policy accept;
+		udp dport 4021 drop
+	}
+}
+`
+
 const nftDockerShaped = `table ip nat {
 	chain DOCKER {
 		iifname "docker0" return
@@ -251,6 +274,25 @@ func TestCheckReadsWhatIsInCharge(t *testing.T) {
 			manager: ManagerNftables,
 			want:    map[PortSpec]Verdict{tunnel: VerdictBlocked},
 			rule:    "policy drop",
+		},
+		{
+			name: "nftables with tables but no chain hooking input",
+			runner: func() *testutil.FakeRunner {
+				return box("nft").Stdout("nft list ruleset", nftNoInputHook)
+			},
+			manager: ManagerNftables,
+			want:    map[PortSpec]Verdict{tunnel: VerdictOpen, api: VerdictOpen},
+			rule:    "no chain hooks input in tables ip docker-bridges, ip6 docker-bridges",
+			detail:  "nothing here filters inbound traffic",
+		},
+		{
+			name: "nftables filtering on prerouting, which this reader does not follow",
+			runner: func() *testutil.FakeRunner {
+				return box("nft").Stdout("nft list ruleset", nftFiltersPrerouting)
+			},
+			manager: ManagerNftables,
+			want:    map[PortSpec]Verdict{tunnel: VerdictUnknown},
+			detail:  "filter on prerouting",
 		},
 		{
 			name: "nftables installed with an empty ruleset",
