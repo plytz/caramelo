@@ -15,7 +15,7 @@ import (
 const (
 	SwapSysctlFile = "/etc/sysctl.d/80-caramelo-swap.conf"
 
-	swapUnitTemplate = `# Installed by caramelo server setup: the machine's swap.
+	swapUnitTemplate = `# Installed by caramelo hub setup: the machine's swap.
 [Unit]
 Description=Caramelo swap
 Documentation=https://github.com/plytz/caramelo
@@ -27,7 +27,7 @@ What=%s
 WantedBy=swap.target
 `
 
-	swapSysctlTemplate = `# Installed by caramelo server setup: how early this machine leans on its swap.
+	swapSysctlTemplate = `# Installed by caramelo hub setup: how early this machine leans on its swap.
 vm.swappiness=%d
 `
 )

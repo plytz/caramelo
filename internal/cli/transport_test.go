@@ -171,7 +171,7 @@ func TestResolveTransportWithNothingConfigured(t *testing.T) {
 		t.Fatal("want an error when there is no socket and no machine")
 	}
 	msg := err.Error()
-	for _, want := range []string{"server setup", "--machine", "default_machine"} {
+	for _, want := range []string{"hub setup", "--machine", "default_machine"} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("error %q does not mention %q; it must name both fixes", msg, want)
 		}
@@ -285,8 +285,8 @@ func TestForwardOverTheSocketEndToEnd(t *testing.T) {
 
 	stdout.Reset()
 	stderr.Reset()
-	if code := Run([]string{"server", "run", "--config-dir", filepath.Join(dir, "missing")}, &stdout, &stderr); code != ExitError {
-		t.Errorf("server run with no config = %d, want %d", code, ExitError)
+	if code := Run([]string{"hub", "run", "--config-dir", filepath.Join(dir, "missing")}, &stdout, &stderr); code != ExitError {
+		t.Errorf("hub run with no config = %d, want %d", code, ExitError)
 	}
 	if !strings.Contains(stderr.String(), "config.yaml") {
 		t.Errorf("stderr = %q, want it to name the missing config", stderr.String())

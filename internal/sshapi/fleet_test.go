@@ -243,7 +243,7 @@ func TestAnAnnouncementFromACommanderIsRefusedNamingWhatToRunInstead(t *testing.
 	ctx := WithSession(context.Background(), api.Session{Transport: "tunnel", Identity: "commander"})
 
 	_, err := d.MachineAnnounce(ctx, fleet.Announcement{Machine: "nx2"})
-	if err == nil || !strings.Contains(err.Error(), "machine list") {
+	if err == nil || !strings.Contains(err.Error(), "member list") {
 		t.Fatalf("error = %v, want a refusal naming the command a person runs", err)
 	}
 	if !strings.Contains(err.Error(), "commander") {

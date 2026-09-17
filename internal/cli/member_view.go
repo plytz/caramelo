@@ -138,7 +138,7 @@ func machineTokenView(r *api.MachineTokenResult) *ui.View {
 	v := ui.NewView().
 		Text("On the machine that is joining, as root:").
 		Blank().
-		Text("  sudo caramelo machine join %s --token %s", strOr(r.Endpoint, r.Hub), r.Token).
+		Text("  sudo caramelo member join %s --token %s", strOr(r.Endpoint, r.Hub), r.Token).
 		Blank()
 	f := ui.NewFields("")
 	f.Add("hub", "%s", strOrDash(r.Hub))

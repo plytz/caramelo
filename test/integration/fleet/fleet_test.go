@@ -30,7 +30,7 @@ func TestAMemberJoins(t *testing.T) {
 	_, buildErr := itest.BinaryFor(buildCtx, box)
 	cancelBuild()
 	if buildErr != nil {
-		t.Fatalf("build the binary `machine add` ships to %s: %v", box.Alias, buildErr)
+		t.Fatalf("build the binary `member add` ships to %s: %v", box.Alias, buildErr)
 	}
 
 	target := box.BootstrapTarget(t)
@@ -38,16 +38,16 @@ func TestAMemberJoins(t *testing.T) {
 
 	add, res := machineAdd(t, target, name, memberEdgeArgs()...)
 	if res.ExitCode != 0 {
-		t.Fatalf("machine add %s: exit %d\nstdout:\n%sstderr:\n%s", target, res.ExitCode, res.Stdout, res.Stderr)
+		t.Fatalf("member add %s: exit %d\nstdout:\n%sstderr:\n%s", target, res.ExitCode, res.Stdout, res.Stderr)
 	}
 	if !add.Joined {
-		t.Error("machine add of a box that was clean reports Joined=false")
+		t.Error("member add of a box that was clean reports Joined=false")
 	}
 	if add.Setup == nil {
-		t.Error("machine add --json carries no setup report; the M2 bootstrap it ran is half of what it did")
+		t.Error("member add --json carries no setup report; the M2 bootstrap it ran is half of what it did")
 	}
 	if add.Machine.Name != name {
-		t.Fatalf("machine add named the machine %q, want %q", add.Machine.Name, name)
+		t.Fatalf("member add named the machine %q, want %q", add.Machine.Name, name)
 	}
 	joinedM1 = true
 	relogin(t, box)
@@ -61,10 +61,10 @@ func TestAMemberJoins(t *testing.T) {
 
 	list := machineList(t)
 	if len(list) < 2 {
-		t.Fatalf("machine list = %v, want the hub and %s", machineSummary(list), name)
+		t.Fatalf("member list = %v, want the hub and %s", machineSummary(list), name)
 	}
 	if !list[0].Role.IsHub() {
-		t.Errorf("the first row of machine list is %s (%s), want the hub", list[0].Name, list[0].Role)
+		t.Errorf("the first row of member list is %s (%s), want the hub", list[0].Name, list[0].Role)
 	}
 	m1 := machineNamed(t, list, name)
 	if m1.Role != cfleet.RoleMember {
@@ -106,17 +106,17 @@ func TestAMemberJoins(t *testing.T) {
 
 	again, res := machineAdd(t, target, name, memberEdgeArgs()...)
 	if res.ExitCode != 0 {
-		t.Fatalf("a second machine add: exit %d\nstderr:\n%s", res.ExitCode, res.Stderr)
+		t.Fatalf("a second member add: exit %d\nstderr:\n%s", res.ExitCode, res.Stderr)
 	}
 	if again.Joined {
-		t.Error("a second machine add of the same box reports Joined=true; it changed nothing")
+		t.Error("a second member add of the same box reports Joined=true; it changed nothing")
 	}
 	if again.Machine.Subnet != m1.Subnet {
-		t.Errorf("a second machine add moved %s from %s to %s", name, m1.Subnet, again.Machine.Subnet)
+		t.Errorf("a second member add moved %s from %s to %s", name, m1.Subnet, again.Machine.Subnet)
 	}
 	after := machineList(t)
 	if len(after) != len(list) {
-		t.Errorf("machine list = %v after a second add, want %v", machineSummary(after), machineSummary(list))
+		t.Errorf("member list = %v after a second add, want %v", machineSummary(after), machineSummary(list))
 	}
 }
 
@@ -138,13 +138,13 @@ func TestAMemberJoinsItselfWithAToken(t *testing.T) {
 
 	tok, res := machineToken(t)
 	if res.ExitCode != 0 {
-		t.Fatalf("machine token: exit %d\nstderr:\n%s", res.ExitCode, res.Stderr)
+		t.Fatalf("member token: exit %d\nstderr:\n%s", res.ExitCode, res.Stderr)
 	}
 	if strings.TrimSpace(tok.Token) == "" {
-		t.Fatal("machine token printed no token")
+		t.Fatal("member token printed no token")
 	}
 	if tok.PublicKey == "" {
-		t.Error("machine token carries no hub public key; a joining machine has nothing to verify against")
+		t.Error("member token carries no hub public key; a joining machine has nothing to verify against")
 	}
 	if !tok.ExpiresAt.After(time.Now()) {
 		t.Errorf("the token expires at %v, which is not in the future", tok.ExpiresAt)
@@ -152,16 +152,16 @@ func TestAMemberJoinsItselfWithAToken(t *testing.T) {
 
 	throwaway, res := machineToken(t)
 	if res.ExitCode != 0 {
-		t.Fatalf("machine token for the unprepared join: exit %d\nstderr:\n%s", res.ExitCode, res.Stderr)
+		t.Fatalf("member token for the unprepared join: exit %d\nstderr:\n%s", res.ExitCode, res.Stderr)
 	}
 	unprepared := machineJoinOn(t, box, endpoint, throwaway.Token, name+"-unprepared")
 	if unprepared.ExitCode == 0 {
-		t.Fatalf("a join on %s, which never ran server setup, succeeded:\nstdout:\n%sstderr:\n%s",
+		t.Fatalf("a join on %s, which never ran hub setup, succeeded:\nstdout:\n%sstderr:\n%s",
 			box.Alias, unprepared.Stdout, unprepared.Stderr)
 	}
 	said := unprepared.Stdout + unprepared.Stderr
-	if !strings.Contains(said, "server setup") {
-		t.Errorf("the refusal on an unprepared machine does not name server setup:\n%s", said)
+	if !strings.Contains(said, "hub setup") {
+		t.Errorf("the refusal on an unprepared machine does not name hub setup:\n%s", said)
 	}
 	if strings.Contains(said, "no such file") {
 		t.Errorf("the refusal on an unprepared machine names a missing file instead of the step that makes it:\n%s", said)
@@ -173,7 +173,7 @@ func TestAMemberJoinsItselfWithAToken(t *testing.T) {
 
 	short, res := machineToken(t, "--ttl", "1s")
 	if res.ExitCode != 0 {
-		t.Fatalf("machine token --ttl 1s: exit %d\nstderr:\n%s", res.ExitCode, res.Stderr)
+		t.Fatalf("member token --ttl 1s: exit %d\nstderr:\n%s", res.ExitCode, res.Stderr)
 	}
 	time.Sleep(2 * time.Second)
 	expired := machineJoinOn(t, box, endpoint, short.Token, name+"-expired")
@@ -186,7 +186,7 @@ func TestAMemberJoinsItselfWithAToken(t *testing.T) {
 
 	join := machineJoinOn(t, box, endpoint, tok.Token, name, "--private")
 	if join.ExitCode != 0 {
-		t.Fatalf("machine join on %s: exit %d\nstdout:\n%sstderr:\n%s",
+		t.Fatalf("member join on %s: exit %d\nstdout:\n%sstderr:\n%s",
 			box.Alias, join.ExitCode, join.Stdout, join.Stderr)
 	}
 	joinedM2 = true
@@ -263,9 +263,9 @@ func TestAnEnvironmentOnAMember(t *testing.T) {
 		t.Errorf("env show says machine %q, want %q", detail.Env.Machine, name)
 	}
 	if got := machineShow(t, name); len(got.Envs) == 0 {
-		t.Errorf("machine show %s lists no environments", name)
+		t.Errorf("member show %s lists no environments", name)
 	} else if !directoryHas(got.Envs, envName) {
-		t.Errorf("machine show %s does not list %s: %+v", name, envName, got.Envs)
+		t.Errorf("member show %s does not list %s: %+v", name, envName, got.Envs)
 	}
 
 	up := mustInRepo(t, "up", envName, "--json")
@@ -1047,7 +1047,7 @@ func TestTheFleetSurvivesAPowerCycle(t *testing.T) {
 
 	before := machineList(t)
 	if len(before) < 2 {
-		t.Fatalf("machine list = %v before the power cycle, want a fleet", machineSummary(before))
+		t.Fatalf("member list = %v before the power cycle, want a fleet", machineSummary(before))
 	}
 
 	for _, m := range memberBoxes {
@@ -1079,7 +1079,7 @@ func TestTheFleetSurvivesAPowerCycle(t *testing.T) {
 		time.Sleep(5 * time.Second)
 	}
 	if len(list) != len(before) {
-		t.Fatalf("machine list = %v after the power cycle, want %v", machineSummary(list), machineSummary(before))
+		t.Fatalf("member list = %v after the power cycle, want %v", machineSummary(list), machineSummary(before))
 	}
 	if !allReachable(list) {
 		t.Fatalf("not every machine is reachable after the power cycle: %v", machineSummary(list))
@@ -1121,9 +1121,9 @@ func TestAMemberLeaves(t *testing.T) {
 	if len(held.Envs) == 0 {
 		t.Skipf("fleet suite: %s holds no environment, so the refusal has nothing to name", name)
 	}
-	res := inRepo(t, "machine", "remove", name, "--yes", "--json")
+	res := inRepo(t, "member", "remove", name, "--yes", "--json")
 	if res.ExitCode == 0 {
-		t.Fatalf("machine remove %s succeeded while it held %d environment(s)", name, len(held.Envs))
+		t.Fatalf("member remove %s succeeded while it held %d environment(s)", name, len(held.Envs))
 	}
 	for _, e := range held.Envs {
 		if !strings.Contains(res.Stdout+res.Stderr, e.Env) {
@@ -1132,9 +1132,9 @@ func TestAMemberLeaves(t *testing.T) {
 	}
 
 	subnet := machineNamed(t, machineList(t), name).Subnet
-	forced := inRepo(t, "machine", "remove", name, "--force", "--yes", "--json")
+	forced := inRepo(t, "member", "remove", name, "--force", "--yes", "--json")
 	if forced.ExitCode != 0 {
-		t.Fatalf("machine remove --force %s: exit %d\nstderr:\n%s", name, forced.ExitCode, forced.Stderr)
+		t.Fatalf("member remove --force %s: exit %d\nstderr:\n%s", name, forced.ExitCode, forced.Stderr)
 	}
 	if machineFound(machineList(t), name) {
 		t.Fatalf("%s is still in the fleet after being removed", name)
@@ -1169,11 +1169,11 @@ func TestAMemberLeaves(t *testing.T) {
 		t.Errorf("%s still answers as a member after being removed: %v", box.Alias, machineSummary(own))
 	}
 
-	if res := onBox(t, box, "sudo -n "+itest.CarameloBinary+" machine leave --force --json"); res.ExitCode != 0 {
-		t.Errorf("machine leave on %s: exit %d\n%s%s", box.Alias, res.ExitCode, res.Stdout, res.Stderr)
+	if res := onBox(t, box, "sudo -n "+itest.CarameloBinary+" member leave --force --json"); res.ExitCode != 0 {
+		t.Errorf("member leave on %s: exit %d\n%s%s", box.Alias, res.ExitCode, res.Stdout, res.Stderr)
 	}
 	if err := itest.WaitForCaramelod(ctx, box); err != nil {
-		t.Errorf("caramelod on %s did not come back after machine leave: %v", box.Alias, err)
+		t.Errorf("caramelod on %s did not come back after member leave: %v", box.Alias, err)
 	}
 	if role, err := itest.FleetRole(ctx, box); err != nil {
 		t.Errorf("read the fleet role of %s: %v", box.Alias, err)
@@ -1184,7 +1184,7 @@ func TestAMemberLeaves(t *testing.T) {
 
 func machineListOn(t *testing.T, m *itest.Machine) []cfleet.Machine {
 	t.Helper()
-	res := asCaramelo(t, m, itest.CarameloBinary+" machine list --json")
+	res := asCaramelo(t, m, itest.CarameloBinary+" member list --json")
 	if res.ExitCode != 0 {
 		return nil
 	}
@@ -1199,10 +1199,10 @@ func TestTheInterface(t *testing.T) {
 	begin(t)
 	needM1(t)
 
-	list := mustInRepo(t, "machine", "list")
-	assertPlainTable(t, "machine list", list.Stdout, "NAME", "ROLE", "ARCH", "SUBNET", "ENVS", "SEEN")
+	list := mustInRepo(t, "member", "list")
+	assertPlainTable(t, "member list", list.Stdout, "NAME", "ROLE", "ARCH", "SUBNET", "ENVS", "SEEN")
 	if !strings.Contains(list.Stdout, memberNames[0]) {
-		t.Errorf("machine list does not name %s:\n%s", memberNames[0], list.Stdout)
+		t.Errorf("member list does not name %s:\n%s", memberNames[0], list.Stdout)
 	}
 
 	envs := mustInRepo(t, "env", "list", "--all")
@@ -1217,12 +1217,12 @@ func TestTheInterface(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), itest.Scale(2*time.Minute))
 	defer cancel()
-	pty, err := itest.PTYRun(ctx, repo, commanderEnv(), itest.BinaryPath(t), "machine", "list")
+	pty, err := itest.PTYRun(ctx, repo, commanderEnv(), itest.BinaryPath(t), "member", "list")
 	if err != nil {
-		t.Fatalf("machine list on a terminal: %v", err)
+		t.Fatalf("member list on a terminal: %v", err)
 	}
 	if !strings.Contains(pty.LastFrame(), memberNames[0]) {
-		t.Errorf("machine list on a terminal does not name %s:\n%s", memberNames[0], pty.LastFrame())
+		t.Errorf("member list on a terminal does not name %s:\n%s", memberNames[0], pty.LastFrame())
 	}
 }
 

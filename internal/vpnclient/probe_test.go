@@ -183,7 +183,7 @@ func TestNoHandshakeNamesTheFirewallAndTheProbe(t *testing.T) {
 	rec := Record{Machine: "box", Endpoint: "192.168.56.11:4021"}
 	msg := noHandshake(rec, 10*time.Second).Error()
 	for _, want := range []string{"no handshake with box", "192.168.56.11:4021", "peer list",
-		"firewall", "security group", "caramelo server probe box"} {
+		"firewall", "security group", "caramelo hub probe box"} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("noHandshake = %q, want it to mention %q", msg, want)
 		}

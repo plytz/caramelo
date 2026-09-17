@@ -105,6 +105,15 @@ file:
     group: caramelo
     mode: "0600"
 
+  /var/lib/caramelo/.config/systemd/user/caramelod.service:
+    exists: true
+    filetype: file
+    owner: caramelo
+    group: caramelo
+    mode: "0644"
+    contents:
+      - "ExecStart=/usr/local/bin/caramelo hub run"
+
   /mnt/caramelo:
     exists: true
     filetype: directory

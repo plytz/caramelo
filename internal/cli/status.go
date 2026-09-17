@@ -147,7 +147,7 @@ func describeEnvCounts(p api.ProductionStatus) string {
 
 func describeVault(p api.ProductionStatus) string {
 	if !p.Vault {
-		return "none: run `caramelo server setup` again to create the vault key"
+		return "none: run `caramelo hub setup` again to create the vault key"
 	}
 	return fmt.Sprintf("%d secret(s)", p.Secrets)
 }

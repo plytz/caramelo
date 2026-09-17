@@ -56,7 +56,7 @@ func (r *FleetResolver) ResolveMachine(ctx context.Context, name string) (Locati
 		return Location{}, fmt.Errorf("look up machine %q: %w", name, err)
 	}
 	if !ok {
-		return Location{}, fmt.Errorf("no machine %q in this fleet: `caramelo machine list` says which there are", name)
+		return Location{}, fmt.Errorf("no machine %q in this fleet: `caramelo member list` says which there are", name)
 	}
 	if m.Name == r.Self {
 		return Location{Machine: r.Self, Local: true, Reachable: true}, nil
@@ -89,10 +89,10 @@ func (r *FleetResolver) self() string {
 func Unreachable(loc Location) error {
 	if loc.LastSeen.IsZero() {
 		return fmt.Errorf("machine %q has never been heard from, so it cannot be sent work: "+
-			"`caramelo machine list` shows what the fleet knows", loc.Machine)
+			"`caramelo member list` shows what the fleet knows", loc.Machine)
 	}
 	return fmt.Errorf("machine %q is unreachable (last seen %s ago): "+
-		"it may be rebooting; `caramelo machine list` shows what the fleet knows",
+		"it may be rebooting; `caramelo member list` shows what the fleet knows",
 		loc.Machine, time.Since(loc.LastSeen).Round(time.Second))
 }
 

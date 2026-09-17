@@ -172,7 +172,7 @@ func machineSlug(s string) string {
 func (d *Daemon) MachineInfo(ctx context.Context, name string) (*api.MachineDetail, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
-		return nil, errors.New("machine show: which machine")
+		return nil, errors.New("member show: which machine")
 	}
 	machines, err := d.Machines(ctx)
 	if err != nil {
@@ -180,7 +180,7 @@ func (d *Daemon) MachineInfo(ctx context.Context, name string) (*api.MachineDeta
 	}
 	m, ok := fleet.Find(machines, name)
 	if !ok {
-		return nil, fmt.Errorf("machine show %s: this fleet has no such machine (`caramelo machine list`)", name)
+		return nil, fmt.Errorf("member show %s: this fleet has no such machine (`caramelo member list`)", name)
 	}
 	det := &api.MachineDetail{Machine: m, Gauge: m.Gauge, Unreachable: !m.Reachable(d.now())}
 	if dir, err := d.Store.Directory(ctx, state.DirectoryFilter{Machine: name}); err == nil {
@@ -206,12 +206,12 @@ func (d *Daemon) MachineInfo(ctx context.Context, name string) (*api.MachineDeta
 
 func (d *Daemon) MachineToken(ctx context.Context, req api.MachineTokenRequest) (*api.MachineTokenResult, error) {
 	if d.Config.IsMember() {
-		return nil, fmt.Errorf("machine token: this machine is a member of %s; ask for a token there",
+		return nil, fmt.Errorf("member token: this machine is a member of %s; ask for a token there",
 			d.Config.Fleet.Hub.Name)
 	}
 	dev := d.dev()
 	if dev == nil {
-		return nil, errors.New("machine token: this machine's tunnel is not up, so nothing could dial it")
+		return nil, errors.New("member token: this machine's tunnel is not up, so nothing could dial it")
 	}
 	hub, err := d.ensureHubRow(ctx)
 	if err != nil {
@@ -237,19 +237,19 @@ func (d *Daemon) MachineToken(ctx context.Context, req api.MachineTokenRequest) 
 	}
 	boot, err := vpn.KeyFromSecret(secret).Public()
 	if err != nil {
-		return nil, fmt.Errorf("machine token: derive the ticket's key: %w", err)
+		return nil, fmt.Errorf("member token: derive the ticket's key: %w", err)
 	}
 	name := joinPeerName(tok.Hash)
 	if err := dev.AddPeer(ctx, vpn.Peer{
-		Name: name, PublicKey: boot.Base64(), IP: peerAddr, AddedBy: "machine token", CreatedAt: d.now(),
+		Name: name, PublicKey: boot.Base64(), IP: peerAddr, AddedBy: "member token", CreatedAt: d.now(),
 	}); err != nil {
-		return nil, fmt.Errorf("machine token: admit the joining machine: %w", err)
+		return nil, fmt.Errorf("member token: admit the joining machine: %w", err)
 	}
 	if err := d.Store.AddJoinToken(ctx, state.JoinToken{
 		Hash: tok.Hash, CreatedBy: tok.CreatedBy, CreatedAt: tok.CreatedAt, ExpiresAt: tok.ExpiresAt,
 	}); err != nil {
 		_ = dev.RemovePeer(ctx, name)
-		return nil, fmt.Errorf("machine token: record the token: %w", err)
+		return nil, fmt.Errorf("member token: record the token: %w", err)
 	}
 	d.holdJoinPeer(name, tok.ExpiresAt.Add(joinExpiryGrace))
 	ticket := fleet.Ticket{
@@ -307,7 +307,7 @@ func (d *Daemon) reserveJoinAddress(ctx context.Context) (netip.Addr, error) {
 	}
 	subnet, err := d.Config.VPNSubnetPrefix()
 	if err != nil {
-		return netip.Addr{}, fmt.Errorf("machine token: read this machine's subnet: %w", err)
+		return netip.Addr{}, fmt.Errorf("member token: read this machine's subnet: %w", err)
 	}
 
 	first, last := vpn.PeerRange(subnet)
@@ -316,7 +316,7 @@ func (d *Daemon) reserveJoinAddress(ctx context.Context) (netip.Addr, error) {
 			return ip, nil
 		}
 	}
-	return netip.Addr{}, errors.New("machine token: this machine has no free peer address to lend a joining machine")
+	return netip.Addr{}, errors.New("member token: this machine has no free peer address to lend a joining machine")
 }
 
 func (d *Daemon) ensureHubRow(ctx context.Context) (fleet.Machine, error) {
@@ -412,7 +412,7 @@ func (d *Daemon) admitMember(ctx context.Context, machines []fleet.Machine, name
 		if existing.PublicKey != m.PublicKey {
 			return fleet.Machine{}, false, fmt.Errorf(
 				"a join: this fleet already has a machine called %s with another key; "+
-					"remove it (`caramelo machine remove %s`) or join under another name", name, name)
+					"remove it (`caramelo member remove %s`) or join under another name", name, name)
 		}
 		m.Subnet, m.JoinedAt = existing.Subnet, existing.JoinedAt
 		changed = existing.Private != m.Private || existing.Arch != m.Arch
@@ -433,13 +433,13 @@ func (d *Daemon) admitMember(ctx context.Context, machines []fleet.Machine, name
 }
 
 func (d *Daemon) MachineRemoved(ctx context.Context) error {
-	peer, err := d.requireMachinePeer(ctx, "machine removed", "machine remove")
+	peer, err := d.requireMachinePeer(ctx, "member removed", "member remove")
 	if err != nil {
 		return err
 	}
 	hub := d.Config.Fleet.Hub.Name
 	if !d.Config.IsMember() || peer.Name != hub {
-		return fmt.Errorf("machine removed: %q is not this machine's hub", peer.Name)
+		return fmt.Errorf("member removed: %q is not this machine's hub", peer.Name)
 	}
 
 	d.leaveFleetIn(ctx, hub, leaveReplyGrace, d.logf)
@@ -455,38 +455,38 @@ func (d *Daemon) tellMemberRemoved(ctx context.Context, loc api.Location, name s
 		return
 	}
 	if loc.Machine == "" || loc.Local || !loc.Reachable {
-		d.logf("machine remove %s: it could not be told; it will find out when its next announcement is refused", name)
+		d.logf("member remove %s: it could not be told; it will find out when its next announcement is refused", name)
 		return
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, tellRemovedTimeout)
 	defer cancel()
-	argv := []string{"machine", "removed", "--json"}
+	argv := []string{"member", "removed", "--json"}
 	if _, err := d.forwarder().Forward(ctx, loc, argv, nil, io.Discard, io.Discard); err != nil {
-		d.logf("machine remove %s: telling it did not land (%v); "+
+		d.logf("member remove %s: telling it did not land (%v); "+
 			"it will find out when its next announcement is refused", name, err)
 		return
 	}
-	d.logf("machine remove %s: told it, and it is a machine of one again", name)
+	d.logf("member remove %s: told it, and it is a machine of one again", name)
 }
 
 func (d *Daemon) MachineRemove(ctx context.Context, req api.MachineRemoveRequest, out io.Writer) error {
 	name := strings.TrimSpace(req.Name)
 	if name == "" {
-		return errors.New("machine remove: which machine")
+		return errors.New("member remove: which machine")
 	}
 	if name == d.fleetName() {
-		return fmt.Errorf("machine remove %s: that is this machine, and a hub cannot remove itself", name)
+		return fmt.Errorf("member remove %s: that is this machine, and a hub cannot remove itself", name)
 	}
 	if _, err := d.Store.FleetMachine(ctx, name); errors.Is(err, state.ErrNotFound) {
 
 		return nil
 	} else if err != nil {
-		return fmt.Errorf("machine remove %s: read the machine: %w", name, err)
+		return fmt.Errorf("member remove %s: read the machine: %w", name, err)
 	}
 	dir, err := d.Store.Directory(ctx, state.DirectoryFilter{Machine: name})
 	if err != nil {
-		return fmt.Errorf("machine remove %s: read what it holds: %w", name, err)
+		return fmt.Errorf("member remove %s: read what it holds: %w", name, err)
 	}
 	if len(dir) > 0 && !req.Force {
 		held := make([]string, 0, len(dir))
@@ -494,7 +494,7 @@ func (d *Daemon) MachineRemove(ctx context.Context, req api.MachineRemoveRequest
 			held = append(held, r.App+"/"+r.Env)
 		}
 		sort.Strings(held)
-		return fmt.Errorf("machine remove %s: it holds %s (%s); "+
+		return fmt.Errorf("member remove %s: it holds %s (%s); "+
 			"destroy them first, or pass --force to destroy them with it",
 			name, plural(len(held), "environment"), strings.Join(held, ", "))
 	}
@@ -502,26 +502,26 @@ func (d *Daemon) MachineRemove(ctx context.Context, req api.MachineRemoveRequest
 	where := d.machineAt(ctx, name)
 
 	if err := d.Store.DeleteFleetMachine(ctx, name); err != nil {
-		return fmt.Errorf("machine remove %s: %w", name, err)
+		return fmt.Errorf("member remove %s: %w", name, err)
 	}
 	for _, r := range dir {
 		d.destroyOnMember(ctx, where, name, r.App, r.Env, out)
 		if err := d.Store.DeleteDirectoryEntry(ctx, r.App, r.Env); err != nil {
-			return fmt.Errorf("machine remove %s: forget %s/%s: %w", name, r.App, r.Env, err)
+			return fmt.Errorf("member remove %s: forget %s/%s: %w", name, r.App, r.Env, err)
 		}
 	}
 
 	d.tellMemberRemoved(ctx, where, name)
 	if dev := d.dev(); dev != nil {
 		if err := dev.RemoveMachinePeer(ctx, name); err != nil {
-			return fmt.Errorf("machine remove %s: drop the peer: %w", name, err)
+			return fmt.Errorf("member remove %s: drop the peer: %w", name, err)
 		}
 		if err := dev.RemoveForward(ctx, vpn.IngressForward(name, netip.Addr{}).Name); err != nil {
-			d.logf("machine remove %s: close the ingress forward: %v", name, err)
+			d.logf("member remove %s: close the ingress forward: %v", name, err)
 		}
 	}
 	if err := d.Store.DeleteMachineImages(ctx, name); err != nil {
-		d.logf("machine remove %s: forget its images: %v", name, err)
+		d.logf("member remove %s: forget its images: %v", name, err)
 	}
 	d.fleetChanged(ctx)
 	return nil
@@ -544,14 +544,14 @@ func (d *Daemon) destroyOnMember(ctx context.Context, loc api.Location, mach, ap
 	}
 	if loc.Machine == "" || loc.Local || !loc.Reachable {
 
-		d.logf("machine remove %s: %s/%s could not be destroyed there; forgetting it", mach, app, name)
+		d.logf("member remove %s: %s/%s could not be destroyed there; forgetting it", mach, app, name)
 		return
 	}
 
 	argv := []string{"env", "destroy", name, "--app", app, "--yes", "--force", "--json"}
 	if _, err := d.forwarder().Forward(ctx, loc, argv, nil, out, out); err != nil {
 
-		d.logf("machine remove %s: %s/%s could not be destroyed there (%v); forgetting it", mach, app, name, err)
+		d.logf("member remove %s: %s/%s could not be destroyed there (%v); forgetting it", mach, app, name, err)
 	}
 }
 

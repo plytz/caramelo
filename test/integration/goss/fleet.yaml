@@ -45,7 +45,7 @@ command:
     stdout:
       - /^active$/
 
-  sudo -u caramelo env XDG_RUNTIME_DIR=/run/user/$(id -u caramelo) /usr/local/bin/caramelo machine list --json:
+  sudo -u caramelo env XDG_RUNTIME_DIR=/run/user/$(id -u caramelo) /usr/local/bin/caramelo member list --json:
     exit-status: 0
     stdout:
       - '"role":"hub"'

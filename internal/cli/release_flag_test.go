@@ -19,8 +19,8 @@ func TestReleaseAndBinaryAreRefusedTogether(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, args := range [][]string{
-		{"server", "setup", "--target", "root@box", "--yes", "--binary", binary, "--release", "v0.0.1"},
-		{"machine", "add", "root@box", "--binary", binary, "--release", "v0.0.1"},
+		{"hub", "setup", "--target", "root@box", "--yes", "--binary", binary, "--release", "v0.0.1"},
+		{"member", "add", "root@box", "--binary", binary, "--release", "v0.0.1"},
 	} {
 		code, _, stderr := run(t, args...)
 		if code != ExitUsage {
@@ -35,8 +35,8 @@ func TestReleaseAndBinaryAreRefusedTogether(t *testing.T) {
 func TestReleaseWantsATag(t *testing.T) {
 	useScriptedTarget(t, greenReport(), okVerify)
 	for _, args := range [][]string{
-		{"server", "setup", "--target", "root@box", "--yes", "--release", "0.0.1"},
-		{"machine", "add", "root@box", "--release", "latest"},
+		{"hub", "setup", "--target", "root@box", "--yes", "--release", "0.0.1"},
+		{"member", "add", "root@box", "--release", "latest"},
 	} {
 		code, _, stderr := run(t, args...)
 		if code != ExitUsage {
@@ -50,7 +50,7 @@ func TestReleaseWantsATag(t *testing.T) {
 
 func TestReleaseWithoutATargetIsAUsageError(t *testing.T) {
 	useScriptedTarget(t, greenReport(), okVerify)
-	code, _, stderr := run(t, "server", "setup", "--yes", "--release", "v0.0.1")
+	code, _, stderr := run(t, "hub", "setup", "--yes", "--release", "v0.0.1")
 	if code != ExitUsage {
 		t.Fatalf("exit %d, want %d (stderr %q)", code, ExitUsage, stderr)
 	}
@@ -65,7 +65,7 @@ func TestBinaryWithoutATargetIsAUsageError(t *testing.T) {
 	if err := os.WriteFile(binary, []byte("elf"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	code, _, stderr := run(t, "server", "setup", "--yes", "--dry-run",
+	code, _, stderr := run(t, "hub", "setup", "--yes", "--dry-run",
 		"--config-dir", t.TempDir(), "--binary", binary)
 	if code != ExitUsage {
 		t.Fatalf("exit %d, want %d (stderr %q)", code, ExitUsage, stderr)
@@ -80,10 +80,10 @@ func TestAnEmptyBinaryOrReleaseIsAUsageError(t *testing.T) {
 		args []string
 		want string
 	}{
-		{[]string{"server", "setup", "--target", "root@box", "--yes", "--release="}, "--release was given with no value"},
-		{[]string{"server", "setup", "--target", "root@box", "--yes", "--binary="}, "--binary was given with no value"},
-		{[]string{"machine", "add", "root@box", "--release="}, "--release was given with no value"},
-		{[]string{"machine", "add", "root@box", "--binary="}, "--binary was given with no value"},
+		{[]string{"hub", "setup", "--target", "root@box", "--yes", "--release="}, "--release was given with no value"},
+		{[]string{"hub", "setup", "--target", "root@box", "--yes", "--binary="}, "--binary was given with no value"},
+		{[]string{"member", "add", "root@box", "--release="}, "--release was given with no value"},
+		{[]string{"member", "add", "root@box", "--binary="}, "--binary was given with no value"},
 	}
 	for _, c := range cases {
 		t.Run(strings.Join(c.args, " "), func(t *testing.T) {
@@ -106,8 +106,8 @@ func TestAnEmptyMachineAddTargetIsNotBlamedOnATargetFlag(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, args := range [][]string{
-		{"machine", "add", "", "--release", "v0.0.1"},
-		{"machine", "add", "", "--binary", binary},
+		{"member", "add", "", "--release", "v0.0.1"},
+		{"member", "add", "", "--binary", binary},
 	} {
 		t.Run(strings.Join(args, " "), func(t *testing.T) {
 			useScriptedTarget(t, greenReport(), okVerify)
@@ -117,7 +117,7 @@ func TestAnEmptyMachineAddTargetIsNotBlamedOnATargetFlag(t *testing.T) {
 				t.Fatalf("exit %d, want %d (stderr %q)", code, ExitUsage, stderr)
 			}
 			if strings.Contains(stderr, "only makes sense with --target") {
-				t.Errorf("machine add has no --target flag, but stderr = %q", stderr)
+				t.Errorf("member add has no --target flag, but stderr = %q", stderr)
 			}
 			if !strings.Contains(stderr, "empty machine address") {
 				t.Errorf("stderr = %q, want the empty address refusal", stderr)
@@ -128,8 +128,8 @@ func TestAnEmptyMachineAddTargetIsNotBlamedOnATargetFlag(t *testing.T) {
 
 func TestReleaseAndVersionReachTheBootstrapOptions(t *testing.T) {
 	for _, args := range [][]string{
-		{"server", "setup", "--target", "root@box", "--yes", "--release", "v0.0.1"},
-		{"machine", "add", "root@box", "--release", "v0.0.1"},
+		{"hub", "setup", "--target", "root@box", "--yes", "--release", "v0.0.1"},
+		{"member", "add", "root@box", "--release", "v0.0.1"},
 	} {
 		t.Run(strings.Join(args, " "), func(t *testing.T) {
 			useScriptedTarget(t, greenReport(), okVerify)
@@ -173,9 +173,9 @@ func stubHubForMachineAdd(t *testing.T, name string) {
 	prev := forward
 	forward = func(_ context.Context, a *app) (int, error) {
 		switch strings.Join(a.args, " ") {
-		case "machine token --json":
+		case "member token --json":
 			fmt.Fprintf(a.stdout, `{"token":"t","hub":"hub","expires_at":"2026-01-01T00:00:00Z"}`)
-		case "machine list --json":
+		case "member list --json":
 			fmt.Fprintf(a.stdout, `[{"name":%q,"role":"member","public_key":"k"}]`, name)
 		default:
 			return ExitError, fmt.Errorf("the hub was asked for %q, which this test does not answer", strings.Join(a.args, " "))

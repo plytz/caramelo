@@ -21,7 +21,7 @@ func init() {
 	registerRenderer("status", func(a *app) Renderer {
 		return viewRenderer(func(r *statusResult) *ui.View { return statusResultView(r, time.Now()) })
 	})
-	registerRenderer("machine show", func(a *app) Renderer {
+	registerRenderer("member show", func(a *app) Renderer {
 
 		detail := viewRenderer(func(d *api.MachineDetail) *ui.View {
 			return machineDetailView(d, time.Now())
@@ -41,13 +41,13 @@ func init() {
 		}
 	})
 
-	registerRenderer("machine list", func(a *app) Renderer {
+	registerRenderer("member list", func(a *app) Renderer {
 		return viewRenderer(func(ms []fleet.Machine) *ui.View { return machinesView(ms, time.Now()) })
 	})
-	registerRenderer("machine token", func(a *app) Renderer {
+	registerRenderer("member token", func(a *app) Renderer {
 		return viewRenderer(func(r *api.MachineTokenResult) *ui.View { return machineTokenView(r) })
 	})
-	registerRenderer("machine remove", func(a *app) Renderer {
+	registerRenderer("member remove", func(a *app) Renderer {
 		return viewRenderer(func(r removed) *ui.View { return removedView("machine", r) })
 	})
 	registerRenderer("env handoff", func(a *app) Renderer {

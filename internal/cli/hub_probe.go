@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	registerServer(func(a *app) *cobra.Command { return a.serverProbeCmd() })
+	registerHub(func(a *app) *cobra.Command { return a.hubProbeCmd() })
 }
 
 var probeMachine = func(ctx context.Context, a *app, req vpnclient.ProbeRequest) (*vpnclient.Probe, error) {
@@ -23,7 +23,7 @@ var probeMachine = func(ctx context.Context, a *app, req vpnclient.ProbeRequest)
 	return client.Probe(ctx, req)
 }
 
-func (a *app) serverProbeCmd() *cobra.Command {
+func (a *app) hubProbeCmd() *cobra.Command {
 	var (
 		endpoint string
 		key      string

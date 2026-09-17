@@ -50,7 +50,7 @@ func TestServerProbeExitsZeroOnlyWhenAPacketCameBack(t *testing.T) {
 				p.Result, p.Detail = tc.result, "what it saw"
 				return p, nil
 			})
-			code, stdout, stderr := run(t, "server", "probe", "box")
+			code, stdout, stderr := run(t, "hub", "probe", "box")
 			if code != tc.want {
 				t.Fatalf("exit %d, want %d\n%s", code, tc.want, stderr)
 			}
@@ -68,7 +68,7 @@ func TestServerProbeCarriesTheMachineEndpointAndKey(t *testing.T) {
 	isolate(t)
 	seen := scriptedProbe(t, reachedProbe)
 
-	code, _, stderr := run(t, "server", "probe", "box",
+	code, _, stderr := run(t, "hub", "probe", "box",
 		"--endpoint", "203.0.113.9:4021", "--key", "Nq0Xw2mS8VbZ1YtR7dK3jL5pQ9cF4hG6uI8oP0aB2wE=",
 		"--timeout", "3s")
 	if code != ExitOK {
@@ -84,7 +84,7 @@ func TestServerProbeJSONCarriesTheWholeAnswer(t *testing.T) {
 	isolate(t)
 	scriptedProbe(t, reachedProbe)
 
-	code, stdout, stderr := run(t, "server", "probe", "box", "--json")
+	code, stdout, stderr := run(t, "hub", "probe", "box", "--json")
 	if code != ExitOK {
 		t.Fatalf("exit %d\n%s", code, stderr)
 	}
@@ -105,7 +105,7 @@ func TestServerProbeFallsBackToTheDefaultMachine(t *testing.T) {
 	seen := scriptedProbe(t, reachedProbe)
 	t.Setenv("CARAMELO_MACHINE", "other")
 
-	if code, _, stderr := run(t, "server", "probe"); code != ExitOK {
+	if code, _, stderr := run(t, "hub", "probe"); code != ExitOK {
 		t.Fatalf("exit %d\n%s", code, stderr)
 	}
 	if seen.Machine != "other" {
@@ -115,7 +115,7 @@ func TestServerProbeFallsBackToTheDefaultMachine(t *testing.T) {
 
 func TestServerProbeWithNoMachineSaysHowToNameOne(t *testing.T) {
 	isolate(t)
-	code, stdout, stderr := run(t, "server", "probe")
+	code, stdout, stderr := run(t, "hub", "probe")
 	if code != ExitUsage {
 		t.Fatalf("exit %d, want %d\n%s", code, ExitUsage, stderr)
 	}
@@ -132,7 +132,7 @@ func TestServerProbeReportsAnErrorRatherThanGuessing(t *testing.T) {
 	scriptedProbe(t, func(vpnclient.ProbeRequest) (*vpnclient.Probe, error) {
 		return nil, errors.New("no public key for box")
 	})
-	code, _, stderr := run(t, "server", "probe", "box")
+	code, _, stderr := run(t, "hub", "probe", "box")
 	if code != ExitError {
 		t.Fatalf("exit %d, want %d", code, ExitError)
 	}

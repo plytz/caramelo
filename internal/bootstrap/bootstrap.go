@@ -309,7 +309,7 @@ func setupLine(o Options, p Probe, dir string) string {
 		b.WriteString("sudo -n ")
 	}
 	b.WriteString(remote.Quote(dir + "/caramelo"))
-	b.WriteString(" server setup --yes --json")
+	b.WriteString(" hub setup --yes --json")
 	for _, a := range o.SetupArgs {
 		b.WriteString(" " + remote.Quote(a))
 	}
@@ -329,7 +329,7 @@ func setupLine(o Options, p Probe, dir string) string {
 }
 
 func runSetup(ctx context.Context, sh Shell, o Options, p Probe, dir string) (setup.Report, int, error) {
-	fmt.Fprintf(o.Log, "[bootstrap] running server setup on the target\n")
+	fmt.Fprintf(o.Log, "[bootstrap] running hub setup on the target\n")
 	var stdout bytes.Buffer
 	var stdin io.Reader
 	if o.JoinToken != "" {
@@ -347,7 +347,7 @@ func runSetup(ctx context.Context, sh Shell, o Options, p Probe, dir string) (se
 		if len(raw) > 512 {
 			raw = raw[len(raw)-512:]
 		}
-		return setup.Report{}, code, fmt.Errorf("server setup on the target exited %d without a report (stdout: %q)", code, raw)
+		return setup.Report{}, code, fmt.Errorf("hub setup on the target exited %d without a report (stdout: %q)", code, raw)
 	}
 	return report, code, nil
 }

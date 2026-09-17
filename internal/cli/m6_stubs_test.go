@@ -110,11 +110,11 @@ func TestM6StubFlags(t *testing.T) {
 		{[]string{"edge", "prune"}, "older-than"},
 		{[]string{"edge", "prune"}, "dry-run"},
 		{[]string{"logs"}, "edge"},
-		{[]string{"server", "setup"}, "edge"},
-		{[]string{"server", "setup"}, "acme-email"},
-		{[]string{"server", "setup"}, "acme-ca"},
-		{[]string{"server", "setup"}, "tls"},
-		{[]string{"server", "setup"}, "no-http3"},
+		{[]string{"hub", "setup"}, "edge"},
+		{[]string{"hub", "setup"}, "acme-email"},
+		{[]string{"hub", "setup"}, "acme-ca"},
+		{[]string{"hub", "setup"}, "tls"},
+		{[]string{"hub", "setup"}, "no-http3"},
 	} {
 		cmd, _, err := root.Find(tc.path)
 		if err != nil {

@@ -13,7 +13,7 @@ import (
 )
 
 func TestServerSetupIsRegisteredWithItsFlags(t *testing.T) {
-	code, stdout, _ := run(t, "server", "setup", "--help")
+	code, stdout, _ := run(t, "hub", "setup", "--help")
 	if code != ExitOK {
 		t.Fatalf("exit code = %d", code)
 	}
@@ -23,14 +23,14 @@ func TestServerSetupIsRegisteredWithItsFlags(t *testing.T) {
 		"--target", "--name", "--binary", "--release",
 	} {
 		if !strings.Contains(stdout, flag) {
-			t.Errorf("server setup has no %s flag:\n%s", flag, stdout)
+			t.Errorf("hub setup has no %s flag:\n%s", flag, stdout)
 		}
 	}
 }
 
 func TestServerSetupRefusesWithoutAnAnswer(t *testing.T) {
 
-	code, _, stderr := run(t, "server", "setup", "--config-dir", t.TempDir())
+	code, _, stderr := run(t, "hub", "setup", "--config-dir", t.TempDir())
 	if code != ExitError {
 		t.Fatalf("exit code = %d, want %d", code, ExitError)
 	}
@@ -49,7 +49,7 @@ func TestResolveSetupConfigLayersDefaultsFileAndFlags(t *testing.T) {
 	}
 
 	a := &app{}
-	cmd := a.serverSetupCmd()
+	cmd := a.hubSetupCmd()
 	if err := cmd.Flags().Parse([]string{"--data-dir", "/mnt/big"}); err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +70,7 @@ func TestResolveSetupConfigLayersDefaultsFileAndFlags(t *testing.T) {
 
 func TestResolveSetupConfigRejectsABadPort(t *testing.T) {
 	a := &app{}
-	cmd := a.serverSetupCmd()
+	cmd := a.hubSetupCmd()
 	if err := cmd.Flags().Parse([]string{"--ssh-port", "99999"}); err != nil {
 		t.Fatal(err)
 	}
@@ -132,7 +132,7 @@ func TestWriteSetupReportSummarises(t *testing.T) {
 
 func TestServerStatusOnAMachineWithoutCaramelo(t *testing.T) {
 	dir := t.TempDir()
-	st := serverStatusOf(context.Background(), stubRunner{}, dir)
+	st := hubStatusOf(context.Background(), stubRunner{}, dir)
 	if st.Installed {
 		t.Errorf("an empty directory was reported as an installation")
 	}
@@ -143,7 +143,7 @@ func TestServerStatusOnAMachineWithoutCaramelo(t *testing.T) {
 		t.Errorf("caramelod = %+v, want unknown", st.Caramelod)
 	}
 	var b strings.Builder
-	if err := writeServerStatus(&b, st); err != nil {
+	if err := writeHubStatus(&b, st); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(b.String(), "not set up") {
@@ -152,11 +152,11 @@ func TestServerStatusOnAMachineWithoutCaramelo(t *testing.T) {
 }
 
 func TestServerStatusJSONAndExitCode(t *testing.T) {
-	code, stdout, _ := run(t, "server", "status", "--config-dir", t.TempDir(), "--json")
+	code, stdout, _ := run(t, "hub", "status", "--config-dir", t.TempDir(), "--json")
 	if code != ExitError {
 		t.Errorf("exit code = %d, want %d when caramelod is not running", code, ExitError)
 	}
-	var st serverStatus
+	var st hubStatus
 	if err := json.Unmarshal([]byte(stdout), &st); err != nil {
 		t.Fatalf("stdout is not JSON: %v\n%s", err, stdout)
 	}
@@ -265,7 +265,7 @@ func TestResolveSetupConfigKeepsTheNetworkAMachineAlreadyHas(t *testing.T) {
 	}
 
 	a := &app{}
-	cmd := a.serverSetupCmd()
+	cmd := a.hubSetupCmd()
 	if err := cmd.Flags().Parse([]string{"--api-listen", "both"}); err != nil {
 		t.Fatal(err)
 	}
@@ -294,7 +294,7 @@ func TestResolveSetupConfigKeepsTheSwapAMachineAlreadyHas(t *testing.T) {
 	}
 
 	a := &app{}
-	cmd := a.serverSetupCmd()
+	cmd := a.hubSetupCmd()
 	if err := cmd.Flags().Parse([]string{"--api-listen", "both"}); err != nil {
 		t.Fatal(err)
 	}
@@ -346,7 +346,7 @@ func TestParseSwapFlag(t *testing.T) {
 
 func TestSetupRejectsSwapValuesTheMachineCannotHave(t *testing.T) {
 	for _, arg := range []string{"zram", "plenty", "64m"} {
-		code, _, stderr := run(t, "server", "setup", "--yes", "--swap", arg, "--config-dir", t.TempDir())
+		code, _, stderr := run(t, "hub", "setup", "--yes", "--swap", arg, "--config-dir", t.TempDir())
 		if code == ExitOK {
 			t.Errorf("--swap %s was accepted", arg)
 		}
@@ -364,7 +364,7 @@ func TestResolveSetupConfigRejectsABadNetwork(t *testing.T) {
 		{"--api-listen", "sometimes"},
 	} {
 		a := &app{}
-		cmd := a.serverSetupCmd()
+		cmd := a.hubSetupCmd()
 		if err := cmd.Flags().Parse(args); err != nil {
 			t.Fatal(err)
 		}
@@ -385,7 +385,7 @@ func TestResolveSetupConfigRejectsABadNetwork(t *testing.T) {
 
 func TestSetupRefusesAnUnusablePeerBeforeTouchingTheMachine(t *testing.T) {
 	noCommanderConfig(t)
-	code, _, stderr := run(t, "server", "setup", "--yes", "--peer", "laptop nonsense")
+	code, _, stderr := run(t, "hub", "setup", "--yes", "--peer", "laptop nonsense")
 	if code != ExitUsage {
 		t.Fatalf("exit = %d, want %d\n%s", code, ExitUsage, stderr)
 	}
@@ -416,9 +416,9 @@ func TestSetupPlanNamesTheNetworkAndThePeer(t *testing.T) {
 
 func TestSetupPeerFlagForms(t *testing.T) {
 	for _, args := range [][]string{
-		{"server", "setup", "--dry-run", "--peer", "agent-7", testPeerKey},
-		{"server", "setup", "--dry-run", "--peer", "agent-7 " + testPeerKey},
-		{"server", "setup", "--dry-run", "--peer", "agent-7=" + testPeerKey},
+		{"hub", "setup", "--dry-run", "--peer", "agent-7", testPeerKey},
+		{"hub", "setup", "--dry-run", "--peer", "agent-7 " + testPeerKey},
+		{"hub", "setup", "--dry-run", "--peer", "agent-7=" + testPeerKey},
 	} {
 		var stdout, stderr bytes.Buffer
 		if code := Run(append(args, "--json"), &stdout, &stderr); code == ExitUsage {
@@ -426,7 +426,7 @@ func TestSetupPeerFlagForms(t *testing.T) {
 		}
 	}
 	var stdout, stderr bytes.Buffer
-	if code := Run([]string{"server", "setup", "--dry-run", "stray"}, &stdout, &stderr); code != ExitUsage {
+	if code := Run([]string{"hub", "setup", "--dry-run", "stray"}, &stdout, &stderr); code != ExitUsage {
 		t.Errorf("a stray argument exited %d, want %d", code, ExitUsage)
 	}
 }
@@ -445,7 +445,7 @@ func TestASecondSetupKeepsTheFleetBlock(t *testing.T) {
 	if err := serverconfig.Save(dir, existing, 0o640); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
-	cmd := (&app{}).serverSetupCmd()
+	cmd := (&app{}).hubSetupCmd()
 	if err := cmd.Flags().Set("data-dir", "/mnt/other"); err != nil {
 		t.Fatal(err)
 	}

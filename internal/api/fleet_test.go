@@ -130,7 +130,7 @@ func TestAMemberNotHeardFromIsUnreachableAndSaysWhen(t *testing.T) {
 func TestResolvingAMachineTheFleetDoesNotHave(t *testing.T) {
 	r := &FleetResolver{Self: "hub", Dir: &fakeDirectory{machines: map[string]fleet.Machine{}}}
 	_, err := r.ResolveMachine(context.Background(), "nx9")
-	if err == nil || !strings.Contains(err.Error(), "machine list") {
+	if err == nil || !strings.Contains(err.Error(), "member list") {
 		t.Fatalf("error = %v, want one naming the command that lists them", err)
 	}
 }

@@ -72,6 +72,11 @@ the hub being up. `fleet.role` in a machine's config is `hub` or `member`, and n
 **fleet.** The set of machines that behave as one: a hub and its members. Other tools call this a
 cluster; caramelo does not use that word.
 
+The CLI is named after them. `caramelo hub setup|status|uninstall|probe` is what a machine runs
+about itself, and every machine starts as a hub of one, so a member types them too.
+`caramelo member add|token|join|leave|list|show|remove` is the fleet's group: how a box becomes a
+member and what the fleet says about itself.
+
 Four words that appear all over the code and are **not** roles. **client** keeps its ordinary
 protocol and library meaning — an ssh client, an HTTP client, a TLS client config, a browser, curl,
 the docker client, a third-party WireGuard client you already have, any `*Client` type from a
@@ -91,7 +96,7 @@ Docker is required. The integration tests run caramelo inside containers that st
 machines, so they need a Linux container host with cgroup v2, privileged containers, and
 `br_netfilter` available in the host kernel, either built in (as in Docker Desktop's VM) or loaded
 as a module (`sudo modprobe br_netfilter` on a Linux host that has not loaded it). A container
-shares the host kernel and cannot load a module for it, so a machine's `server setup` needs the host
+shares the host kernel and cannot load a module for it, so a machine's `hub setup` needs the host
 to have it; the suites check it once the first container is up and stop there if it is missing.
 `make check` is everything that must pass before a commit and touches no container. `make
 integration` runs the whole integration tier, `SUITE=` narrows it to one suite, and `make
@@ -118,12 +123,12 @@ user you log in as, and it must be reachable at the address you write in the inv
 machine running the tests and from the other boxes. The fleet suites join machines to each other
 over exactly that address.
 
-`caramelo server setup` reads that box's own firewall before it installs anything and stops when it
+`caramelo hub setup` reads that box's own firewall before it installs anything and stops when it
 denies UDP 4021, the one port a machine needs, printing the rule that would open it (`--force` to
 continue anyway, `--open-ports` to let setup add the rule itself). It never changes a firewall
 otherwise, and a local reading only ever says this machine is not the one blocking a port: a
 security group in front of it, or the network between, can still drop the packets. The part a box
-cannot answer about itself is `caramelo server probe <host>`, which sends a handshake from the
+cannot answer about itself is `caramelo hub probe <host>`, which sends a handshake from the
 computer you run it on and says whether it arrived.
 
 Setup also gives the machine swap, so that an overloaded box degrades instead of having something
@@ -132,11 +137,11 @@ owned by root, activated by a systemd swap unit and read at every boot, with `vm
 10 in `/etc/sysctl.d/80-caramelo-swap.conf`. `--swap 8G` asks for another size and `--swap off` for
 none: on a machine caramelo had already given swap, `--swap off` takes the swapfile, its unit and the
 sysctl drop-in away again, so a box on a network-backed disk can be put back the way it was without
-uninstalling. The value is kept in `config.yaml`, so a later `server setup` with no `--swap` leaves
+uninstalling. The value is kept in `config.yaml`, so a later `hub setup` with no `--swap` leaves
 what the machine already has. A machine that already swaps is left exactly as it is, and setup says
 what it found. Setup refuses, rather than risk the machine, on btrfs and ZFS, on flash storage such as an SD
 card, and when the disk has no room for the swapfile and 5 GiB of headroom: each refusal skips the
-step, says why and names the command that settles it, and never fails the run. `caramelo server
+step, says why and names the command that settles it, and never fails the run. `caramelo hub
 status` prints how much swap the machine has and whether caramelo made it. Swap is a property of the
 machine and never of a service: `resources.memory` in `caramelo.yaml` stays a hard limit, because
 every container is run with `--memory-swap` equal to `--memory`.

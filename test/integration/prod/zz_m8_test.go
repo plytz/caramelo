@@ -14,13 +14,13 @@ func TestZZProductionOnAFleetOfOne(t *testing.T) {
 	begin(t)
 	needProduction(t)
 
-	res := mustInRepo(t, "machine", "list", "--json")
+	res := mustInRepo(t, "member", "list", "--json")
 	var list []cfleet.Machine
 	if err := json.Unmarshal([]byte(strings.TrimSpace(res.Stdout)), &list); err != nil {
-		t.Fatalf("machine list --json: %v\nstdout: %q", err, res.Stdout)
+		t.Fatalf("member list --json: %v\nstdout: %q", err, res.Stdout)
 	}
 	if len(list) != 1 {
-		t.Fatalf("machine list = %d rows on a machine of one, want 1: %+v", len(list), list)
+		t.Fatalf("member list = %d rows on a machine of one, want 1: %+v", len(list), list)
 	}
 	self := list[0]
 	if !self.Role.IsHub() {
@@ -37,15 +37,15 @@ func TestZZProductionOnAFleetOfOne(t *testing.T) {
 	if len(left) == 0 {
 		t.Fatal("the suite left no environments to say anything about")
 	}
-	detail := mustInRepo(t, "machine", "show", self.Name, "--json")
+	detail := mustInRepo(t, "member", "show", self.Name, "--json")
 	for _, e := range left {
 		t.Logf("%s (%s) is on this machine", e.Name, e.Mode)
 		if !strings.Contains(detail.Stdout, e.Name) {
-			t.Errorf("machine show %s does not list %s:\n%s", self.Name, e.Name, detail.Stdout)
+			t.Errorf("member show %s does not list %s:\n%s", self.Name, e.Name, detail.Stdout)
 		}
 	}
 	if self.Envs != len(left) {
-		t.Errorf("machine list says %d environments and env list says %d", self.Envs, len(left))
+		t.Errorf("member list says %d environments and env list says %d", self.Envs, len(left))
 	}
 
 	res = mustInRepo(t, "releases", "--json")

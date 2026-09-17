@@ -124,7 +124,7 @@ func TestCaramelodApply(t *testing.T) {
 	if unit.Cmd.User != "caramelo" {
 		t.Errorf("unit written as %q, want the caramelo user", unit.Cmd.User)
 	}
-	for _, want := range []string{"After=docker.service", "Wants=docker.service", "ExecStart=" + serverconfig.BinaryPath + " server run", "Restart=always", "WantedBy=default.target"} {
+	for _, want := range []string{"After=docker.service", "Wants=docker.service", "ExecStart=" + serverconfig.BinaryPath + " hub run", "Restart=always", "WantedBy=default.target"} {
 		if !strings.Contains(unit.Stdin, want) {
 			t.Errorf("unit %q does not contain %q", unit.Stdin, want)
 		}
@@ -258,7 +258,7 @@ func TestUnitContentCarriesACustomConfigDir(t *testing.T) {
 		t.Errorf("the default config directory is spelled out in the unit: %q", unitContent(env))
 	}
 	env.ConfigDir = "/opt/caramelo/etc"
-	if !strings.Contains(unitContent(env), "server run --config-dir /opt/caramelo/etc") {
+	if !strings.Contains(unitContent(env), "hub run --config-dir /opt/caramelo/etc") {
 		t.Errorf("unit = %q, want the config directory passed to the daemon", unitContent(env))
 	}
 }

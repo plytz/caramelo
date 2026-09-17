@@ -180,7 +180,7 @@ func portVerdict(rep firewall.Report, p firewall.PortCheck) string {
 func (s *SummaryStep) probeLine(ctx context.Context, env *Env, ip string) string {
 	endpoint := net.JoinHostPort(strOr(ip, "<this-machine>"),
 		strconv.Itoa(firewall.VPNPort(env.Config.VPNListen)))
-	line := "From a computer outside: caramelo server probe " + endpoint
+	line := "From a computer outside: caramelo hub probe " + endpoint
 	if pub, err := (&VPNStep{}).publicKey(ctx, env); err == nil {
 		line += " --key " + pub
 	}

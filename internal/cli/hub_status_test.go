@@ -12,7 +12,7 @@ import (
 
 func TestServerStatusExplainsAClosedPublicPort(t *testing.T) {
 	var b bytes.Buffer
-	st := serverStatus{
+	st := hubStatus{
 		Hostname: "box",
 		Port: portStatus{
 			Port: 4022, Listening: false,
@@ -20,7 +20,7 @@ func TestServerStatusExplainsAClosedPublicPort(t *testing.T) {
 			VPNPort:   4021, VPNListening: true,
 		},
 	}
-	if err := writeServerStatus(&b, st); err != nil {
+	if err := writeHubStatus(&b, st); err != nil {
 		t.Fatal(err)
 	}
 	out := b.String()
@@ -33,8 +33,8 @@ func TestServerStatusExplainsAClosedPublicPort(t *testing.T) {
 
 func TestServerStatusSaysListeningPlainly(t *testing.T) {
 	var b bytes.Buffer
-	st := serverStatus{Port: portStatus{Port: 4022, Listening: true, APIListen: serverconfig.APIListenBoth, VPNPort: 4021, VPNListening: true}}
-	if err := writeServerStatus(&b, st); err != nil {
+	st := hubStatus{Port: portStatus{Port: 4022, Listening: true, APIListen: serverconfig.APIListenBoth, VPNPort: 4021, VPNListening: true}}
+	if err := writeHubStatus(&b, st); err != nil {
 		t.Fatal(err)
 	}
 	if strings.Contains(b.String(), "api_listen") {
@@ -44,7 +44,7 @@ func TestServerStatusSaysListeningPlainly(t *testing.T) {
 
 func TestServerStatusOmitsTheTunnelWhenThereIsNone(t *testing.T) {
 	var b bytes.Buffer
-	if err := writeServerStatus(&b, serverStatus{Port: portStatus{Port: 4022, Listening: true}}); err != nil {
+	if err := writeHubStatus(&b, hubStatus{Port: portStatus{Port: 4022, Listening: true}}); err != nil {
 		t.Fatal(err)
 	}
 	if strings.Contains(b.String(), "udp") {
@@ -82,7 +82,7 @@ func TestServerStatusSaysHowMuchSwapThereIsAndWhoMadeIt(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var b bytes.Buffer
-			if err := writeServerStatus(&b, serverStatus{Swap: tc.swap}); err != nil {
+			if err := writeHubStatus(&b, hubStatus{Swap: tc.swap}); err != nil {
 				t.Fatal(err)
 			}
 			line := ""

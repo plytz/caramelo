@@ -61,7 +61,7 @@ func (m *Manager) canServeVia(via config.Via) error {
 	}
 	if via == config.ViaHub && m.fw().Fleet == nil {
 		return fmt.Errorf("this machine is not part of a fleet, so there is no hub to serve the name: " +
-			"join it to one with `caramelo machine join`, or use `--via member`")
+			"join it to one with `caramelo member join`, or use `--via member`")
 	}
 	return nil
 }

@@ -63,7 +63,7 @@ func TestJoinStepRunsTheJoinAnOperatorWouldRun(t *testing.T) {
 	cmds := run.Lines()
 	var joined string
 	for _, c := range cmds {
-		if strings.Contains(c, "machine join") {
+		if strings.Contains(c, "member join") {
 			joined = c
 		}
 	}
@@ -71,7 +71,7 @@ func TestJoinStepRunsTheJoinAnOperatorWouldRun(t *testing.T) {
 		t.Fatalf("no join was run; commands were %q", cmds)
 	}
 	for _, want := range []string{
-		serverconfig.BinaryPath, "machine join", tk.Endpoint, "--token -", "--json", "--name m1",
+		serverconfig.BinaryPath, "member join", tk.Endpoint, "--token -", "--json", "--name m1",
 	} {
 		if !strings.Contains(joined, want) {
 			t.Errorf("the join command %q does not carry %q", joined, want)
@@ -83,7 +83,7 @@ func TestJoinStepRunsTheJoinAnOperatorWouldRun(t *testing.T) {
 	}
 	var fed string
 	for _, c := range run.Calls() {
-		if strings.Contains(c.Line, "machine join") {
+		if strings.Contains(c.Line, "member join") {
 			fed = c.Stdin
 		}
 	}
@@ -107,7 +107,7 @@ func TestJoinStepCarriesPrivate(t *testing.T) {
 	}
 	var joined string
 	for _, c := range run.Lines() {
-		if strings.Contains(c, "machine join") {
+		if strings.Contains(c, "member join") {
 			joined = c
 		}
 	}
@@ -150,7 +150,7 @@ func TestJoinStepRefusesToMoveAMachineBetweenHubs(t *testing.T) {
 	if err == nil {
 		t.Fatal("a member of one hub was moved to another")
 	}
-	if !strings.Contains(err.Error(), "other") || !strings.Contains(err.Error(), "machine remove") {
+	if !strings.Contains(err.Error(), "other") || !strings.Contains(err.Error(), "member remove") {
 		t.Errorf("error %q, want it to name the current hub and the way out", err)
 	}
 }

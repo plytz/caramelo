@@ -38,7 +38,7 @@ func aJoinTicket(t *testing.T) (fleet.Ticket, string) {
 
 func TestJoinOnAMachineThatWasNeverSetUpNamesTheStepsThatMakeWhatItNeeds(t *testing.T) {
 	_, token := aJoinTicket(t)
-	code, stdout, stderr := run(t, "machine", "join", "hub.example.com:4021", "--token", token, "--config-dir", t.TempDir())
+	code, stdout, stderr := run(t, "member", "join", "hub.example.com:4021", "--token", token, "--config-dir", t.TempDir())
 	if code != ExitError {
 		t.Fatalf("exit = %d, want %d (stderr %q)", code, ExitError, stderr)
 	}
@@ -46,7 +46,7 @@ func TestJoinOnAMachineThatWasNeverSetUpNamesTheStepsThatMakeWhatItNeeds(t *test
 		t.Errorf("stdout = %q, want empty", stdout)
 	}
 	for _, want := range []string{
-		"caramelo server setup",
+		"caramelo hub setup",
 		"dirs",
 		serverconfig.ConfigFile,
 		serverconfig.DefaultUser,
@@ -65,9 +65,9 @@ func TestJoinOnAMachineThatWasNeverSetUpNamesTheStepsThatMakeWhatItNeeds(t *test
 
 func TestJoinRefusalLeadsWithALineThatStandsAlone(t *testing.T) {
 	_, token := aJoinTicket(t)
-	_, _, stderr := run(t, "machine", "join", "hub.example.com:4021", "--token", token, "--config-dir", t.TempDir())
+	_, _, stderr := run(t, "member", "join", "hub.example.com:4021", "--token", token, "--config-dir", t.TempDir())
 	first := strings.SplitN(strings.TrimSpace(stderr), "\n", 2)[0]
-	for _, want := range []string{"has not been set up", "caramelo server setup"} {
+	for _, want := range []string{"has not been set up", "caramelo hub setup"} {
 		if !strings.Contains(first, want) {
 			t.Errorf("first line = %q, want it alone to say %q", first, want)
 		}
@@ -91,8 +91,8 @@ func TestJoinPreflightOnANeverSetUpMachineListsEveryPreconditionInSetupOrder(t *
 		if !strings.Contains(pre.missing[i], want) {
 			t.Errorf("missing[%d] = %q, want it to name setup's %q step", i, pre.missing[i], want)
 		}
-		if !strings.Contains(pre.missing[i], "caramelo server setup") {
-			t.Errorf("missing[%d] = %q, want it to name `caramelo server setup`", i, pre.missing[i])
+		if !strings.Contains(pre.missing[i], "caramelo hub setup") {
+			t.Errorf("missing[%d] = %q, want it to name `caramelo hub setup`", i, pre.missing[i])
 		}
 	}
 	if !strings.Contains(pre.missing[0], cfg.User) {
@@ -106,8 +106,8 @@ func TestJoinPreflightOnANeverSetUpMachineListsEveryPreconditionInSetupOrder(t *
 	}
 	if err := pre.err(); err == nil {
 		t.Fatal("a machine missing all four preconditions passed the preflight")
-	} else if first := strings.SplitN(err.Error(), "\n", 2)[0]; !strings.Contains(first, "sudo caramelo server setup") {
-		t.Errorf("first line = %q, want it to name `sudo caramelo server setup`", first)
+	} else if first := strings.SplitN(err.Error(), "\n", 2)[0]; !strings.Contains(first, "sudo caramelo hub setup") {
+		t.Errorf("first line = %q, want it to name `sudo caramelo hub setup`", first)
 	}
 }
 
@@ -115,14 +115,14 @@ func TestJoinOnAMachineWithAConfigAndNoKeyNamesTheKey(t *testing.T) {
 	configDir, cfg := tempServerConfig(t)
 	_, token := aJoinTicket(t)
 
-	code, stdout, stderr := run(t, "machine", "join", "hub.example.com:4021", "--token", token, "--config-dir", configDir)
+	code, stdout, stderr := run(t, "member", "join", "hub.example.com:4021", "--token", token, "--config-dir", configDir)
 	if code != ExitError {
 		t.Fatalf("exit = %d, want %d (stderr %q)", code, ExitError, stderr)
 	}
 	if stdout != "" {
 		t.Errorf("stdout = %q, want empty", stdout)
 	}
-	for _, want := range []string{cfg.VPNKeyPath(), "caramelo server setup"} {
+	for _, want := range []string{cfg.VPNKeyPath(), "caramelo hub setup"} {
 		if !strings.Contains(stderr, want) {
 			t.Errorf("stderr = %q, want it to name %q", stderr, want)
 		}
@@ -139,7 +139,7 @@ func TestJoinOnAMachineWhoseConfigurationWillNotParseDoesNotCallItUnsetUp(t *tes
 	}
 	_, token := aJoinTicket(t)
 
-	code, _, stderr := run(t, "machine", "join", "hub.example.com:4021", "--token", token, "--config-dir", configDir)
+	code, _, stderr := run(t, "member", "join", "hub.example.com:4021", "--token", token, "--config-dir", configDir)
 	if code != ExitError {
 		t.Fatalf("exit = %d, want %d (stderr %q)", code, ExitError, stderr)
 	}
@@ -167,7 +167,7 @@ func TestJoiningTheHubThisMachineIsAlreadyInStillReportsNoChange(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	code, stdout, stderr := run(t, "machine", "join", ticket.Endpoint, "--token", token, "--config-dir", configDir)
+	code, stdout, stderr := run(t, "member", "join", ticket.Endpoint, "--token", token, "--config-dir", configDir)
 	if code != ExitOK {
 		t.Fatalf("exit = %d, want %d (stderr %q)", code, ExitOK, stderr)
 	}
@@ -178,12 +178,12 @@ func TestJoiningTheHubThisMachineIsAlreadyInStillReportsNoChange(t *testing.T) {
 
 func TestJoinHelpSaysItRunsAfterServerSetup(t *testing.T) {
 	root := manualRoot(t)
-	cmd, _, err := root.Find([]string{"machine", "join"})
+	cmd, _, err := root.Find([]string{"member", "join"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	help := cmd.Short + "\n" + cmd.Long
-	for _, want := range []string{"caramelo server setup", "caramelo machine add"} {
+	for _, want := range []string{"caramelo hub setup", "caramelo member add"} {
 		if !strings.Contains(help, want) {
 			t.Errorf("the help of %q does not name %q", cmd.CommandPath(), want)
 		}

@@ -37,7 +37,7 @@ const (
 func TestSetup(t *testing.T) {
 	begin(t)
 	if firstRunErr != nil {
-		t.Fatalf("server setup failed: %v\noutput:\n%s", firstRunErr, firstRunRaw)
+		t.Fatalf("hub setup failed: %v\noutput:\n%s", firstRunErr, firstRunRaw)
 	}
 	for _, r := range firstRun.Results {
 		t.Logf("step %-18s %-12s %s%s", r.Step, r.Status, r.Detail, r.Error)
@@ -251,7 +251,7 @@ func TestIdempotent(t *testing.T) {
 	defer cancel()
 	report, raw, err := runSetup(ctx, m, itest.CarameloBinary)
 	if err != nil {
-		t.Fatalf("second server setup failed: %v\noutput:\n%s", err, raw)
+		t.Fatalf("second hub setup failed: %v\noutput:\n%s", err, raw)
 	}
 	for _, r := range report.Results {
 		t.Logf("step %-18s %-12s %s", r.Step, r.Status, r.Detail)
@@ -286,7 +286,7 @@ func TestSetupSurvivesAPowerCycle(t *testing.T) {
 		}
 	}
 
-	res := m.MustRun(t, "sudo "+itest.CarameloBinary+" server status --json")
+	res := m.MustRun(t, "sudo "+itest.CarameloBinary+" hub status --json")
 	var st struct {
 		Installed bool `json:"installed"`
 		Caramelod struct {
@@ -297,7 +297,7 @@ func TestSetupSurvivesAPowerCycle(t *testing.T) {
 		} `json:"docker"`
 	}
 	if err := json.Unmarshal([]byte(strings.TrimSpace(res.Stdout)), &st); err != nil {
-		t.Fatalf("server status --json is not JSON after the power cycle: %v\nstdout: %q", err, res.Stdout)
+		t.Fatalf("hub status --json is not JSON after the power cycle: %v\nstdout: %q", err, res.Stdout)
 	}
 	if !st.Installed || !st.Caramelod.Active || !st.Docker.Active {
 		t.Errorf("after the power cycle: installed=%v caramelod=%v docker=%v, want all true",
@@ -316,7 +316,7 @@ func TestSetupSurvivesAPowerCycle(t *testing.T) {
 
 	report, raw, err := runSetup(ctx, m, itest.CarameloBinary)
 	if err != nil {
-		t.Fatalf("server setup after the power cycle: %v\noutput:\n%s", err, raw)
+		t.Fatalf("hub setup after the power cycle: %v\noutput:\n%s", err, raw)
 	}
 	if report.Changed != 0 || report.Failed != 0 {
 		t.Errorf("setup after the power cycle changed %d and failed %d step(s), want 0 and 0\n%s",
@@ -328,12 +328,12 @@ func TestServerStatus(t *testing.T) {
 	_, m := begin(t)
 	ctx, cancel := context.WithTimeout(context.Background(), itest.Scale(time.Minute))
 	defer cancel()
-	res, err := m.Run(ctx, "sudo "+itest.CarameloBinary+" server status --json")
+	res, err := m.Run(ctx, "sudo "+itest.CarameloBinary+" hub status --json")
 	if err != nil {
-		t.Fatalf("server status: %v", err)
+		t.Fatalf("hub status: %v", err)
 	}
 	if res.ExitCode != 0 {
-		t.Fatalf("server status --json: exit %d\nstdout:%s\nstderr:%s", res.ExitCode, res.Stdout, res.Stderr)
+		t.Fatalf("hub status --json: exit %d\nstdout:%s\nstderr:%s", res.ExitCode, res.Stdout, res.Stderr)
 	}
 	var st struct {
 		Installed bool `json:"installed"`
@@ -362,11 +362,11 @@ func TestServerStatus(t *testing.T) {
 		} `json:"swap"`
 	}
 	if err := json.Unmarshal([]byte(strings.TrimSpace(res.Stdout)), &st); err != nil {
-		t.Fatalf("server status --json is not JSON: %v\nstdout: %q", err, res.Stdout)
+		t.Fatalf("hub status --json is not JSON: %v\nstdout: %q", err, res.Stdout)
 	}
-	t.Logf("server status: %s", strings.TrimSpace(res.Stdout))
+	t.Logf("hub status: %s", strings.TrimSpace(res.Stdout))
 	if !st.Installed {
-		t.Error("server status says the machine is not installed")
+		t.Error("hub status says the machine is not installed")
 	}
 	if !st.Caramelod.Active {
 		t.Errorf("caramelod is not active: state %q", st.Caramelod.State)
@@ -402,11 +402,11 @@ func TestServerStatus(t *testing.T) {
 		t.Fatalf("look for %s: %v", setuppkg.SwapSysctlFile, err)
 	}
 	if carameloMadeIt := made.ExitCode == 0; carameloMadeIt != st.Swap.Managed {
-		t.Errorf("server status says managed=%v, but %s is %s",
+		t.Errorf("hub status says managed=%v, but %s is %s",
 			st.Swap.Managed, setuppkg.SwapSysctlFile, map[bool]string{true: "there", false: "not there"}[carameloMadeIt])
 	}
 	if st.Swap.Managed && st.Swap.TotalBytes <= 0 {
-		t.Errorf("server status credits caramelo with %d bytes of swap", st.Swap.TotalBytes)
+		t.Errorf("hub status credits caramelo with %d bytes of swap", st.Swap.TotalBytes)
 	}
 }
 
@@ -479,18 +479,18 @@ func TestSetupRecordsAPeer(t *testing.T) {
 		}
 	})
 
-	cmd := fmt.Sprintf("sudo %s server setup --yes --json --authorized-keys %s --peer %s %s",
+	cmd := fmt.Sprintf("sudo %s hub setup --yes --json --authorized-keys %s --peer %s %s",
 		itest.CarameloBinary, authorizedKeys(m), peerName, pub)
 	res, err := m.Run(ctx, cmd)
 	if err != nil {
-		t.Fatalf("server setup --peer: %v", err)
+		t.Fatalf("hub setup --peer: %v", err)
 	}
 	if res.ExitCode != 0 {
-		t.Fatalf("server setup --peer: exit %d\nstdout:%s\nstderr:%s", res.ExitCode, res.Stdout, res.Stderr)
+		t.Fatalf("hub setup --peer: exit %d\nstdout:%s\nstderr:%s", res.ExitCode, res.Stdout, res.Stderr)
 	}
 	var report setuppkg.Report
 	if err := json.Unmarshal([]byte(strings.TrimSpace(res.Stdout)), &report); err != nil {
-		t.Fatalf("server setup --peer: stdout is not a report: %v\n%s", err, res.Stdout)
+		t.Fatalf("hub setup --peer: stdout is not a report: %v\n%s", err, res.Stdout)
 	}
 	if report.Failed != 0 {
 		t.Errorf("%d step(s) failed with --peer\n%s", report.Failed, res.Stdout)
@@ -621,14 +621,14 @@ func TestZZProvisionForTheLab(t *testing.T) {
 	}
 	res, err := m.Run(ctx, cmd)
 	if err != nil {
-		t.Fatalf("server setup for the lab: %v", err)
+		t.Fatalf("hub setup for the lab: %v", err)
 	}
 	if res.ExitCode != 0 {
-		t.Fatalf("server setup for the lab: exit %d\nstdout:%s\nstderr:%s", res.ExitCode, res.Stdout, res.Stderr)
+		t.Fatalf("hub setup for the lab: exit %d\nstdout:%s\nstderr:%s", res.ExitCode, res.Stdout, res.Stderr)
 	}
 	var report setuppkg.Report
 	if err := json.Unmarshal([]byte(strings.TrimSpace(res.Stdout)), &report); err != nil {
-		t.Fatalf("server setup for the lab: stdout is not a report: %v\n%s", err, res.Stdout)
+		t.Fatalf("hub setup for the lab: stdout is not a report: %v\n%s", err, res.Stdout)
 	}
 	if report.Failed != 0 {
 		t.Fatalf("%d step(s) failed\n%s", report.Failed, res.Stdout)
@@ -666,7 +666,7 @@ func TestZZProvisionForTheLab(t *testing.T) {
 				t.Fatalf("%s: %v", probe.what, err)
 			}
 			if res.ExitCode != 0 {
-				t.Errorf("nothing is listening on %s after `server setup --edge`", probe.what)
+				t.Errorf("nothing is listening on %s after `hub setup --edge`", probe.what)
 			}
 		}
 		cfg, err := m.Run(ctx, "sudo grep -E '^(edge|tls|acme_ca):' /etc/caramelo/config.yaml")

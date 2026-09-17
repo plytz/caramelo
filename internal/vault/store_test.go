@@ -127,7 +127,7 @@ func TestLoadKeyErrors(t *testing.T) {
 	dir := t.TempDir()
 	if _, err := LoadKey(filepath.Join(dir, "nothing")); !errors.Is(err, ErrNoKey) {
 		t.Errorf("a missing key = %v", err)
-	} else if !strings.Contains(err.Error(), "server setup") {
+	} else if !strings.Contains(err.Error(), "hub setup") {
 		t.Errorf("the error does not say how to fix it: %v", err)
 	}
 	write := func(name, content string) string {

@@ -68,8 +68,8 @@ func (a *app) runMachineAdd(cmd *cobra.Command, target string, spec machineAddSp
 
 func (a *app) takeTicket(ctx context.Context) (*api.MachineTokenResult, error) {
 	var res api.MachineTokenResult
-	if err := a.askHub(ctx, &res, "machine", "token", "--json"); err != nil {
-		return nil, fmt.Errorf("machine add: take a join token from the hub: %w", err)
+	if err := a.askHub(ctx, &res, "member", "token", "--json"); err != nil {
+		return nil, fmt.Errorf("member add: take a join token from the hub: %w", err)
 	}
 	return &res, nil
 }
@@ -118,17 +118,17 @@ func setupArgsForJoin(token, name string, spec machineAddSpec) []string {
 
 func (a *app) confirmJoined(ctx context.Context, name, target string, report bootstrapResult) (*api.MachineAddResult, error) {
 	var machines []fleet.Machine
-	if err := a.askHub(ctx, &machines, "machine", "list", "--json"); err != nil {
-		return nil, fmt.Errorf("machine add: read the fleet back: %w", err)
+	if err := a.askHub(ctx, &machines, "member", "list", "--json"); err != nil {
+		return nil, fmt.Errorf("member add: read the fleet back: %w", err)
 	}
 	m, ok := fleet.Find(machines, name)
 	if !ok {
 		if joinSkipped(report) {
-			return nil, fmt.Errorf("machine add: %q is not in `caramelo machine list`, and the box did not "+
+			return nil, fmt.Errorf("member add: %q is not in `caramelo member list`, and the box did not "+
 				"try to join: its configuration already names this hub, which this hub has forgotten. "+
-				"Run `sudo caramelo machine leave` on %s and add it again", name, target)
+				"Run `sudo caramelo member leave` on %s and add it again", name, target)
 		}
-		return nil, fmt.Errorf("machine add: setup finished on the box but %q is not in `caramelo machine list`: "+
+		return nil, fmt.Errorf("member add: setup finished on the box but %q is not in `caramelo member list`: "+
 			"the join did not land (is this hub's UDP 4021 reachable from it?)", name)
 	}
 	return &api.MachineAddResult{Machine: m, Joined: true}, nil

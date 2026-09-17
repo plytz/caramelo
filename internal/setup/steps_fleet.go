@@ -36,7 +36,7 @@ func (s *JoinStep) Check(ctx context.Context, env *Env) (bool, string, error) {
 	if cfg.IsMember() {
 
 		return false, "", fmt.Errorf(
-			"this machine is already a member of %s; remove it there first (`caramelo machine remove %s`) before joining %s",
+			"this machine is already a member of %s; remove it there first (`caramelo member remove %s`) before joining %s",
 			cfg.Fleet.Hub.Name, cfg.Fleet.Hub.Name, ticket.Hub)
 	}
 	return false, fmt.Sprintf("not a member of %s yet", ticket.Hub), nil
@@ -49,7 +49,7 @@ func (s *JoinStep) Apply(ctx context.Context, env *Env) error {
 		return err
 	}
 
-	args := []string{"machine", "join", ticket.Endpoint, "--token", tokenFromStdin, "--json"}
+	args := []string{"member", "join", ticket.Endpoint, "--token", tokenFromStdin, "--json"}
 	if env.ConfigDir != "" && env.ConfigDir != serverconfig.DefaultConfigDir {
 		args = append(args, "--config-dir", env.ConfigDir)
 	}

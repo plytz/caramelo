@@ -28,7 +28,7 @@ func writeMachineToken(w io.Writer, r *api.MachineTokenResult) error {
 	return machineTokenView(r).Write(w)
 }
 
-func (a *app) machineAddCmd() *cobra.Command {
+func (a *app) memberAddCmd() *cobra.Command {
 	var name, binary, release, acmeEmail, acmeCA, tls string
 	var edge, private bool
 	cmd := localCmd(&cobra.Command{
@@ -36,8 +36,8 @@ func (a *app) machineAddCmd() *cobra.Command {
 		Short: "Set a box up and join it to this fleet",
 		Long: `add turns a box into a Caramelo machine and joins it to the hub in one
 command: it ships a binary for the target's own architecture over ssh, runs
-'caramelo server setup' there as root, takes a one-time join token from the hub
-and redeems it, and returns once the machine answers in 'caramelo machine list'.
+'caramelo hub setup' there as root, takes a one-time join token from the hub
+and redeems it, and returns once the machine answers in 'caramelo member list'.
 
 TARGET is an ssh destination the commander can reach (you@box.example.com).
 The box itself never needs an inbound port: from the join onwards it dials the
@@ -91,7 +91,7 @@ type machineAddSpec struct {
 	TLS       string
 }
 
-func (a *app) machineTokenCmd() *cobra.Command {
+func (a *app) memberTokenCmd() *cobra.Command {
 	var ttl time.Duration
 	cmd := &cobra.Command{
 		Use:   "token",
@@ -105,7 +105,7 @@ It is good for one machine and it expires.
 
 Use it when the commander cannot ssh to the box that is joining. On the box:
 
-    sudo caramelo machine join <hub endpoint> --token <token>`,
+    sudo caramelo member join <hub endpoint> --token <token>`,
 		Args: exactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if ttl < 0 {
@@ -113,7 +113,7 @@ Use it when the commander cannot ssh to the box that is joining. On the box:
 			}
 			res, err := a.service.MachineToken(cmd.Context(), api.MachineTokenRequest{TTL: ttl})
 			if err != nil {
-				return fmt.Errorf("machine token: %w", err)
+				return fmt.Errorf("member token: %w", err)
 			}
 			return a.printer().Result(res, func(w io.Writer) error {
 				return writeMachineToken(w, res)
@@ -124,7 +124,7 @@ Use it when the commander cannot ssh to the box that is joining. On the box:
 	return cmd
 }
 
-func (a *app) machineJoinCmd() *cobra.Command {
+func (a *app) memberJoinCmd() *cobra.Command {
 	var token, name, configDir string
 	var private bool
 	cmd := localCmd(&cobra.Command{
@@ -135,12 +135,12 @@ func (a *app) machineJoinCmd() *cobra.Command {
 what it holds, and from then on dials out and keeps the tunnel alive.
 
 HUB is the hub's endpoint — a hostname, optionally with the UDP port. Run it on
-the machine that is joining, as root, with a token from 'caramelo machine token'
+the machine that is joining, as root, with a token from 'caramelo member token'
 on the hub.
 
-'caramelo server setup' runs first on that machine and makes what join needs:
+'caramelo hub setup' runs first on that machine and makes what join needs:
 the configuration, the caramelo user, rootless Docker and the machine's key.
-From the commander, 'caramelo machine add' does both halves in one go.
+From the commander, 'caramelo member add' does both halves in one go.
 
 A member keeps serving everything it already holds while the hub is down. What
 it cannot do without the hub is start a definition it has not started before,
@@ -155,14 +155,14 @@ because the secrets for it live there.`,
 		},
 	})
 	f := cmd.Flags()
-	f.StringVar(&token, "token", "", "the one-time token from `caramelo machine token` on the hub, or - to read it from standard input")
+	f.StringVar(&token, "token", "", "the one-time token from `caramelo member token` on the hub, or - to read it from standard input")
 	f.StringVar(&name, "name", "", "what to call this machine in the fleet (default: its hostname)")
 	f.BoolVar(&private, "private", false, "join with no public listener: the hub is this machine's only door")
 	f.StringVar(&configDir, "config-dir", serverconfig.DefaultConfigDir, "directory holding config.yaml")
 	return cmd
 }
 
-func (a *app) machineLeaveCmd() *cobra.Command {
+func (a *app) memberLeaveCmd() *cobra.Command {
 	var configDir string
 	var force bool
 	cmd := localCmd(&cobra.Command{
@@ -172,9 +172,9 @@ func (a *app) machineLeaveCmd() *cobra.Command {
 restarts caramelod, which comes back a machine of one: its environments, its
 ports, its addresses and its edge exactly as they were, obeying nobody.
 
-It is the mirror of 'caramelo machine join' and it is run in the same place, on
+It is the mirror of 'caramelo member join' and it is run in the same place, on
 the machine itself, as root. Removing a machine from the hub's side is
-'caramelo machine remove NAME' there; a member finds out at its next
+'caramelo member remove NAME' there; a member finds out at its next
 announcement and stops obeying at once, and this is what tidies the file.
 
 The subnet stays: this machine's environments hold addresses in it.`,
@@ -189,7 +189,7 @@ The subnet stays: this machine's environments hold addresses in it.`,
 	return cmd
 }
 
-func (a *app) machineListCmd() *cobra.Command {
+func (a *app) memberListCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     "list",
 		Aliases: []string{"ls"},
@@ -204,7 +204,7 @@ A machine that has not been heard from within the keepalive window reads
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ms, err := a.service.Machines(cmd.Context())
 			if err != nil {
-				return fmt.Errorf("machine list: %w", err)
+				return fmt.Errorf("member list: %w", err)
 			}
 			if ms == nil {
 				ms = []fleet.Machine{}
@@ -216,7 +216,7 @@ A machine that has not been heard from within the keepalive window reads
 	}
 }
 
-func (a *app) machineRemoveCmd() *cobra.Command {
+func (a *app) memberRemoveCmd() *cobra.Command {
 	var force, yes bool
 	cmd := &cobra.Command{
 		Use:     "remove NAME",
@@ -240,7 +240,7 @@ one.`,
 			}
 			if err := a.service.MachineRemove(cmd.Context(),
 				api.MachineRemoveRequest{Name: name, Force: force}, a.progressWriter()); err != nil {
-				return fmt.Errorf("machine remove %s: %w", name, err)
+				return fmt.Errorf("member remove %s: %w", name, err)
 			}
 			out := removed{Name: name, Removed: true}
 			return a.printer().Result(out, func(w io.Writer) error {
@@ -318,7 +318,7 @@ func ticketFrom(ctx context.Context, token string) (string, error) {
 	}
 	if token = strings.TrimSpace(token); token == "" {
 		return "", &usageError{errors.New(
-			"joining needs a token from `caramelo machine token` on the hub: --token TOKEN (or --token - on standard input)")}
+			"joining needs a token from `caramelo member token` on the hub: --token TOKEN (or --token - on standard input)")}
 	}
 	return token, nil
 }

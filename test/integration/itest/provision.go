@@ -33,7 +33,7 @@ func provisionedImageSetupCommand(peerKey string) string { return SetupCommandFo
 
 func SetupCommandFor(home, peerKey string) string {
 	return fmt.Sprintf(
-		"sudo %s server setup --yes --json --authorized-keys %s/.ssh/authorized_keys "+
+		"sudo %s hub setup --yes --json --authorized-keys %s/.ssh/authorized_keys "+
 			"--api-listen %s --peer %s %s --edge --acme-ca %s --acme-email %s",
 		RemoteBin, home, serverconfig.APIListenBoth, LabPeerName, peerKey, ACMEDirectory, ACMEEmail)
 }
@@ -136,7 +136,7 @@ func buildProvisionedImage(ctx context.Context) (string, error) {
 		_ = removeVolume(context.Background(), volume)
 	}()
 
-	fmt.Fprintf(os.Stderr, "itest: provisioning %s (server setup, this takes minutes)\n", tag)
+	fmt.Fprintf(os.Stderr, "itest: provisioning %s (hub setup, this takes minutes)\n", tag)
 	start := time.Now()
 	if _, err := docker(buildCtx, "run", "-d",
 		"--name", name,
@@ -188,11 +188,11 @@ func buildProvisionedImage(ctx context.Context) (string, error) {
 	}
 	var report setup.Report
 	if jsonErr := json.Unmarshal([]byte(strings.TrimSpace(res.Stdout)), &report); jsonErr != nil {
-		return "", fmt.Errorf("provision: server setup exit %d, stdout is not a report: %w\nstdout:\n%s\nstderr:\n%s",
+		return "", fmt.Errorf("provision: hub setup exit %d, stdout is not a report: %w\nstdout:\n%s\nstderr:\n%s",
 			res.ExitCode, jsonErr, res.Stdout, res.Stderr)
 	}
 	if res.ExitCode != 0 || report.Failed != 0 {
-		return "", fmt.Errorf("provision: server setup exit %d, %d step(s) failed\n%s",
+		return "", fmt.Errorf("provision: hub setup exit %d, %d step(s) failed\n%s",
 			res.ExitCode, report.Failed, res.Stdout)
 	}
 	if err := WaitForPort(buildCtx, builder, CarameloSSHPort); err != nil {

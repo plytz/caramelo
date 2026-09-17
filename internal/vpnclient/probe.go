@@ -76,7 +76,7 @@ func (c *client) Probe(ctx context.Context, req ProbeRequest) (*Probe, error) {
 	switch {
 	case key == "":
 		return nil, fmt.Errorf("no public key for %s: pass --key KEY (the machine prints it in "+
-			"'caramelo server status'), or run 'caramelo vpn up --machine %s' once from here", machine, machine)
+			"'caramelo hub status'), or run 'caramelo vpn up --machine %s' once from here", machine, machine)
 	case !ValidKey(key):
 		return nil, fmt.Errorf("--key %q: that is not a WireGuard public key", key)
 	}

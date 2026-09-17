@@ -300,8 +300,8 @@ func hasTransport(lns []apiListener, transport string) bool {
 func refusedOverAPI(args []string) (why string, refused bool) {
 	word, rest := commandWord(args)
 	switch word {
-	case "server":
-		return "server commands are not available over the API", true
+	case "hub":
+		return "hub commands are not available over the API", true
 	case "edge":
 
 		for _, a := range rest {

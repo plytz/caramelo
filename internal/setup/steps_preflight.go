@@ -25,7 +25,7 @@ func (s *PreflightStep) Name() string { return "preflight" }
 
 func (s *PreflightStep) Check(ctx context.Context, env *Env) (bool, string, error) {
 	if geteuid() != 0 {
-		return false, "", fmt.Errorf("must run as root: try 'sudo caramelo server setup'")
+		return false, "", fmt.Errorf("must run as root: try 'sudo caramelo hub setup'")
 	}
 
 	var facts, warnings []string

@@ -16,35 +16,35 @@ import (
 func init() {
 	register(func(a *app) *cobra.Command {
 		cmd := commanderCmd(&cobra.Command{
-			Use:   "machine",
+			Use:   "member",
 			Short: "Inspect this machine, and the fleet it is part of",
-			Long: `The machine record describes the box: CPU, memory, disks, OS, network,
-cgroups and Docker. It is gauged at setup and at every caramelod start.
+			Long: `The member group is the fleet's: add, token and join are how a box
+becomes a member of a fleet; list, show and remove are what the fleet says
+about itself. A machine that has joined nothing is a fleet of one.
 
-The group is also the fleet's (M8): add, token and join are how a box becomes a
-member of a fleet; list, show and remove are what the fleet says about itself.
-A machine that has joined nothing is a fleet of one.`,
+show with no name prints this machine's record instead: CPU, memory, disks, OS,
+network, cgroups and Docker, gauged at setup and at every caramelod start.`,
 		})
 		asGroup(cmd)
 		cmd.AddCommand(
-			a.machineShowCmd(),
+			a.memberShowCmd(),
 
-			a.machineAddCmd(),
-			a.machineTokenCmd(),
-			a.machineJoinCmd(),
-			a.machineLeaveCmd(),
-			a.machineListCmd(),
-			a.machineRemoveCmd(),
+			a.memberAddCmd(),
+			a.memberTokenCmd(),
+			a.memberJoinCmd(),
+			a.memberLeaveCmd(),
+			a.memberListCmd(),
+			a.memberRemoveCmd(),
 
-			a.machineAnnounceCmd(),
-			a.machineRedeemCmd(),
-			a.machineRemovedCmd(),
+			a.memberAnnounceCmd(),
+			a.memberRedeemCmd(),
+			a.memberRemovedCmd(),
 		)
 		return cmd
 	})
 }
 
-func (a *app) machineShowCmd() *cobra.Command {
+func (a *app) memberShowCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "show [NAME]",
 		Short: "Print the machine record, or one machine of the fleet",
@@ -60,7 +60,7 @@ asked about somebody else's box.`,
 
 				d, err := a.service.MachineInfo(cmd.Context(), args[0])
 				if err != nil {
-					return fmt.Errorf("machine show %s: %w", args[0], err)
+					return fmt.Errorf("member show %s: %w", args[0], err)
 				}
 				if a.json {
 					return a.indentedJSON(d)
@@ -71,7 +71,7 @@ asked about somebody else's box.`,
 			}
 			rec, err := a.service.Machine(cmd.Context())
 			if err != nil {
-				return fmt.Errorf("machine show: %w", err)
+				return fmt.Errorf("member show: %w", err)
 			}
 			if a.json {
 				return a.indentedJSON(rec)

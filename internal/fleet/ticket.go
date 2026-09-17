@@ -43,7 +43,7 @@ func ParseTicket(s string) (Ticket, error) {
 	s = strings.TrimSpace(s)
 	body, ok := strings.CutPrefix(s, TicketPrefix)
 	if !ok {
-		return Ticket{}, fmt.Errorf("fleet: that is not a join token: one starts with %q and comes from `caramelo machine token` on the hub", TicketPrefix)
+		return Ticket{}, fmt.Errorf("fleet: that is not a join token: one starts with %q and comes from `caramelo member token` on the hub", TicketPrefix)
 	}
 	b, err := base64.RawURLEncoding.DecodeString(body)
 	if err != nil {

@@ -19,10 +19,10 @@ import (
 )
 
 func init() {
-	registerServer(func(a *app) *cobra.Command { return a.serverSetupCmd() })
+	registerHub(func(a *app) *cobra.Command { return a.hubSetupCmd() })
 }
 
-func (a *app) serverSetupCmd() *cobra.Command {
+func (a *app) hubSetupCmd() *cobra.Command {
 	var (
 		configDir     string
 		opts          setup.Options
@@ -174,7 +174,7 @@ the machine is recorded in the commander config and the API is checked from here
 	f.StringVar(&targetRelease, "release", "",
 		"ship this release of caramelo to the target instead of this binary: a tag such as v0.0.1, downloaded from GitHub for the target's platform")
 
-	f.StringVar(&opts.Join.Token, "join-token", "", "join a fleet in this run: the ticket from `caramelo machine token` on the hub, or - to read it from standard input")
+	f.StringVar(&opts.Join.Token, "join-token", "", "join a fleet in this run: the ticket from `caramelo member token` on the hub, or - to read it from standard input")
 	f.StringVar(&opts.Join.Name, "join-name", "", "what to call this machine in the fleet (default: its hostname)")
 	f.BoolVar(&cfg.Fleet.Private, "private", false,
 		"a member with no public listener at all: 80 and 443 on loopback, everything served through the hub")
@@ -324,7 +324,7 @@ func setupPlan(env *setup.Env) string {
 		packages = "none (--no-packages)"
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "caramelo server setup will change this machine:\n")
+	fmt.Fprintf(&b, "caramelo hub setup will change this machine:\n")
 	fmt.Fprintf(&b, "  config    %s\n", env.ConfigDir)
 	fmt.Fprintf(&b, "  state     %s (home of the %s user)\n", cfg.StateDir, cfg.User)
 	fmt.Fprintf(&b, "  data      %s (apps and Docker images)\n", cfg.DataDir)

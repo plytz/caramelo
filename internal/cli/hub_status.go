@@ -22,10 +22,10 @@ import (
 )
 
 func init() {
-	registerServer(func(a *app) *cobra.Command { return a.serverStatusCmd() })
+	registerHub(func(a *app) *cobra.Command { return a.hubStatusCmd() })
 }
 
-type serverStatus struct {
+type hubStatus struct {
 	Version     string       `json:"version"`
 	Hostname    string       `json:"hostname"`
 	ConfigFile  string       `json:"config_file"`
@@ -78,7 +78,7 @@ type portStatus struct {
 	VPNListening bool `json:"vpn_listening"`
 }
 
-func (a *app) serverStatusCmd() *cobra.Command {
+func (a *app) hubStatusCmd() *cobra.Command {
 	var configDir string
 	cmd := &cobra.Command{
 		Use:   "status",
@@ -90,9 +90,9 @@ It reads the machine directly and never talks to caramelod, so it works when the
 daemon is down. It exits 1 when caramelod is not active.`,
 		Args: exactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			st := serverStatusOf(cmd.Context(), runner.Exec{}, configDir)
+			st := hubStatusOf(cmd.Context(), runner.Exec{}, configDir)
 			if err := a.printer().Result(st, func(w io.Writer) error {
-				return writeServerStatus(w, st)
+				return writeHubStatus(w, st)
 			}); err != nil {
 				return err
 			}
@@ -106,9 +106,9 @@ daemon is down. It exits 1 when caramelod is not active.`,
 	return cmd
 }
 
-func serverStatusOf(ctx context.Context, run runner.Runner, configDir string) serverStatus {
+func hubStatusOf(ctx context.Context, run runner.Runner, configDir string) hubStatus {
 	cfg := serverconfig.Default()
-	st := serverStatus{
+	st := hubStatus{
 		Version:    version,
 		ConfigFile: serverconfig.Path(configDir),
 	}
@@ -212,10 +212,10 @@ func udpBound(port int) bool {
 	return false
 }
 
-func writeServerStatus(w io.Writer, st serverStatus) error {
+func writeHubStatus(w io.Writer, st hubStatus) error {
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	if !st.Installed {
-		fmt.Fprintf(tw, "not set up\tno %s (run: sudo caramelo server setup)\n", st.ConfigFile)
+		fmt.Fprintf(tw, "not set up\tno %s (run: sudo caramelo hub setup)\n", st.ConfigFile)
 	}
 	fmt.Fprintf(tw, "machine\t%s\n", st.Hostname)
 	fmt.Fprintf(tw, "version\t%s\n", st.Version)

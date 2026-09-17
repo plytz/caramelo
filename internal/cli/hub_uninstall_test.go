@@ -35,7 +35,7 @@ func tempServerConfig(t *testing.T) (string, serverconfig.Config) {
 func TestUninstallDryRunReportsThePlanWithoutTouchingTheMachine(t *testing.T) {
 	configDir, cfg := tempServerConfig(t)
 
-	code, stdout, stderr := run(t, "server", "uninstall", "--config-dir", configDir, "--dry-run", "--json")
+	code, stdout, stderr := run(t, "hub", "uninstall", "--config-dir", configDir, "--dry-run", "--json")
 	if code != ExitOK {
 		t.Fatalf("exit = %d, want 0 (stderr %q)", code, stderr)
 	}
@@ -74,7 +74,7 @@ func TestUninstallDryRunReportsThePlanWithoutTouchingTheMachine(t *testing.T) {
 }
 
 func TestUninstallWithoutAConfigAssumesTheDefaults(t *testing.T) {
-	code, stdout, stderr := run(t, "server", "uninstall", "--config-dir", t.TempDir(), "--dry-run", "--json")
+	code, stdout, stderr := run(t, "hub", "uninstall", "--config-dir", t.TempDir(), "--dry-run", "--json")
 	if code != ExitOK {
 		t.Fatalf("exit = %d, want 0", code)
 	}
@@ -95,7 +95,7 @@ func TestUninstallRejectsAnUnreadableConfig(t *testing.T) {
 	if err := os.WriteFile(serverconfig.Path(dir), []byte("\tnot: [yaml"), 0o640); err != nil {
 		t.Fatal(err)
 	}
-	code, _, stderr := run(t, "server", "uninstall", "--config-dir", dir, "--dry-run")
+	code, _, stderr := run(t, "hub", "uninstall", "--config-dir", dir, "--dry-run")
 	if code != ExitError {
 		t.Fatalf("exit = %d, want %d", code, ExitError)
 	}
@@ -105,14 +105,14 @@ func TestUninstallRejectsAnUnreadableConfig(t *testing.T) {
 }
 
 func TestUninstallUsageErrors(t *testing.T) {
-	if code, _, _ := run(t, "server", "uninstall", "extra"); code != ExitUsage {
+	if code, _, _ := run(t, "hub", "uninstall", "extra"); code != ExitUsage {
 		t.Errorf("an extra argument = %d, want %d", code, ExitUsage)
 	}
 }
 
 func TestPurgeRefusesWithoutAnAnswer(t *testing.T) {
 	configDir, _ := tempServerConfig(t)
-	code, _, stderr := run(t, "server", "uninstall", "--config-dir", configDir, "--purge")
+	code, _, stderr := run(t, "hub", "uninstall", "--config-dir", configDir, "--purge")
 	if code != ExitError {
 		t.Fatalf("exit = %d, want %d", code, ExitError)
 	}
