@@ -150,6 +150,23 @@ func TestAMemberJoinsItselfWithAToken(t *testing.T) {
 		t.Errorf("the token expires at %v, which is not in the future", tok.ExpiresAt)
 	}
 
+	throwaway, res := machineToken(t)
+	if res.ExitCode != 0 {
+		t.Fatalf("machine token for the unprepared join: exit %d\nstderr:\n%s", res.ExitCode, res.Stderr)
+	}
+	unprepared := machineJoinOn(t, box, endpoint, throwaway.Token, name+"-unprepared")
+	if unprepared.ExitCode == 0 {
+		t.Fatalf("a join on %s, which never ran server setup, succeeded:\nstdout:\n%sstderr:\n%s",
+			box.Alias, unprepared.Stdout, unprepared.Stderr)
+	}
+	said := unprepared.Stdout + unprepared.Stderr
+	if !strings.Contains(said, "server setup") {
+		t.Errorf("the refusal on an unprepared machine does not name server setup:\n%s", said)
+	}
+	if strings.Contains(said, "no such file") {
+		t.Errorf("the refusal on an unprepared machine names a missing file instead of the step that makes it:\n%s", said)
+	}
+
 	if err := itest.SetupMemberForJoin(box, true); err != nil {
 		t.Fatalf("set %s up before it joins: %v", box.Alias, err)
 	}

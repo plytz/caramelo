@@ -138,6 +138,10 @@ HUB is the hub's endpoint — a hostname, optionally with the UDP port. Run it o
 the machine that is joining, as root, with a token from 'caramelo machine token'
 on the hub.
 
+'caramelo server setup' runs first on that machine and makes what join needs:
+the configuration, the caramelo user, rootless Docker and the machine's key.
+From the commander, 'caramelo machine add' does both halves in one go.
+
 A member keeps serving everything it already holds while the hub is down. What
 it cannot do without the hub is start a definition it has not started before,
 because the secrets for it live there.`,
