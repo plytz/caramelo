@@ -297,6 +297,7 @@ func appsFixture() []api.AppInfo {
 func releaseEnvFixture() env.Env {
 	e := sampleEnv()
 	e.ID, e.Name, e.Branch = 2, "production", "production"
+	e.SourceBranch, e.PushedBy, e.PushedAt = "", "", time.Time{}
 	e.Mode, e.Protected = env.ModeRelease, true
 	e.PortBase, e.PortCount = 20032, 32
 	e.CreatedBy = "ci"

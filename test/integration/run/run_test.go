@@ -325,12 +325,23 @@ func (s *suite) codeUpdate(t *testing.T) {
 	const updated = "updated hello from"
 	env := s.commanderEnv()
 	replaceInFile(t, s.repo, "greeting.py", `MESSAGE = "hello from"`, `MESSAGE = "`+updated+`"`)
-	itest.GitCommitAll(t, s.repo, env, "sampleapp: a different greeting")
+	pushed := itest.GitCommitAll(t, s.repo, env, "sampleapp: a different greeting")
 
 	s.up(t, envX)
 	url := s.urlOf(t, envX, webService)
 	if body := s.getWithin(t, url.URL+"/", itest.Scale(60*time.Second)); !strings.Contains(body, updated) {
 		t.Errorf("GET / = %q, want the new greeting %q: the push did not reach the worktree", body, updated)
+	}
+
+	after := s.showEnv(t, envX).Env
+	if after.Commit != pushed {
+		t.Errorf("env %s is recorded at %q, want the commit up pushed (%s)", envX, after.Commit, pushed)
+	}
+	if after.PushedAt.IsZero() || after.PushedBy == "" {
+		t.Errorf("the push was not written down: %+v", after)
+	}
+	if after.SourceBranch == "" {
+		t.Errorf("up pushed from a branch and did not say so: %+v", after)
 	}
 
 	t.Run("a push is refused while the worktree is dirty", func(t *testing.T) {

@@ -31,6 +31,12 @@ type Env struct {
 
 	Commit string `json:"commit,omitempty"`
 
+	SourceBranch string `json:"source_branch,omitempty"`
+
+	PushedBy string `json:"pushed_by,omitempty"`
+
+	PushedAt time.Time `json:"pushed_at,omitzero"`
+
 	Worktree string `json:"worktree"`
 
 	PortBase  int `json:"port_base"`

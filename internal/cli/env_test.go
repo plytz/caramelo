@@ -109,9 +109,12 @@ func (s *envService) Apps(context.Context) ([]api.AppInfo, error) { return s.app
 func sampleEnv() env.Env {
 	return env.Env{
 		ID: 1, App: "shop", Name: "feat-x", Branch: "feat-x",
-		Commit:   "0123456789abcdef0123456789abcdef01234567",
-		Worktree: "/mnt/caramelo/apps/shop/envs/feat-x/src",
-		PortBase: 20000, PortCount: 16,
+		Commit:       "0123456789abcdef0123456789abcdef01234567",
+		SourceBranch: "blob-store",
+		PushedBy:     "alex@laptop",
+		PushedAt:     time.Date(2026, 9, 8, 12, 2, 0, 0, time.UTC),
+		Worktree:     "/mnt/caramelo/apps/shop/envs/feat-x/src",
+		PortBase:     20000, PortCount: 16,
 		Status:    env.StatusReady,
 		Config:    json.RawMessage(`{"name":"shop","deps":[{"name":"db","image":"postgres:16"},{"name":"cache","image":"redis:7"}]}`),
 		Vars:      map[string]string{"PORT": "20000", "DATABASE_URL": "postgres://127.0.0.1:20001/postgres"},
@@ -129,10 +132,14 @@ func TestEnvListHuman(t *testing.T) {
 	if svc.listedApp != "shop" {
 		t.Errorf("service asked for app %q, want shop", svc.listedApp)
 	}
-	for _, want := range []string{"NAME", "PORTS", "DEPS", "feat-x", "20000-20015", "0123456", "db,cache", "alex@laptop"} {
+	for _, want := range []string{"NAME", "COMMIT", "SOURCE", "PORTS", "DEPS", "feat-x", "20000-20015",
+		"0123456", "blob-store", "db,cache", "alex@laptop"} {
 		if !strings.Contains(stdout, want) {
 			t.Errorf("stdout = %q, want it to contain %q", stdout, want)
 		}
+	}
+	if strings.Contains(stdout, "BRANCH") {
+		t.Errorf("env list still prints a BRANCH column, which only ever repeats NAME:\n%s", stdout)
 	}
 }
 

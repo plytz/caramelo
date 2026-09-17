@@ -2,9 +2,12 @@ package sshapi
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/plytz/caramelo/internal/env"
@@ -136,14 +139,22 @@ func (d *Daemon) ServeGit(ctx context.Context, req GitRequest) int {
 		return 2
 	}
 
-	res, err := d.Runner.Run(ctx, runner.Cmd{
+	cmd := runner.Cmd{
 		Name:   "git",
 		Args:   []string{req.Verb, repo},
 		User:   d.Config.User,
 		Stdin:  req.Stdin,
 		Stdout: req.Stdout,
 		Stderr: req.Stderr,
-	})
+	}
+	var record string
+	if req.Verb == verbReceivePack {
+		record = filepath.Join(repo, git.PushRecordDir, rand.Text())
+		cmd.Env = []string{git.PushRecordEnv + "=" + record}
+		defer func() { _ = os.Remove(record) }()
+	}
+
+	res, err := d.Runner.Run(ctx, cmd)
 	if err != nil {
 		fmt.Fprintf(req.Stderr, "caramelo: run git %s: %v\n", req.Verb, err)
 		return 1
@@ -156,6 +167,7 @@ func (d *Daemon) ServeGit(ctx context.Context, req GitRequest) int {
 		if err := d.settleHEAD(ctx, app, repo); err != nil {
 			fmt.Fprintf(req.Stderr, "caramelo: warning: %v\n", err)
 		}
+		d.recordPush(ctx, app, record, req.Stderr)
 
 		d.syncMembers(ctx, app, req.Stderr)
 	}
@@ -219,6 +231,12 @@ func (d *Daemon) ensureApp(ctx context.Context, app, repo string) error {
 	if r, ok := d.repoDriver().(git.PreReceiver); ok {
 		if _, err := r.EnsurePreReceive(ctx, repo); err != nil {
 			d.logf("install the pre-receive hook in %s: %v", repo, err)
+		}
+	}
+
+	if r, ok := d.repoDriver().(git.PostReceiver); ok {
+		if _, err := r.EnsurePostReceive(ctx, repo); err != nil {
+			d.logf("install the post-receive hook in %s: %v", repo, err)
 		}
 	}
 	return nil

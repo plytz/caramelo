@@ -1,4 +1,4 @@
 shop/feat-x is now owned by agent-b
 
-NAME    APP   MODE  BRANCH  COMMIT   STATUS  PORTS        DEPS      CREATED               BY           MACHINE  OWNER
-feat-x  shop  dev   feat-x  0123456  ready   20000-20015  db,cache  2026-09-08T12:00:00Z  alex@laptop  nx2      agent-a
+NAME    APP   MODE  COMMIT   SOURCE      STATUS  PORTS        DEPS      CREATED               BY           MACHINE  OWNER
+feat-x  shop  dev   0123456  blob-store  ready   20000-20015  db,cache  2026-09-08T12:00:00Z  alex@laptop  nx2      agent-a

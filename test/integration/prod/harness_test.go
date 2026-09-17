@@ -243,26 +243,7 @@ func secretsExport(t *testing.T, name string, extra ...string) capi.VaultExportR
 func events(t *testing.T, args ...string) []cprogress.Event {
 	t.Helper()
 	res := mustInRepo(t, append([]string{"events"}, append(args, "--json")...)...)
-	return parseEvents(t, "events", res.Stdout)
-}
-
-func parseEvents(t *testing.T, what, stream string) []cprogress.Event {
-	t.Helper()
-	var out []cprogress.Event
-	sc := bufio.NewScanner(strings.NewReader(stream))
-	sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
-	for line := 1; sc.Scan(); line++ {
-		text := strings.TrimSpace(sc.Text())
-		if text == "" {
-			continue
-		}
-		var e cprogress.Event
-		if err := json.Unmarshal([]byte(text), &e); err != nil {
-			t.Fatalf("%s: line %d is not an event: %v\n%s", what, line, err, text)
-		}
-		out = append(out, e)
-	}
-	return out
+	return itest.ParseEvents(t, "events", res.Stdout)
 }
 
 type follower struct {
@@ -340,7 +321,7 @@ func (f *follower) Stop(t *testing.T) []cprogress.Event {
 	if stream == "" {
 		return nil
 	}
-	return parseEvents(t, "events --follow", stream)
+	return itest.ParseEvents(t, "events --follow", stream)
 }
 
 func eventMatching(list []cprogress.Event, ok func(cprogress.Event) bool) (cprogress.Event, bool) {

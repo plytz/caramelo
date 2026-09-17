@@ -15,6 +15,8 @@ import (
 	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/plytz/caramelo/internal/cli"
+	"github.com/plytz/caramelo/internal/env"
+	"github.com/plytz/caramelo/internal/git"
 	"github.com/plytz/caramelo/internal/runner"
 	"github.com/plytz/caramelo/internal/serverconfig"
 	"github.com/plytz/caramelo/internal/sshapi"
@@ -71,7 +73,10 @@ func startGitLab(t *testing.T) *gitLab {
 		t.Fatal(err)
 	}
 
-	daemon := sshapi.NewDaemon(cfg, filepath.Join(dir, "etc"), store, asMe{runner.Exec{}}, "test")
+	run := asMe{runner.Exec{}}
+	daemon := sshapi.NewDaemon(cfg, filepath.Join(dir, "etc"), store, run, "test")
+	daemon.EnvManager = env.New(store, nil, git.NewCLI(run, ""), nil, run,
+		env.Dirs{Data: cfg.DataDir, Run: cfg.RunDir})
 	srv := &sshapi.Server{
 		Config:   cfg,
 		Service:  daemon,
@@ -285,5 +290,94 @@ func TestGitUploadArchiveIsRefused(t *testing.T) {
 		if !strings.Contains(stderr, "not available") {
 			t.Errorf("%v: stderr = %q", args, stderr)
 		}
+	}
+}
+
+func TestAPushRecordsTheCommitAndWhereItCameFrom(t *testing.T) {
+	lab := startGitLab(t)
+	repo := lab.sampleRepo(t)
+	ctx := context.Background()
+
+	if code, _, stderr := lab.git(t, repo, "push", lab.url("shop"), "main"); code != 0 {
+		t.Fatalf("push: exit %d, %s", code, stderr)
+	}
+	if _, err := lab.store.CreateEnv(ctx, state.EnvRecord{
+		App: "shop", Name: "feature", Branch: "feature", Worktree: filepath.Join(lab.data, "wt"),
+		PortBase: 20000, PortCount: 16, Status: state.EnvReady,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	head := func() string {
+		t.Helper()
+		code, out, _ := lab.git(t, repo, "rev-parse", "feature")
+		if code != 0 {
+			t.Fatal("rev-parse feature failed")
+		}
+		return strings.TrimSpace(out)
+	}
+	read := func() *state.EnvRecord {
+		t.Helper()
+		rec, err := lab.store.Env(ctx, "shop", "feature")
+		if err != nil {
+			t.Fatalf("read the env back: %v", err)
+		}
+		return rec
+	}
+
+	if code, _, stderr := lab.git(t, repo, "push", "-o", "caramelo.branch=blob-store",
+		lab.url("shop"), "feature"); code != 0 {
+		t.Fatalf("a push carrying a push option: exit %d, %s", code, stderr)
+	}
+	rec := read()
+	if rec.Commit != head() {
+		t.Errorf("commit = %q, want the commit that landed (%s)", rec.Commit, head())
+	}
+	if rec.SourceBranch != "blob-store" {
+		t.Errorf("source branch = %q, want the branch the commander said it pushed from", rec.SourceBranch)
+	}
+	if rec.PushedBy != "test-key" {
+		t.Errorf("pushed by = %q, want the peer whose key opened the connection", rec.PushedBy)
+	}
+	if rec.PushedAt.IsZero() {
+		t.Error("pushed_at is empty")
+	}
+	events, err := lab.store.Events(ctx, rec.ID, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(events) != 1 || events[0].Action != "push" || !strings.Contains(events[0].Detail, "blob-store") {
+		t.Errorf("events = %+v, want one push naming where it came from", events)
+	}
+
+	if err := os.WriteFile(filepath.Join(repo, "second.txt"), []byte("second\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	lab.git(t, repo, "checkout", "--quiet", "feature")
+	lab.git(t, repo, "add", ".")
+	if code, _, stderr := lab.git(t, repo, "commit", "--quiet", "-m", "second"); code != 0 {
+		t.Fatalf("commit: %s", stderr)
+	}
+	if code, _, stderr := lab.git(t, repo, "push", lab.url("shop"), "feature"); code != 0 {
+		t.Fatalf("a bare push: exit %d, %s", code, stderr)
+	}
+	again := read()
+	if again.Commit != head() || again.Commit == rec.Commit {
+		t.Errorf("commit = %q, want the second commit (%s)", again.Commit, head())
+	}
+	if again.SourceBranch != "" {
+		t.Errorf("source branch = %q; a bare git push names no branch and a guess is worse than nothing",
+			again.SourceBranch)
+	}
+	if again.PushedBy != rec.PushedBy {
+		t.Errorf("pushed by = %q, want %q", again.PushedBy, rec.PushedBy)
+	}
+
+	drop, err := os.ReadDir(filepath.Join(lab.data, "apps", "shop", "repo.git", "caramelo-push"))
+	if err != nil {
+		t.Fatalf("read the drop directory: %v", err)
+	}
+	if len(drop) != 0 {
+		t.Errorf("the drop directory still holds %d files; every push cleans up after itself", len(drop))
 	}
 }

@@ -130,7 +130,17 @@ func envRows(envs []env.Env) []envRow {
 }
 
 func envsTable(rows []envRow) *ui.Table {
-	head := []string{"NAME", "APP", "MODE", "BRANCH", "COMMIT", "STATUS", "PORTS", "DEPS", "CREATED", "BY"}
+	head := []string{"NAME", "APP", "MODE", "COMMIT", "STATUS", "PORTS", "DEPS", "CREATED", "BY"}
+	hasSource := false
+	for _, r := range rows {
+		if r.Env.SourceBranch != "" {
+			hasSource = true
+			break
+		}
+	}
+	if hasSource {
+		head = insertAt(head, 4, "SOURCE")
+	}
 	hasFleet := false
 	for _, r := range rows {
 		if r.Owner != "" || r.Machine != "" {
@@ -152,14 +162,24 @@ func envsTable(rows []envRow) *ui.Table {
 		if names := depNames(e); len(names) > 0 {
 			deps = strings.Join(names, ",")
 		}
-		cells := []string{e.Name, e.App, listMode(e), strOrDash(e.Branch), shortCommit(e.Commit),
+		cells := []string{e.Name, e.App, listMode(e), shortCommit(e.Commit),
 			string(e.Status), portRange(e), deps, created, strOrDash(e.CreatedBy)}
+		if hasSource {
+			cells = insertAt(cells, 4, strOrDash(e.SourceBranch))
+		}
 		if hasFleet {
 			cells = append(cells, strOrDash(r.Machine), strOrDash(r.Owner))
 		}
 		t.Row(cells...)
 	}
 	return t
+}
+
+func insertAt(row []string, at int, cell string) []string {
+	out := make([]string, 0, len(row)+1)
+	out = append(out, row[:at]...)
+	out = append(out, cell)
+	return append(out, row[at:]...)
 }
 
 func (e *envCmd) withFleet(ctx context.Context, local []env.Env) ([]env.Env, error) {
