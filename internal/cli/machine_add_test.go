@@ -7,6 +7,20 @@ import (
 	"github.com/plytz/caramelo/internal/setup"
 )
 
+func TestMachineAddIsRegisteredWithItsFlags(t *testing.T) {
+	code, stdout, _ := run(t, "machine", "add", "--help")
+	if code != ExitOK {
+		t.Fatalf("exit code = %d", code)
+	}
+	for _, flag := range []string{
+		"--name", "--edge", "--private", "--binary", "--release", "--acme-email", "--acme-ca", "--tls",
+	} {
+		if !strings.Contains(stdout, flag) {
+			t.Errorf("machine add has no %s flag:\n%s", flag, stdout)
+		}
+	}
+}
+
 func TestAJoinThatWasSkippedIsDiagnosedAsSuch(t *testing.T) {
 	skipped := bootstrapResult{Setup: setup.Report{Results: []setup.Result{
 		{Step: setup.JoinStepName, Status: setup.StatusOK},

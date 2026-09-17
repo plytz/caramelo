@@ -91,6 +91,9 @@ type fakeEdgeClient struct {
 
 	counts *edge.Counts
 	err    error
+
+	pruned   *certs.PruneResult
+	pruneReq *certs.PruneRequest
 }
 
 func (f *fakeEdgeClient) PushTable(context.Context, edge.Table) error { return f.err }
@@ -123,6 +126,17 @@ func (f *fakeEdgeClient) CA(context.Context) (*certs.CA, error) {
 		return nil, f.err
 	}
 	return f.ca, nil
+}
+
+func (f *fakeEdgeClient) Prune(_ context.Context, req certs.PruneRequest) (*certs.PruneResult, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	f.pruneReq = &req
+	if f.pruned != nil {
+		return f.pruned, nil
+	}
+	return &certs.PruneResult{KeepFor: req.Keep(), DryRun: req.DryRun}, nil
 }
 
 func (f *fakeEdgeClient) Close() error { return nil }
@@ -350,8 +364,10 @@ func TestEnvEdgePrefersTheLiveTable(t *testing.T) {
 			{Replica: 7, Port: 20009, State: edge.TargetActive, Inflight: 4},
 		}}},
 		Certificates: []certs.Certificate{
-			{Host: "feat-x.shop.test", Issuer: "Pebble"},
-			{Host: "someone-else.test", Issuer: "Pebble"},
+			{Host: "feat-x.shop.test", Issuer: "Pebble", State: certs.Live, Serial: "42C5"},
+			{Host: "feat-x.shop.test", Issuer: "Caramelo Internal CA", State: certs.Stale,
+				IssuerKey: "internal"},
+			{Host: "someone-else.test", Issuer: "Pebble", State: certs.Live},
 		},
 	}})
 
@@ -364,6 +380,10 @@ func TestEnvEdgePrefersTheLiveTable(t *testing.T) {
 	}
 	if len(held) != 1 || held[0].Host != "feat-x.shop.test" {
 		t.Errorf("certificates = %+v, want only this environment's", held)
+	}
+	if held[0].State == certs.Stale || held[0].Serial != "42C5" {
+		t.Errorf("certificate = %+v, want the live one: `env show` and `up` show what is served, "+
+			"not what the store still holds", held[0])
 	}
 }
 
@@ -463,6 +483,10 @@ func (f *restartingEdge) Counts(_ context.Context, since time.Time) (*edge.Count
 	return &edge.Counts{Since: since}, nil
 }
 
+func (f *restartingEdge) Prune(_ context.Context, req certs.PruneRequest) (*certs.PruneResult, error) {
+	return &certs.PruneResult{KeepFor: req.Keep(), DryRun: req.DryRun}, nil
+}
+
 func (f *restartingEdge) CA(context.Context) (*certs.CA, error) { return nil, nil }
 
 func (f *restartingEdge) Close() error { return nil }
@@ -506,3 +530,67 @@ func edgeStore(t *testing.T) (state.Store, int64) {
 }
 
 func second[T any](_ T, err error) error { return err }
+
+func TestEdgePruneResolvesTheMachinesRetention(t *testing.T) {
+	d := edgeDaemon(t)
+	d.Config.CertsKeep = "48h"
+	client := &fakeEdgeClient{}
+	d.SetEdgeClient(client)
+
+	if _, err := d.EdgePrune(context.Background(), certs.PruneRequest{}); err != nil {
+		t.Fatalf("EdgePrune: %v", err)
+	}
+	if client.pruneReq == nil || client.pruneReq.KeepFor == nil {
+		t.Fatalf("the edge was asked %+v, want the machine's certs_keep filled in", client.pruneReq)
+	}
+	if *client.pruneReq.KeepFor != 48*time.Hour {
+		t.Errorf("the edge was asked to keep for %s, want the 48h in config.yaml", *client.pruneReq.KeepFor)
+	}
+
+	asked := 2 * time.Hour
+	if _, err := d.EdgePrune(context.Background(), certs.PruneRequest{KeepFor: &asked, DryRun: true}); err != nil {
+		t.Fatalf("EdgePrune --older-than: %v", err)
+	}
+	if *client.pruneReq.KeepFor != asked || !client.pruneReq.DryRun {
+		t.Errorf("the edge was asked %+v, want the caller's retention and dry run kept",
+			client.pruneReq)
+	}
+
+	zero := time.Duration(0)
+	if _, err := d.EdgePrune(context.Background(), certs.PruneRequest{KeepFor: &zero}); err != nil {
+		t.Fatalf("EdgePrune --older-than 0: %v", err)
+	}
+	if *client.pruneReq.KeepFor != 0 {
+		t.Errorf("--older-than 0 reached the edge as %s; the escape must not be read as unset",
+			*client.pruneReq.KeepFor)
+	}
+}
+
+func TestEdgePruneRefusesWhatItCannotRun(t *testing.T) {
+	d := edgeDaemon(t)
+	d.SetEdgeClient(&fakeEdgeClient{err: errors.New("the edge is not answering")})
+	if _, err := d.EdgePrune(context.Background(), certs.PruneRequest{}); err == nil ||
+		!strings.Contains(err.Error(), "not answering") {
+		t.Errorf("EdgePrune with the edge down = %v, want the reason: a prune errors where "+
+			"`edge status` reports", err)
+	}
+
+	off := edgeDaemon(t)
+	off.Config.Edge = false
+	if _, err := off.EdgePrune(context.Background(), certs.PruneRequest{}); err == nil {
+		t.Error("a machine with no edge pruned anyway")
+	}
+
+	bad := edgeDaemon(t)
+	bad.Config.CertsKeep = "a fortnight"
+	bad.SetEdgeClient(&fakeEdgeClient{})
+	if _, err := bad.EdgePrune(context.Background(), certs.PruneRequest{}); err == nil ||
+		!strings.Contains(err.Error(), "certs_keep") {
+		t.Errorf("EdgePrune with an unreadable certs_keep = %v, want it to name the key", err)
+	}
+
+	negative := time.Duration(-time.Hour)
+	if _, err := d.EdgePrune(context.Background(), certs.PruneRequest{KeepFor: &negative}); err == nil {
+		t.Error("a negative retention reached the edge")
+	}
+}

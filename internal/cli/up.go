@@ -99,11 +99,12 @@ func (t *envTargets) pushBeforeUp(cmd *cobra.Command, noPush, force bool) error 
 		return nil
 	}
 	plan := pushPlan{
-		Dir:    ".",
-		Remote: pushURL(tr.target, t.app),
-		Ref:    "HEAD:" + t.env,
-		Force:  force,
-		Tunnel: tr.kind == kindTunnel,
+		Dir:          ".",
+		Remote:       pushURL(tr.target, t.app),
+		Ref:          "HEAD:" + t.env,
+		SourceBranch: currentBranch(cmd.Context()),
+		Force:        force,
+		Tunnel:       tr.kind == kindTunnel,
 	}
 	t.a.printer().Infof("%s", plan)
 	if plan.Tunnel {

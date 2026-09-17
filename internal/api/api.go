@@ -61,6 +61,8 @@ type Service interface {
 
 	EdgeCA(ctx context.Context) (*certs.CA, error)
 
+	EdgePrune(ctx context.Context, req certs.PruneRequest) (*certs.PruneResult, error)
+
 	ProductionService
 
 	FleetService

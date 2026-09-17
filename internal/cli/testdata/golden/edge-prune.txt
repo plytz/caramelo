@@ -1,0 +1,7 @@
+2 certificate(s) removed
+
+CERTIFICATE       ISSUER KEY                                      EXPIRED
+feat-x.shop.test  internal                                        2026-07-01T12:00:00Z
+old.shop.test     acme-staging-v02.api.letsencrypt.org-directory  2026-06-15T12:00:00Z
+
+1 kept: still valid, or last written less than 720h0m0s ago

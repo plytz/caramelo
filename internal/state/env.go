@@ -53,7 +53,14 @@ type EnvRecord struct {
 
 	Owner string `json:"owner,omitempty"`
 
-	Via       string    `json:"via,omitempty"`
+	Via string `json:"via,omitempty"`
+
+	PushedAt time.Time `json:"pushed_at,omitzero"`
+
+	PushedBy string `json:"pushed_by,omitempty"`
+
+	SourceBranch string `json:"source_branch,omitempty"`
+
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -134,6 +141,8 @@ type EnvStore interface {
 	SetEnvOwner(ctx context.Context, id int64, owner string) error
 
 	SetEnvVia(ctx context.Context, id int64, via string) error
+
+	RecordEnvPush(ctx context.Context, id int64, commit, sourceBranch, pushedBy string, at time.Time) error
 
 	AddResource(ctx context.Context, r EnvResource) error
 
@@ -233,7 +242,7 @@ func scanApp(sc scanner) (App, error) {
 
 const envColumns = `id, app, name, branch, "commit", worktree, port_base, port_count, status,
 	config_json, vars_json, vpn_ip, mode, protected, release_id, deploy_id,
-	created_by, owner, via, created_at, updated_at`
+	created_by, owner, via, pushed_at, pushed_by, source_branch, created_at, updated_at`
 
 func (s *store) Envs(ctx context.Context, app string) ([]EnvRecord, error) {
 	q := `SELECT ` + envColumns + ` FROM envs`
@@ -371,6 +380,23 @@ func (s *store) SetEnvVia(ctx context.Context, id int64, via string) error {
 	return affectedOne(res, fmt.Sprintf("set where env %d is served from", id))
 }
 
+func (s *store) RecordEnvPush(ctx context.Context, id int64, commit, sourceBranch, pushedBy string, at time.Time) error {
+	if id == 0 {
+		return errors.New("record a push: no env id")
+	}
+	if at.IsZero() {
+		at = time.Now()
+	}
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE envs SET "commit" = ?, pushed_at = ?, pushed_by = ?, source_branch = ?, updated_at = ?
+		 WHERE id = ?`,
+		commit, formatTime(at), pushedBy, sourceBranch, formatTime(time.Now()), id)
+	if err != nil {
+		return fmt.Errorf("record the push into env %d: %w", id, err)
+	}
+	return affectedOne(res, fmt.Sprintf("record the push into env %d", id))
+}
+
 func (s *store) DeleteEnv(ctx context.Context, id int64) error {
 
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM envs WHERE id = ?`, id); err != nil {
@@ -381,15 +407,16 @@ func (s *store) DeleteEnv(ctx context.Context, id int64) error {
 
 func scanEnv(sc scanner) (EnvRecord, error) {
 	var r EnvRecord
-	var created, updated string
+	var created, updated, pushed string
 	var release, deploy sql.NullInt64
 	if err := sc.Scan(&r.ID, &r.App, &r.Name, &r.Branch, &r.Commit, &r.Worktree,
 		&r.PortBase, &r.PortCount, &r.Status, &r.ConfigJSON, &r.VarsJSON, &r.VPNIP,
 		&r.Mode, &r.Protected, &release, &deploy, &r.CreatedBy, &r.Owner, &r.Via,
-		&created, &updated); err != nil {
+		&pushed, &r.PushedBy, &r.SourceBranch, &created, &updated); err != nil {
 		return EnvRecord{}, err
 	}
 	r.ReleaseID, r.DeployID = release.Int64, deploy.Int64
+	r.PushedAt = parseTime(pushed)
 	r.CreatedAt, r.UpdatedAt = parseTime(created), parseTime(updated)
 	return r, nil
 }

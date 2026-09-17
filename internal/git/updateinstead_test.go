@@ -16,6 +16,8 @@ func configureArgv(repo string) []string {
 	return []string{
 		"git -C " + repo + " config --local --get receive.denyCurrentBranch",
 		"git -C " + repo + " config --local receive.denyCurrentBranch updateInstead",
+		"git -C " + repo + " config --local --get receive.advertisePushOptions",
+		"git -C " + repo + " config --local receive.advertisePushOptions true",
 		"cat " + repo + "/hooks/push-to-checkout",
 		"install -d -m 0750 " + repo + "/hooks",
 		"tee -- " + repo + "/hooks/push-to-checkout",
@@ -31,7 +33,8 @@ func unconfigured() *fakeRunner {
 
 func configured() *fakeRunner {
 	return (&fakeRunner{}).
-		on("git -C "+repo+" config --local --get", ok("updateInstead\n")).
+		on("git -C "+repo+" config --local --get receive.denyCurrentBranch", ok("updateInstead\n")).
+		on("git -C "+repo+" config --local --get receive.advertisePushOptions", ok("true\n")).
 		on("cat "+repo+"/hooks/push-to-checkout", ok(PushToCheckoutHook))
 }
 
@@ -61,12 +64,14 @@ func TestEnsureUpdateInsteadIsIdempotent(t *testing.T) {
 	}
 	wantArgv(t, f,
 		"git -C "+repo+" config --local --get receive.denyCurrentBranch",
+		"git -C "+repo+" config --local --get receive.advertisePushOptions",
 		"cat "+repo+"/hooks/push-to-checkout")
 }
 
 func TestEnsureUpdateInsteadAcceptsAnyCasing(t *testing.T) {
 	f := (&fakeRunner{}).
-		on("git -C "+repo+" config --local --get", ok("UPDATEINSTEAD\n")).
+		on("git -C "+repo+" config --local --get receive.denyCurrentBranch", ok("UPDATEINSTEAD\n")).
+		on("git -C "+repo+" config --local --get receive.advertisePushOptions", ok("TRUE\n")).
 		on("cat "+repo+"/hooks/push-to-checkout", ok(PushToCheckoutHook))
 	if changed, err := testCLI(f).EnsureUpdateInstead(context.Background(), repo); err != nil || changed {
 		t.Fatalf("EnsureUpdateInstead() = %v, %v; want no change", changed, err)
@@ -82,21 +87,38 @@ func TestEnsureUpdateInsteadRewritesWhatItFinds(t *testing.T) {
 		{
 			"another value",
 			(&fakeRunner{}).
-				on("git -C "+repo+" config --local --get", ok("refuse\n")).
+				on("git -C "+repo+" config --local --get receive.denyCurrentBranch", ok("refuse\n")).
+				on("git -C "+repo+" config --local --get receive.advertisePushOptions", ok("true\n")).
 				on("cat "+repo+"/hooks/push-to-checkout", ok(PushToCheckoutHook)),
 			[]string{
 				"git -C " + repo + " config --local --get receive.denyCurrentBranch",
 				"git -C " + repo + " config --local receive.denyCurrentBranch updateInstead",
+				"git -C " + repo + " config --local --get receive.advertisePushOptions",
+				"cat " + repo + "/hooks/push-to-checkout",
+			},
+		},
+		{
+			"a repository that never advertised push options",
+			(&fakeRunner{}).
+				on("git -C "+repo+" config --local --get receive.denyCurrentBranch", ok("updateInstead\n")).
+				on("git -C "+repo+" config --local --get receive.advertisePushOptions", fail(1, "")).
+				on("cat "+repo+"/hooks/push-to-checkout", ok(PushToCheckoutHook)),
+			[]string{
+				"git -C " + repo + " config --local --get receive.denyCurrentBranch",
+				"git -C " + repo + " config --local --get receive.advertisePushOptions",
+				"git -C " + repo + " config --local receive.advertisePushOptions true",
 				"cat " + repo + "/hooks/push-to-checkout",
 			},
 		},
 		{
 			"an older hook",
 			(&fakeRunner{}).
-				on("git -C "+repo+" config --local --get", ok("updateInstead\n")).
+				on("git -C "+repo+" config --local --get receive.denyCurrentBranch", ok("updateInstead\n")).
+				on("git -C "+repo+" config --local --get receive.advertisePushOptions", ok("true\n")).
 				on("cat "+repo+"/hooks/push-to-checkout", ok("#!/bin/sh\n# an older caramelo\n")),
 			[]string{
 				"git -C " + repo + " config --local --get receive.denyCurrentBranch",
+				"git -C " + repo + " config --local --get receive.advertisePushOptions",
 				"cat " + repo + "/hooks/push-to-checkout",
 				"install -d -m 0750 " + repo + "/hooks",
 				"tee -- " + repo + "/hooks/push-to-checkout",

@@ -22,6 +22,8 @@ type pushPlan struct {
 
 	Ref string
 
+	SourceBranch string
+
 	Force bool
 
 	Tunnel bool
@@ -70,12 +72,23 @@ func (e *envCmd) planPush(ctx context.Context, t transport) (*pushPlan, error) {
 			"this checkout is not on a branch, so there is nothing to push by default: pass --from REF or --no-push")}
 	}
 	return &pushPlan{
-		Dir:    ".",
-		Remote: pushURL(t.target, e.app),
-		Ref:    ref,
-		Force:  e.create.force,
-		Tunnel: t.kind == kindTunnel,
+		Dir:          ".",
+		Remote:       pushURL(t.target, e.app),
+		Ref:          ref,
+		SourceBranch: pushSource(ctx, strings.TrimSpace(e.create.from)),
+		Force:        e.create.force,
+		Tunnel:       t.kind == kindTunnel,
 	}, nil
+}
+
+func pushSource(ctx context.Context, from string) string {
+	if from == "" {
+		return currentBranch(ctx)
+	}
+	if _, err := runGit(ctx, ".", "rev-parse", "--verify", "--quiet", "refs/heads/"+from); err != nil {
+		return ""
+	}
+	return from
 }
 
 func pushURL(target remote.Target, app string) string {
@@ -108,17 +121,23 @@ func gitSSHCommand() (string, error) {
 	return strings.Join(append([]string{remote.Quote(bin)}, remote.QuoteArgs(args)...), " "), nil
 }
 
+func pushArgs(p pushPlan) []string {
+	args := []string{"-C", p.Dir, "push"}
+	if p.Force {
+		args = append(args, "--force")
+	}
+	if p.SourceBranch != "" {
+		args = append(args, "-o", "caramelo.branch="+p.SourceBranch)
+	}
+	return append(args, p.Remote, p.Ref)
+}
+
 func runGitPush(ctx context.Context, p pushPlan, stderr io.Writer) error {
 	gitEnv, err := pushEnv(p)
 	if err != nil {
 		return err
 	}
-	args := []string{"-C", p.Dir, "push"}
-	if p.Force {
-		args = append(args, "--force")
-	}
-	args = append(args, p.Remote, p.Ref)
-	cmd := exec.CommandContext(ctx, "git", args...)
+	cmd := exec.CommandContext(ctx, "git", pushArgs(p)...)
 	cmd.Env = append(os.Environ(), gitEnv...)
 
 	cmd.Stdout = stderr

@@ -267,18 +267,28 @@ func fixUpRepositories(ctx context.Context, store state.Store, cfg serverconfig.
 	}
 
 	hooked := 0
+	recorders := 0
 	for _, r := range repos {
 		changed, err := repo.EnsurePreReceive(ctx, r)
 		if err != nil {
 			logf("install the pre-receive hook in %s: %v", r, err)
+		} else if changed {
+			hooked++
+		}
+		changed, err = repo.EnsurePostReceive(ctx, r)
+		if err != nil {
+			logf("install the post-receive hook in %s: %v", r, err)
 			continue
 		}
 		if changed {
-			hooked++
+			recorders++
 		}
 	}
 	if hooked > 0 {
 		logf("installed the pre-receive hook in %d repositories", hooked)
+	}
+	if recorders > 0 {
+		logf("installed the post-receive hook in %d repositories", recorders)
 	}
 }
 

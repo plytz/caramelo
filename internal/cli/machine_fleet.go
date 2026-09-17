@@ -50,7 +50,7 @@ Adding a box that is already a member re-runs setup and changes nothing else.`,
 			if err := checkDoorFlags(edge, private); err != nil {
 				return err
 			}
-			if err := checkBinarySource(binary, release); err != nil {
+			if err := checkBinarySource(cmd.Flags(), args[0], binary, release); err != nil {
 				return err
 			}
 			if binary != "" {
@@ -137,6 +137,10 @@ what it holds, and from then on dials out and keeps the tunnel alive.
 HUB is the hub's endpoint — a hostname, optionally with the UDP port. Run it on
 the machine that is joining, as root, with a token from 'caramelo machine token'
 on the hub.
+
+'caramelo server setup' runs first on that machine and makes what join needs:
+the configuration, the caramelo user, rootless Docker and the machine's key.
+From the commander, 'caramelo machine add' does both halves in one go.
 
 A member keeps serving everything it already holds while the hub is down. What
 it cannot do without the hub is start a definition it has not started before,

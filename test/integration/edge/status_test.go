@@ -12,6 +12,7 @@ import (
 	"time"
 
 	cedge "github.com/plytz/caramelo/internal/edge"
+	ccerts "github.com/plytz/caramelo/internal/edge/certs"
 	"github.com/plytz/caramelo/internal/serverconfig"
 	csetup "github.com/plytz/caramelo/internal/setup"
 	"github.com/plytz/caramelo/test/integration/itest"
@@ -75,6 +76,9 @@ func TestEdgeStatusAndAccessLog(t *testing.T) {
 	t.Run("both certificates, with their expiries", func(t *testing.T) {
 		byHost := map[string]bool{}
 		for _, c := range st.Certificates {
+			if c.State != ccerts.Live {
+				continue
+			}
 			byHost[c.Host] = true
 			if c.NotAfter.IsZero() || c.NotAfter.Before(time.Now()) {
 				t.Errorf("certificate for %s expires at %v", c.Host, c.NotAfter)
@@ -85,7 +89,22 @@ func TestEdgeStatusAndAccessLog(t *testing.T) {
 		}
 		for _, host := range []string{hostX, hostSecond} {
 			if !byHost[host] {
-				t.Errorf("no certificate for %s in edge status: %+v", host, st.Certificates)
+				t.Errorf("no live certificate for %s in edge status: %+v", host, st.Certificates)
+			}
+		}
+	})
+
+	t.Run("a machine that never changed issuer has nothing stale", func(t *testing.T) {
+		for _, c := range st.Certificates {
+			if c.State != ccerts.Live {
+				t.Errorf("certificate for %s is %q under issuer key %q; this machine has only ever "+
+					"used one certificate authority", c.Host, c.State, c.IssuerKey)
+			}
+			if c.IssuerKey == "" {
+				t.Errorf("certificate for %s names no issuer key, so nothing says which tree holds it", c.Host)
+			}
+			if !c.Managed {
+				t.Errorf("certificate for %s is not managed, so nothing would renew it", c.Host)
 			}
 		}
 	})

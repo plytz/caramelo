@@ -276,6 +276,7 @@ func TestEnvListMine(t *testing.T) {
 }
 
 func TestEnvListColumnsAppearWithTheFleet(t *testing.T) {
+
 	alone := envsTable(envRows([]env.Env{sampleEnv()}))
 	head := alone.Rows()
 	if len(head) != 1 || len(head[0]) != 10 {
@@ -293,6 +294,14 @@ func TestEnvListColumnsAppearWithTheFleet(t *testing.T) {
 	}
 	if plain := ui.NewView().Table(alone).String(); strings.Contains(plain, "MACHINE") {
 		t.Errorf("a machine of one grew a MACHINE column:\n%s", plain)
+	}
+
+	none := envsTable(envRows([]env.Env{releaseEnvFixture()}))
+	if rows := none.Rows(); len(rows[0]) != 9 {
+		t.Errorf("an environment nobody pushed to printed %d cells, want 9", len(rows[0]))
+	}
+	if plain := ui.NewView().Table(none).String(); strings.Contains(plain, "SOURCE") {
+		t.Errorf("a table where no row knows where the push came from grew a SOURCE column:\n%s", plain)
 	}
 }
 

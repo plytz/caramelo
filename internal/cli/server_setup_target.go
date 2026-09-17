@@ -42,7 +42,16 @@ var (
 	bootstrapRun = bootstrap.Run
 )
 
-func checkBinarySource(binary, release string) error {
+func checkBinarySource(flags *pflag.FlagSet, target, binary, release string) error {
+	for _, fl := range []struct{ name, value, wants string }{
+		{"binary", binary, "a path to a caramelo binary"},
+		{"release", release, "a tag such as v0.0.1"},
+	} {
+		if flags.Changed(fl.name) && fl.value == "" {
+			return &usageError{fmt.Errorf(
+				"--%s was given with no value: it wants %s", fl.name, fl.wants)}
+		}
+	}
 	if binary != "" && release != "" {
 		return &usageError{errors.New("--binary and --release name two different binaries; give one")}
 	}
@@ -50,7 +59,19 @@ func checkBinarySource(binary, release string) error {
 		return &usageError{fmt.Errorf(
 			"--release wants a tag of the form v<major>.<minor>.<patch>, such as v0.0.1: got %q", release)}
 	}
+	if target == "" && commandTakesATargetFlag(flags) {
+		for _, name := range []string{"release", "binary"} {
+			if flags.Changed(name) {
+				return &usageError{fmt.Errorf(
+					"--%s only makes sense with --target: a machine sets itself up with the binary that is running", name)}
+			}
+		}
+	}
 	return nil
+}
+
+func commandTakesATargetFlag(flags *pflag.FlagSet) bool {
+	return flags.Lookup("target") != nil
 }
 
 type bootstrapFlags struct {
@@ -358,8 +379,7 @@ func bootstrapPlan(target remote.Target, f bootstrapFlags) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "caramelo server setup will change %s (over ssh, as root):\n", target)
 
-	binary := "this one; or caramelo-<os>-<arch> beside it, or the same release downloaded for the target, " +
-		"when the target is another platform"
+	binary := defaultBinaryPlan(version)
 	if f.release != "" {
 		binary = "release " + f.release + ", downloaded for the target's platform"
 	}
@@ -379,6 +399,15 @@ func bootstrapPlan(target remote.Target, f bootstrapFlags) string {
 	fmt.Fprintf(&b, "  keys      %s\n", keys)
 	fmt.Fprintf(&b, "  commander records the machine as %q in the commander config\n", nameOr(f.name, target.Host))
 	return b.String()
+}
+
+func defaultBinaryPlan(version string) string {
+	if bootstrap.IsReleaseTag(version) {
+		return "this one; if the target is another platform, caramelo-<os>-<arch> beside it, " +
+			"or release " + version + " downloaded for the target"
+	}
+	return "this one; if the target is another platform, caramelo-<os>-<arch> beside it — " +
+		"this build is not a release, so nothing can be fetched for it: give --binary <path> or --release <tag>"
 }
 
 func edgeSource(cfg serverconfig.Config) string {

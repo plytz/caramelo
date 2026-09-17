@@ -397,6 +397,28 @@ func TestStatusIsWhatEdgeStatusPrints(t *testing.T) {
 	}
 }
 
+func TestAPruneReachesTheCertificateManager(t *testing.T) {
+	te := newTestEdge(t, nil)
+	te.push(t, Table{UpdatedAt: time.Now().UTC(), Routes: []Route{
+		route("feat-x.shop.test", Target{Replica: 1, Port: 20002, State: TargetActive}),
+	}})
+	c := NewClient(te.e.opts.socketPath())
+	defer c.Close()
+
+	keep := 12 * time.Hour
+	res, err := c.Prune(t.Context(), certs.PruneRequest{KeepFor: &keep})
+	if err != nil {
+		t.Fatalf("Prune: %v", err)
+	}
+	if res.KeepFor != keep {
+		t.Errorf("the manager ran with %s, want %s", res.KeepFor, keep)
+	}
+	got := te.issuer.prunes()
+	if len(got) != 1 || got[0].KeepFor == nil || *got[0].KeepFor != keep {
+		t.Fatalf("the certificate manager was asked %+v, want the retention the caller named", got)
+	}
+}
+
 func TestSubscribersSeeARolloutThroughTheSocket(t *testing.T) {
 	te := newTestEdge(t, func(o *Options) { o.HTTP3 = false })
 	one, two := newReplica(t, 1), newReplica(t, 2)

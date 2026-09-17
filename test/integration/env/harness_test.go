@@ -15,6 +15,7 @@ import (
 
 	capi "github.com/plytz/caramelo/internal/api"
 	cenv "github.com/plytz/caramelo/internal/env"
+	cprogress "github.com/plytz/caramelo/internal/progress"
 	"github.com/plytz/caramelo/test/integration/itest"
 )
 
@@ -145,6 +146,12 @@ func (s *suite) showEnv(t *testing.T, name string) capi.EnvDetail {
 	t.Helper()
 	res := s.mustInRepo(t, "env", "show", name, "--json")
 	return decode[capi.EnvDetail](t, "env show "+name, res.Stdout)
+}
+
+func (s *suite) events(t *testing.T, args ...string) []cprogress.Event {
+	t.Helper()
+	res := s.mustInRepo(t, append([]string{"events"}, append(args, "--json")...)...)
+	return itest.ParseEvents(t, "events", res.Stdout)
 }
 
 func (s *suite) exportEnv(t *testing.T, name string) map[string]string {

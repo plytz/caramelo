@@ -266,6 +266,29 @@ func newEnvCmd(from string, noPush, force bool) *envCmd {
 	}
 }
 
+func TestPushArgsCarryTheSourceBranchAsAPushOption(t *testing.T) {
+	base := pushPlan{Dir: ".", Remote: "ssh://caramelo@box:4022/shop", Ref: "feat-x"}
+
+	plain := base
+	if got := strings.Join(pushArgs(plain), " "); got != "-C . push ssh://caramelo@box:4022/shop feat-x" {
+		t.Errorf("args = %q; a plan with no source sends no option", got)
+	}
+
+	named := base
+	named.SourceBranch = "blob-store"
+	if got := strings.Join(pushArgs(named), " "); got !=
+		"-C . push -o caramelo.branch=blob-store ssh://caramelo@box:4022/shop feat-x" {
+		t.Errorf("args = %q", got)
+	}
+
+	forced := named
+	forced.Force = true
+	if got := strings.Join(pushArgs(forced), " "); got !=
+		"-C . push --force -o caramelo.branch=blob-store ssh://caramelo@box:4022/shop feat-x" {
+		t.Errorf("args = %q; the option goes after --force and before the remote", got)
+	}
+}
+
 func TestPlanPush(t *testing.T) {
 	inCheckout := map[string]string{
 		"rev-parse --git-dir":         ".git",
@@ -290,6 +313,9 @@ func TestPlanPush(t *testing.T) {
 		if got.Force {
 			t.Error("the default push is fast-forward only")
 		}
+		if got.SourceBranch != "feat-x" {
+			t.Errorf("source = %q, want the branch the developer is standing on", got.SourceBranch)
+		}
 	})
 
 	t.Run("--from wins", func(t *testing.T) {
@@ -300,6 +326,41 @@ func TestPlanPush(t *testing.T) {
 		}
 		if got.Ref != "main" || !got.Force {
 			t.Errorf("plan = %+v", got)
+		}
+		if got.SourceBranch != "" {
+			t.Errorf("source = %q; --from main names no local branch in this checkout", got.SourceBranch)
+		}
+	})
+
+	t.Run("--from naming a local branch is the source", func(t *testing.T) {
+		fakeGit(t, map[string]string{
+			"rev-parse --git-dir":                            ".git",
+			"rev-parse --abbrev-ref HEAD":                    "feat-x",
+			"rev-parse --verify --quiet refs/heads/main":     "1111111",
+			"rev-parse --verify --quiet refs/heads/blob-vfs": "2222222",
+		})
+		got, err := newEnvCmd("blob-vfs", false, false).planPush(context.Background(), sshTransport())
+		if err != nil || got == nil {
+			t.Fatalf("plan = %+v, err = %v", got, err)
+		}
+		if got.Ref != "blob-vfs" || got.SourceBranch != "blob-vfs" {
+			t.Errorf("plan = %+v, want the branch both pushed and named", got)
+		}
+	})
+
+	t.Run("--from naming a tag or a sha names no branch", func(t *testing.T) {
+		for _, from := range []string{"v1.2.0", "0123456789abcdef0123456789abcdef01234567"} {
+			fakeGit(t, map[string]string{
+				"rev-parse --git-dir":         ".git",
+				"rev-parse --abbrev-ref HEAD": "feat-x",
+			})
+			got, err := newEnvCmd(from, false, false).planPush(context.Background(), sshTransport())
+			if err != nil || got == nil {
+				t.Fatalf("--from %s: plan = %+v, err = %v", from, got, err)
+			}
+			if got.SourceBranch != "" {
+				t.Errorf("--from %s: source = %q, want nothing rather than a guess", from, got.SourceBranch)
+			}
 		}
 	})
 

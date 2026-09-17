@@ -53,12 +53,8 @@ the machine is recorded in the commander config and the API is checked from here
 
 		Args: rangeArgs(0, 1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := checkBinarySource(targetBinary, targetRelease); err != nil {
+			if err := checkBinarySource(cmd.Flags(), target, targetBinary, targetRelease); err != nil {
 				return err
-			}
-			if targetRelease != "" && target == "" {
-				return &usageError{errors.New(
-					"--release only makes sense with --target: a machine sets itself up with the binary that is running")}
 			}
 			opts.InstallPackages = !noPkgs
 
@@ -164,7 +160,7 @@ the machine is recorded in the commander config and the API is checked from here
 	f.BoolVar(&noPkgs, "no-packages", false, "assume Docker is already installed")
 	f.StringVar(&target, "target", "", "set up another machine from here: [user@]host[:port] for ssh (default user: yours, port 22)")
 	f.StringVar(&name, "name", "", "name to record the --target machine under in the commander config (default: its host)")
-	f.StringVar(&targetBinary, "binary", "", "the caramelo binary to ship to --target (default: this one; or caramelo-<os>-<arch> beside it, or the same release downloaded for the target, when the target is another platform)")
+	f.StringVar(&targetBinary, "binary", "", "the caramelo binary to ship to --target (default: this one; caramelo-<os>-<arch> beside it; or, when this binary is itself a release, that release downloaded for the target)")
 	f.StringVar(&targetRelease, "release", "",
 		"ship this release of caramelo to the target instead of this binary: a tag such as v0.0.1, downloaded from GitHub for the target's platform")
 

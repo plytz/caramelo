@@ -140,6 +140,22 @@ func (s *fakeStore) UpdateEnv(ctx context.Context, r state.EnvRecord) error {
 	return state.ErrNotFound
 }
 
+func (s *fakeStore) RecordEnvPush(ctx context.Context, id int64, commit, sourceBranch, pushedBy string,
+	at time.Time) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.envs {
+		if s.envs[i].ID == id {
+			s.envs[i].Commit = commit
+			s.envs[i].SourceBranch = sourceBranch
+			s.envs[i].PushedBy = pushedBy
+			s.envs[i].PushedAt = at
+			return nil
+		}
+	}
+	return state.ErrNotFound
+}
+
 func (s *fakeStore) DeleteEnv(ctx context.Context, id int64) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -548,6 +564,10 @@ func (e *fakeEdge) Subscribe(ctx context.Context, since time.Time, fn func(edge.
 }
 
 func (e *fakeEdge) CA(ctx context.Context) (*certs.CA, error) { return nil, nil }
+
+func (e *fakeEdge) Prune(_ context.Context, req certs.PruneRequest) (*certs.PruneResult, error) {
+	return &certs.PruneResult{KeepFor: req.Keep(), DryRun: req.DryRun}, nil
+}
 
 func (e *fakeEdge) Counts(_ context.Context, since time.Time) (*edge.Counts, error) {
 	e.mu.Lock()

@@ -20,6 +20,7 @@ func TestServerSetupIsRegisteredWithItsFlags(t *testing.T) {
 	for _, flag := range []string{
 		"--config-dir", "--state-dir", "--data-dir", "--user", "--group", "--ssh-port",
 		"--bind", "--authorized-keys", "--yes", "--force", "--low-ports", "--dry-run", "--no-packages",
+		"--target", "--name", "--binary", "--release",
 	} {
 		if !strings.Contains(stdout, flag) {
 			t.Errorf("server setup has no %s flag:\n%s", flag, stdout)

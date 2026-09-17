@@ -101,7 +101,10 @@ func init() {
 	})
 
 	registerRenderer("edge status", func(a *app) Renderer {
-		return viewRenderer(func(st *edge.Status) *ui.View { return edgeStatusView(st) })
+		return viewRenderer(func(st *edge.Status) *ui.View { return edgeStatusView(st, time.Now()) })
+	})
+	registerRenderer("edge prune", func(a *app) Renderer {
+		return viewRenderer(func(r *certs.PruneResult) *ui.View { return edgePruneView(r) })
 	})
 	registerRenderer("edge ca", func(a *app) Renderer {
 
