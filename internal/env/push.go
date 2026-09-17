@@ -134,16 +134,50 @@ func (m *Manager) SyncBranch(ctx context.Context, app, name string) (*Env, error
 	}
 	commit, err := m.Git.RevParse(ctx, repo, rec.Branch)
 	if err == nil && commit != "" && commit != rec.Commit {
-		rec.Commit = commit
-		if err := m.Store.UpdateEnv(ctx, *rec); err != nil {
+		rec.Commit, rec.SourceBranch = commit, ""
+		rec.PushedBy, rec.PushedAt = IdentityFrom(ctx), m.now()
+		if err := m.Store.RecordEnvPush(ctx, rec.ID, rec.Commit, "", rec.PushedBy, rec.PushedAt); err != nil {
 			return nil, fmt.Errorf("record the new commit of %s/%s: %w", app, name, err)
 		}
 	}
-	m.event(ctx, rec.ID, "push", "changed", "checkout updated to "+short(rec.Commit))
+	m.event(ctx, rec.ID, "push", "changed", pushDetail(rec.Commit, ""))
 	e, err := recordToEnv(rec)
 	if err != nil {
 		return nil, err
 	}
 	m.stampFleet(e, m.fleetRow(ctx, rec.ID))
 	return e, nil
+}
+
+func pushDetail(commit, source string) string {
+	detail := "checkout updated to " + short(commit)
+	if source != "" {
+		detail += " from " + source
+	}
+	return detail
+}
+
+func (m *Manager) RecordPush(ctx context.Context, app, branch, commit, source, identity string) (*Env, error) {
+	defer m.lockEnv(app, branch)()
+	rec, err := m.Store.Env(ctx, app, branch)
+	switch {
+	case errors.Is(err, state.ErrNotFound):
+		m.record(ctx, 0, Event{
+			App: app, Env: branch, Action: "push", Status: "ok",
+			Detail: pushDetail(commit, source), Identity: identity,
+		})
+		return nil, nil
+	case err != nil:
+		return nil, fmt.Errorf("read env %q of app %q: %w", branch, app, err)
+	}
+	at := m.now()
+	if err := m.Store.RecordEnvPush(ctx, rec.ID, commit, source, identity, at); err != nil {
+		return nil, fmt.Errorf("record the push into %s/%s: %w", app, branch, err)
+	}
+	rec.Commit, rec.SourceBranch, rec.PushedBy, rec.PushedAt = commit, source, identity, at
+	m.record(ctx, rec.ID, Event{
+		Action: "push", Status: "changed",
+		Detail: pushDetail(commit, source), Identity: identity,
+	})
+	return recordToEnv(rec)
 }

@@ -15,6 +15,10 @@ const (
 
 	UpdateInstead = "updateInstead"
 
+	AdvertisePushOptionsKey = "receive.advertisePushOptions"
+
+	AdvertisePushOptions = "true"
+
 	PushToCheckoutHookName = "hooks/push-to-checkout"
 )
 
@@ -55,7 +59,11 @@ func (c *CLI) EnsureUpdateInstead(ctx context.Context, repo string) (bool, error
 	if repo == "" {
 		return false, errors.New("git config " + DenyCurrentBranchKey + ": no repository given")
 	}
-	config, err := c.ensureDenyCurrentBranch(ctx, repo)
+	deny, err := c.ensureConfig(ctx, repo, DenyCurrentBranchKey, UpdateInstead)
+	if err != nil {
+		return false, err
+	}
+	options, err := c.ensureConfig(ctx, repo, AdvertisePushOptionsKey, AdvertisePushOptions)
 	if err != nil {
 		return false, err
 	}
@@ -63,12 +71,12 @@ func (c *CLI) EnsureUpdateInstead(ctx context.Context, repo string) (bool, error
 	if err != nil {
 		return false, err
 	}
-	return config || hook, nil
+	return deny || options || hook, nil
 }
 
-func (c *CLI) ensureDenyCurrentBranch(ctx context.Context, repo string) (bool, error) {
+func (c *CLI) ensureConfig(ctx context.Context, repo, key, want string) (bool, error) {
 
-	args := c.in(repo, "config", "--local", "--get", DenyCurrentBranchKey)
+	args := c.in(repo, "config", "--local", "--get", key)
 	res, err := c.run(ctx, args...)
 	if err != nil {
 		return false, err
@@ -76,14 +84,14 @@ func (c *CLI) ensureDenyCurrentBranch(ctx context.Context, repo string) (bool, e
 	switch res.ExitCode {
 	case 0:
 
-		if strings.EqualFold(strings.TrimSpace(res.Stdout), UpdateInstead) {
+		if strings.EqualFold(strings.TrimSpace(res.Stdout), want) {
 			return false, nil
 		}
 	case 1:
 	default:
 		return false, cmdErr(args, res)
 	}
-	if _, err := c.runOK(ctx, c.in(repo, "config", "--local", DenyCurrentBranchKey, UpdateInstead)...); err != nil {
+	if _, err := c.runOK(ctx, c.in(repo, "config", "--local", key, want)...); err != nil {
 		return false, err
 	}
 	return true, nil

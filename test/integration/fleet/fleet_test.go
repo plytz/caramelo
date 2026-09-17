@@ -322,6 +322,18 @@ func TestAPushIntoARemoteBranch(t *testing.T) {
 		t.Errorf("%s's worktree is at %s, want %s", box.Alias, got, commit)
 	}
 
+	recorded := showEnv(t, remoteEnv).Env
+	if recorded.Commit != commit {
+		t.Errorf("%s is recorded at %q, want the commit that landed (%s)", remoteEnv, recorded.Commit, commit)
+	}
+	if recorded.PushedAt.IsZero() || recorded.PushedBy == "" {
+		t.Errorf("the member did not write the push down: %+v", recorded)
+	}
+	if recorded.SourceBranch != "" {
+		t.Errorf("source branch = %q; a member is never told where the hub's push came from",
+			recorded.SourceBranch)
+	}
+
 	worktree := showEnv(t, remoteEnv).Env.Worktree
 	onBox(t, box, fmt.Sprintf("sudo sh -c 'echo dirty >> %s/version.py'", worktree))
 	before := itest.GitRefs(t, repo, commanderEnv(), hubRemote())

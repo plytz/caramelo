@@ -340,11 +340,15 @@ func depPort(base, i int) int { return base + 1 + i }
 
 func recordToEnv(r *state.EnvRecord) (*Env, error) {
 	e := &Env{
-		ID:        r.ID,
-		App:       r.App,
-		Name:      r.Name,
-		Branch:    r.Branch,
-		Commit:    r.Commit,
+		ID:           r.ID,
+		App:          r.App,
+		Name:         r.Name,
+		Branch:       r.Branch,
+		Commit:       r.Commit,
+		SourceBranch: r.SourceBranch,
+		PushedBy:     r.PushedBy,
+		PushedAt:     r.PushedAt,
+
 		Worktree:  r.Worktree,
 		PortBase:  r.PortBase,
 		PortCount: r.PortCount,

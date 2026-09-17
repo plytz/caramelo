@@ -169,7 +169,16 @@ func envRecordView(e *env.Env, deps []env.DepState) *ui.View {
 	f := ui.NewFields(fmt.Sprintf("%s/%s  %s", e.App, e.Name, e.Status))
 
 	f.Add("mode", "%s", describeMode(*e))
-	f.Add("branch", "%s at %s", strOrDash(e.Branch), shortCommit(e.Commit))
+	f.Add("commit", "%s", shortCommit(e.Commit))
+	if !e.PushedAt.IsZero() {
+		f.Add("pushed", "%s", e.PushedAt.Local().Format(time.RFC3339))
+	}
+	if e.SourceBranch != "" {
+		f.Add("pushed from", "%s", e.SourceBranch)
+	}
+	if e.PushedBy != "" {
+		f.Add("pushed by", "%s", e.PushedBy)
+	}
 	f.Add("worktree", "%s", strOrDash(e.Worktree))
 	f.Add("ports", "%s  (PORT=%d)", portRange(*e), e.Port())
 	if names := depNames(*e); len(names) > 0 {

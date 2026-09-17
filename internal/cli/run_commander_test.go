@@ -190,6 +190,9 @@ func TestUpPushesHEADToTheEnvironmentsBranch(t *testing.T) {
 	if p.Force {
 		t.Error("the default push is fast-forward only")
 	}
+	if p.SourceBranch != "feat-x" {
+		t.Errorf("source = %q, want the branch up pushed from", p.SourceBranch)
+	}
 	if !fwd.called {
 		t.Error("the command was not forwarded after the push")
 	}
@@ -215,6 +218,9 @@ func TestUpForcePushes(t *testing.T) {
 	}
 	if len(*pushed) != 1 || !(*pushed)[0].Force {
 		t.Errorf("pushes = %+v, want one forced push", *pushed)
+	}
+	if (*pushed)[0].SourceBranch != "feat-x" {
+		t.Errorf("source = %q, want the branch up pushed from", (*pushed)[0].SourceBranch)
 	}
 }
 

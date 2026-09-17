@@ -4,11 +4,16 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
+	"github.com/plytz/caramelo/internal/api"
+	"github.com/plytz/caramelo/internal/env"
+	"github.com/plytz/caramelo/internal/git"
 	"github.com/plytz/caramelo/internal/runner"
 	"github.com/plytz/caramelo/internal/serverconfig"
 	"github.com/plytz/caramelo/internal/state"
@@ -418,4 +423,174 @@ func TestServeGitSurvivesAFailureToSettleHEAD(t *testing.T) {
 	if !strings.Contains(sess.stderr.String(), "warning") {
 		t.Errorf("stderr = %q, want a warning", sess.stderr.String())
 	}
+}
+
+type pushStore struct {
+	state.Store
+
+	mu     sync.Mutex
+	envs   []state.EnvRecord
+	events []state.EnvEvent
+	pushes []state.EnvRecord
+}
+
+func (s *pushStore) Env(_ context.Context, app, name string) (*state.EnvRecord, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.envs {
+		if s.envs[i].App == app && s.envs[i].Name == name {
+			e := s.envs[i]
+			return &e, nil
+		}
+	}
+	return nil, state.ErrNotFound
+}
+
+func (s *pushStore) RecordEnvPush(_ context.Context, id int64, commit, sourceBranch, pushedBy string,
+	at time.Time) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.pushes = append(s.pushes, state.EnvRecord{
+		ID: id, Commit: commit, SourceBranch: sourceBranch, PushedBy: pushedBy, PushedAt: at,
+	})
+	return nil
+}
+
+func (s *pushStore) AddEvent(_ context.Context, e state.EnvEvent) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.events = append(s.events, e)
+	return nil
+}
+
+func (s *pushStore) seen() ([]state.EnvRecord, []state.EnvEvent) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]state.EnvRecord(nil), s.pushes...), append([]state.EnvEvent(nil), s.events...)
+}
+
+func pushDaemon(t *testing.T, write func(path string)) (*Daemon, *pushStore, *scriptRunner, *gitSession) {
+	t.Helper()
+	store := newGitStore(state.App{Name: "shop"})
+	run := &scriptRunner{reply: func(c runner.Cmd) (runner.Result, error) {
+		if write != nil && len(c.Args) > 0 && c.Args[0] == verbReceivePack {
+			for _, kv := range c.Env {
+				if path, ok := strings.CutPrefix(kv, git.PushRecordEnv+"="); ok {
+					write(path)
+				}
+			}
+		}
+		if containsArgs(c.Args, []string{"symbolic-ref", "--quiet", "HEAD"}) {
+			return runner.Result{Stdout: "refs/heads/main\n"}, nil
+		}
+		return runner.Result{}, nil
+	}}
+	d := gitDaemon(t, store, run)
+	pushes := &pushStore{envs: []state.EnvRecord{{ID: 3, App: "shop", Name: "feat-x", Branch: "feat-x"}}}
+	d.EnvManager = &env.Manager{Store: pushes}
+	return d, pushes, run, newGitSession()
+}
+
+func TestServeGitHandsReceivePackAPlaceToWriteThePushDown(t *testing.T) {
+	d, pushes, run, sess := pushDaemon(t, nil)
+
+	if code := d.ServeGit(context.Background(), sess.req(verbReceivePack, "/shop")); code != 0 {
+		t.Fatalf("exit = %d, stderr %q", code, sess.stderr.String())
+	}
+	repo := filepath.Join(d.Config.DataDir, "apps", "shop", "repo.git")
+	serve := run.ran(verbReceivePack, repo)
+	if serve == nil {
+		t.Fatal("git receive-pack never ran")
+	}
+	var path string
+	for _, kv := range serve.Env {
+		if p, ok := strings.CutPrefix(kv, git.PushRecordEnv+"="); ok {
+			path = p
+		}
+	}
+	if path == "" {
+		t.Fatalf("receive-pack was given %v, want %s", serve.Env, git.PushRecordEnv)
+	}
+	if dir := filepath.Dir(path); dir != filepath.Join(repo, git.PushRecordDir) {
+		t.Errorf("the drop file lands in %s, want the repository's own %s", dir, git.PushRecordDir)
+	}
+	if _, err := os.Stat(path); err == nil {
+		t.Errorf("%s was left behind", path)
+	}
+
+	if fetch := newGitSession(); d.ServeGit(context.Background(), fetch.req(verbUploadPack, "/shop")) == 0 {
+		if got := run.ran(verbUploadPack, repo); got != nil && len(got.Env) != 0 {
+			t.Errorf("a fetch was given %v; only a push writes anything down", got.Env)
+		}
+	}
+
+	if recorded, events := pushes.seen(); len(recorded) != 0 || len(events) != 0 {
+		t.Errorf("a push whose hook never ran recorded %+v and %+v; it must record nothing", recorded, events)
+	}
+}
+
+func TestServeGitRecordsWhatTheHookWroteDown(t *testing.T) {
+	const landed = "0123456789abcdef0123456789abcdef01234567"
+	d, pushes, _, sess := pushDaemon(t, func(path string) {
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("option caramelo.branch=blob-store\n"+
+			"ref "+strings.Repeat("0", 40)+" "+landed+" refs/heads/feat-x\n"+
+			"ref "+strings.Repeat("0", 40)+" "+landed+" refs/tags/v1\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	})
+	ctx := WithSession(context.Background(), api.Session{Transport: "ssh", Identity: "alex@laptop"})
+
+	if code := d.ServeGit(ctx, sess.req(verbReceivePack, "/shop")); code != 0 {
+		t.Fatalf("exit = %d, stderr %q", code, sess.stderr.String())
+	}
+	recorded, events := pushes.seen()
+	if len(recorded) != 1 {
+		t.Fatalf("recorded %+v, want the one branch that landed", recorded)
+	}
+	got := recorded[0]
+	if got.ID != 3 || got.Commit != landed || got.SourceBranch != "blob-store" || got.PushedBy != "alex@laptop" {
+		t.Errorf("recorded %+v", got)
+	}
+	if got.PushedAt.IsZero() {
+		t.Error("the push was recorded with no time")
+	}
+	if len(events) != 1 || events[0].Action != "push" || events[0].Identity != "alex@laptop" {
+		t.Errorf("events = %+v, want one push by the peer that pushed", events)
+	}
+	if sess.stderr.Len() != 0 {
+		t.Errorf("stderr = %q, want nothing said to the client", sess.stderr.String())
+	}
+}
+
+func TestServeGitSurvivesAStoreThatCannotRecordThePush(t *testing.T) {
+	const landed = "0123456789abcdef0123456789abcdef01234567"
+	d, pushes, _, sess := pushDaemon(t, func(path string) {
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path,
+			[]byte("ref "+strings.Repeat("0", 40)+" "+landed+" refs/heads/feat-x\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	})
+	pushes.envs = nil
+	d.EnvManager.Store = &brokenPushStore{pushStore: pushes}
+
+	if code := d.ServeGit(context.Background(), sess.req(verbReceivePack, "/shop")); code != 0 {
+		t.Fatalf("exit = %d, want 0: recording is not allowed to fail a push that landed", code)
+	}
+	if !strings.Contains(sess.stderr.String(), "warning") {
+		t.Errorf("stderr = %q, want a warning and nothing worse", sess.stderr.String())
+	}
+}
+
+type brokenPushStore struct {
+	*pushStore
+}
+
+func (s *brokenPushStore) Env(context.Context, string, string) (*state.EnvRecord, error) {
+	return nil, errors.New("the database is locked")
 }

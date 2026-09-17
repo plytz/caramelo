@@ -186,6 +186,23 @@ func (s *envStore) UpdateEnvStatus(ctx context.Context, id int64, status string)
 	return state.ErrNotFound
 }
 
+func (s *envStore) RecordEnvPush(ctx context.Context, id int64, commit, sourceBranch, pushedBy string,
+	at time.Time) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.saw(ctx)
+	for i := range s.envs {
+		if s.envs[i].ID == id {
+			s.envs[i].Commit = commit
+			s.envs[i].SourceBranch = sourceBranch
+			s.envs[i].PushedBy = pushedBy
+			s.envs[i].PushedAt = at
+			return nil
+		}
+	}
+	return state.ErrNotFound
+}
+
 func (s *envStore) DeleteEnv(ctx context.Context, id int64) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

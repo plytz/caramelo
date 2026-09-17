@@ -34,6 +34,7 @@ func TestEnv(t *testing.T) {
 		{"EnvNetworkAndCacheVolume", s.envNetworkAndCacheVolume},
 		{"ExportViews", s.exportViews},
 		{"EnvSurvivesAMachineRestart", s.envSurvivesAMachineRestart},
+		{"APushRecordsWhereItCameFrom", s.aPushRecordsWhereItCameFrom},
 		{"PushToADirtyWorktreeIsRefused", s.pushToADirtyWorktreeIsRefused},
 		{"FailedEnvIsRecoverable", s.failedEnvIsRecoverable},
 		{"ParallelCreate", s.parallelCreate},
@@ -367,6 +368,91 @@ func (s *suite) refresh(t *testing.T) {
 	t.Logf("machine %s, git remote %s", s.machine, s.remote)
 }
 
+func (s *suite) aPushRecordsWhereItCameFrom(t *testing.T) {
+	s.needRepo(t)
+
+	env := s.commanderEnv()
+	name := "feat-push"
+	s.createEnv(t, name, "--from", defaultBranch, "--no-deps")
+	t.Cleanup(func() { s.destroyEnv(t, name, "--delete-branch") })
+
+	created := s.showEnv(t, name).Env
+	if created.SourceBranch != "" || created.PushedBy != "" {
+		t.Errorf("a freshly created env already claims a push: %+v", created)
+	}
+
+	itest.Git(t, s.repo, env, "checkout", defaultBranch)
+	writeFile(t, s.repo, "pushed.txt", "from the commander\n")
+	first := itest.GitCommitAll(t, s.repo, env, "sampleapp: a commit to push")
+
+	ctx, cancel := context.WithTimeout(context.Background(), itest.Scale(3*time.Minute))
+	defer cancel()
+	res, err := itest.GitRun(ctx, s.repo, env, "push", "-o", "caramelo.branch="+defaultBranch,
+		s.remote, "HEAD:"+name)
+	if err != nil {
+		t.Fatalf("git push: %v", err)
+	}
+	if res.ExitCode != 0 {
+		t.Fatalf("git push into %s: exit %d\nstdout:\n%sstderr:\n%s", name, res.ExitCode, res.Stdout, res.Stderr)
+	}
+
+	got := s.showEnv(t, name).Env
+	if got.Commit != first {
+		t.Errorf("commit = %q, want the commit that landed (%s)", got.Commit, first)
+	}
+	if got.SourceBranch != defaultBranch {
+		t.Errorf("source branch = %q, want %q: the push said where it came from", got.SourceBranch, defaultBranch)
+	}
+	if got.PushedBy == "" {
+		t.Error("pushed_by is empty; the daemon knows which peer's key the push arrived on")
+	}
+	if got.PushedAt.IsZero() {
+		t.Error("pushed_at is empty")
+	}
+
+	feed := s.events(t, name, "--limit", "100")
+	found := false
+	for _, e := range feed {
+		if e.Action == "push" && strings.Contains(e.Detail, first[:7]) {
+			found = true
+			if !strings.Contains(e.Detail, defaultBranch) {
+				t.Errorf("the push event does not say where the push came from: %+v", e)
+			}
+			if e.Identity != got.PushedBy {
+				t.Errorf("the push event says %q pushed, the env says %q", e.Identity, got.PushedBy)
+			}
+		}
+	}
+	if !found {
+		t.Errorf("no push event carrying %s on the feed of %s: %+v", first[:7], name, feed)
+	}
+
+	writeFile(t, s.repo, "pushed.txt", "a second time\n")
+	second := itest.GitCommitAll(t, s.repo, env, "sampleapp: a bare push")
+	res, err = itest.GitRun(ctx, s.repo, env, "push", s.remote, "HEAD:"+name)
+	if err != nil {
+		t.Fatalf("git push: %v", err)
+	}
+	if res.ExitCode != 0 {
+		t.Fatalf("a bare git push into %s: exit %d\nstderr:\n%s", name, res.ExitCode, res.Stderr)
+	}
+	bare := s.showEnv(t, name).Env
+	if bare.Commit != second {
+		t.Errorf("commit = %q, want %q", bare.Commit, second)
+	}
+	if bare.SourceBranch != "" {
+		t.Errorf("source branch = %q; a bare git push names no branch and a guess is worse than nothing",
+			bare.SourceBranch)
+	}
+}
+
+func writeFile(t *testing.T, dir, name, content string) {
+	t.Helper()
+	if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
+		t.Fatalf("write %s: %v", name, err)
+	}
+}
+
 func (s *suite) pushToADirtyWorktreeIsRefused(t *testing.T) {
 	s.needRepo(t)
 
@@ -398,6 +484,11 @@ func (s *suite) pushToADirtyWorktreeIsRefused(t *testing.T) {
 	}
 	if got := strings.TrimSpace(s.mustInRepo(t, "env", "exec", name, "--", "cat", "main.txt").Stdout); !strings.Contains(got, "the agent was here") {
 		t.Errorf("main.txt in the worktree is %q; the agent's edit is gone", got)
+	}
+
+	after := s.showEnv(t, name).Env
+	if after.PushedBy != "" || !after.PushedAt.IsZero() {
+		t.Errorf("a push that was refused was recorded anyway: %+v", after)
 	}
 }
 

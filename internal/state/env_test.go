@@ -165,6 +165,59 @@ func TestEnvRoundTrip(t *testing.T) {
 	}
 }
 
+func TestRecordPushIsSeparateFromTheCreationFacts(t *testing.T) {
+	ctx := context.Background()
+	s, path := tempDB(t)
+	if err := s.AddApp(ctx, sampleApp("shop")); err != nil {
+		t.Fatal(err)
+	}
+	rec, err := s.CreateEnv(ctx, sampleEnv("shop", "feat-x", 20000))
+	if err != nil {
+		t.Fatal(err)
+	}
+	fresh, err := s.Env(ctx, "shop", "feat-x")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fresh.PushedBy != "" || fresh.SourceBranch != "" || !fresh.PushedAt.IsZero() {
+		t.Fatalf("a freshly created env already claims a push: %+v", fresh)
+	}
+
+	const commit = "0123456789abcdef0123456789abcdef01234567"
+	at := time.Date(2026, 9, 17, 9, 30, 0, 0, time.UTC)
+	if err := s.RecordEnvPush(ctx, rec.ID, commit, "blob-store", "alex@laptop", at); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.Env(ctx, "shop", "feat-x")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Commit != commit || got.SourceBranch != "blob-store" || got.PushedBy != "alex@laptop" ||
+		!got.PushedAt.Equal(at) {
+		t.Errorf("push facts = %+v", got)
+	}
+	if got.Branch != fresh.Branch || got.CreatedBy != fresh.CreatedBy || !got.CreatedAt.Equal(fresh.CreatedAt) {
+		t.Errorf("the push moved a creation fact: %+v, was %+v", got, fresh)
+	}
+	if !got.UpdatedAt.After(got.CreatedAt) {
+		t.Errorf("updated_at %v was not touched (created %v)", got.UpdatedAt, got.CreatedAt)
+	}
+
+	if err := s.RecordEnvPush(ctx, 9999, commit, "", "", at); !errors.Is(err, ErrNotFound) {
+		t.Errorf("unknown env: err = %v, want ErrNotFound", err)
+	}
+	if err := s.RecordEnvPush(ctx, 0, commit, "", "", at); err == nil {
+		t.Error("recording a push onto no env at all succeeded")
+	}
+
+	s.Close()
+	back, err := open(t, path).Env(ctx, "shop", "feat-x")
+	if err != nil || back.Commit != commit || back.SourceBranch != "blob-store" ||
+		back.PushedBy != "alex@laptop" || !back.PushedAt.Equal(at) {
+		t.Errorf("after reopen: %+v, %v", back, err)
+	}
+}
+
 func TestEnvsListing(t *testing.T) {
 	ctx := context.Background()
 	s, _ := tempDB(t)
