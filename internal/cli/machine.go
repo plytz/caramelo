@@ -166,6 +166,9 @@ func describeMemory(m machine.Memory) string {
 	s := fmt.Sprintf("%s total, %s available", fmtBytesIEC(m.TotalBytes), fmtBytesIEC(m.AvailableBytes))
 	if m.SwapTotalBytes > 0 {
 		s += ", " + fmtBytesIEC(m.SwapTotalBytes) + " swap"
+		if m.SwapManaged {
+			s += " (caramelo)"
+		}
 	} else {
 		s += ", no swap"
 	}

@@ -44,6 +44,7 @@ type Memory struct {
 	TotalBytes     int64 `json:"total_bytes"`
 	AvailableBytes int64 `json:"available_bytes"`
 	SwapTotalBytes int64 `json:"swap_total_bytes"`
+	SwapManaged    bool  `json:"swap_managed,omitempty"`
 }
 
 type Dirs struct {

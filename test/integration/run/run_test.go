@@ -914,6 +914,9 @@ func (s *suite) zzResourcesAndLogRotation(t *testing.T) {
 		if got := s.inspect(t, container, "{{.HostConfig.Memory}}"); got != "134217728" {
 			t.Errorf("Memory = %q, want 134217728 (128 MiB)", got)
 		}
+		if got := s.inspect(t, container, "{{.HostConfig.MemorySwap}}"); got != "134217728" {
+			t.Errorf("MemorySwap = %q, want 134217728: a service may not swap past resources.memory", got)
+		}
 		quota := s.inspect(t, container, "{{.HostConfig.NanoCpus}}")
 		if quota == "0" || quota == "" {
 			cfs := s.inspect(t, container, "{{.HostConfig.CpuQuota}}")

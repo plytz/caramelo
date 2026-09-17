@@ -1035,6 +1035,10 @@ func TestMemoryLimitIsRealAndAnOOMIsAnEvent(t *testing.T) {
 		if got != "33554432" {
 			t.Errorf("Memory = %q, want 33554432 (32 MiB): resources.memory must become --memory", got)
 		}
+		if swap := inspect(t, m, container, "{{.HostConfig.MemorySwap}}"); swap != "33554432" {
+			t.Errorf("MemorySwap = %q, want 33554432: resources.memory stays a hard limit once the host has swap, "+
+				"so --memory-swap is set to the same number", swap)
+		}
 		opts := inspect(t, m, container, "{{json .HostConfig.LogConfig}}")
 		for _, want := range []string{"max-size", "max-file"} {
 			if !strings.Contains(opts, want) {

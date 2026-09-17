@@ -11,6 +11,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/plytz/caramelo/internal/config"
 	"github.com/plytz/caramelo/internal/runner"
 	"github.com/plytz/caramelo/internal/serverconfig"
 	"github.com/plytz/caramelo/internal/setup"
@@ -33,6 +34,7 @@ func (a *app) serverSetupCmd() *cobra.Command {
 		name          string
 		peer          string
 		noHTTP3       bool
+		swap          string
 	)
 	cfg := serverconfig.Default()
 
@@ -59,6 +61,13 @@ the machine is recorded in the commander config and the API is checked from here
 			opts.InstallPackages = !noPkgs
 
 			cfg.HTTP3 = !noHTTP3
+			if cmd.Flags().Changed("swap") {
+				parsed, err := parseSwapFlag(swap)
+				if err != nil {
+					return &usageError{err}
+				}
+				cfg.Swap = parsed
+			}
 			if len(args) == 1 {
 				if peer == "" || strings.ContainsAny(peer, " \t=,") {
 					return &usageError{fmt.Errorf(
@@ -154,6 +163,7 @@ the machine is recorded in the commander config and the API is checked from here
 	f.BoolVar(&opts.Yes, "yes", false, "do not ask for confirmation")
 	f.BoolVar(&opts.Force, "force", false, "continue even when the machine is unsupported or too small")
 	f.BoolVar(&opts.LowPorts, "low-ports", false, "let containers publish ports below 1024")
+	f.StringVar(&swap, "swap", "", "swap this machine gets: a size such as 4G, or off (default 4G)")
 	f.BoolVar(&opts.OpenPorts, "open-ports", false,
 		"open the ports this machine needs in its own firewall (off by default: caramelo only looks)")
 	f.BoolVar(&dryRun, "dry-run", false, "report what would change, change nothing")
@@ -169,6 +179,25 @@ the machine is recorded in the commander config and the API is checked from here
 	f.BoolVar(&cfg.Fleet.Private, "private", false,
 		"a member with no public listener at all: 80 and 443 on loopback, everything served through the hub")
 	return cmd
+}
+
+func parseSwapFlag(v string) (serverconfig.Swap, error) {
+	s := serverconfig.Swap{Swappiness: serverconfig.DefaultSwappiness}
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case serverconfig.SwapOff, "none", "0":
+		s.Backend = serverconfig.SwapOff
+		return s, nil
+	case serverconfig.SwapZram:
+		s.Backend = serverconfig.SwapZram
+		return s, nil
+	}
+	size, err := config.ParseMemory(v)
+	if err != nil {
+		return serverconfig.Swap{}, fmt.Errorf("--swap %q: %w", v, err)
+	}
+	s.Backend = serverconfig.SwapFile
+	s.SizeBytes = size
+	return s, nil
 }
 
 func resolveSetupConfig(cmd *cobra.Command, configDir string, flags serverconfig.Config) (serverconfig.Config, error) {
@@ -197,6 +226,8 @@ func resolveSetupConfig(cmd *cobra.Command, configDir string, flags serverconfig
 		"acme-ca":    func() { cfg.ACMECA = flags.ACMECA },
 		"tls":        func() { cfg.TLS = flags.TLS },
 		"no-http3":   func() { cfg.HTTP3 = flags.HTTP3 },
+
+		"swap": func() { cfg.Swap = flags.Swap },
 
 		"private": func() { cfg.Fleet.Private = flags.Fleet.Private },
 	} {
@@ -297,6 +328,7 @@ func setupPlan(env *setup.Env) string {
 	fmt.Fprintf(&b, "  config    %s\n", env.ConfigDir)
 	fmt.Fprintf(&b, "  state     %s (home of the %s user)\n", cfg.StateDir, cfg.User)
 	fmt.Fprintf(&b, "  data      %s (apps and Docker images)\n", cfg.DataDir)
+	fmt.Fprintf(&b, "  swap      %s\n", swapPlanLine(cfg))
 	fmt.Fprintf(&b, "  user      %s:%s, system user with rootless Docker\n", cfg.User, cfg.Group)
 	fmt.Fprintf(&b, "  API       ssh on %s:%d (%s), socket %s\n", cfg.Bind, cfg.SSHPort, cfg.APIListen, cfg.SocketPath())
 	fmt.Fprintf(&b, "  network   %s, wireguard on %s (udp)\n", cfg.VPNSubnet, cfg.VPNListen)
@@ -309,6 +341,14 @@ func setupPlan(env *setup.Env) string {
 	fmt.Fprintf(&b, "  keys      %s\n", keys)
 	fmt.Fprintf(&b, "  packages  %s\n", packages)
 	return b.String()
+}
+
+func swapPlanLine(cfg serverconfig.Config) string {
+	if cfg.Swap.Backend != serverconfig.SwapFile {
+		return "none (swap: " + cfg.Swap.Backend + ")"
+	}
+	return fmt.Sprintf("%s at %s, vm.swappiness %d",
+		fmtBytesIEC(cfg.Swap.SizeBytes), cfg.SwapFilePath(), cfg.Swap.Swappiness)
 }
 
 func isTerminal(r io.Reader) bool {

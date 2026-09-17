@@ -126,6 +126,21 @@ security group in front of it, or the network between, can still drop the packet
 cannot answer about itself is `caramelo server probe <host>`, which sends a handshake from the
 computer you run it on and says whether it arrived.
 
+Setup also gives the machine swap, so that an overloaded box degrades instead of having something
+killed: 4 GiB in a swapfile beside the state directory (`/var/lib/caramelo.swapfile` by default),
+owned by root, activated by a systemd swap unit and read at every boot, with `vm.swappiness` set to
+10 in `/etc/sysctl.d/80-caramelo-swap.conf`. `--swap 8G` asks for another size and `--swap off` for
+none: on a machine caramelo had already given swap, `--swap off` takes the swapfile, its unit and the
+sysctl drop-in away again, so a box on a network-backed disk can be put back the way it was without
+uninstalling. The value is kept in `config.yaml`, so a later `server setup` with no `--swap` leaves
+what the machine already has. A machine that already swaps is left exactly as it is, and setup says
+what it found. Setup refuses, rather than risk the machine, on btrfs and ZFS, on flash storage such as an SD
+card, and when the disk has no room for the swapfile and 5 GiB of headroom: each refusal skips the
+step, says why and names the command that settles it, and never fails the run. `caramelo server
+status` prints how much swap the machine has and whether caramelo made it. Swap is a property of the
+machine and never of a service: `resources.memory` in `caramelo.yaml` stays a hard limit, because
+every container is run with `--memory-swap` equal to `--memory`.
+
 The boxes form one caramelo fleet. The first machine in the inventory is the **hub**. Every other
 machine is a **member** that joins the hub's fleet. Three machines run the whole test suite. With
 fewer, the cases that need more machines skip with a message naming what they wanted.

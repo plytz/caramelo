@@ -250,6 +250,9 @@ func TestMachineShowBareBox(t *testing.T) {
 		t.Fatalf("exit = %d", code)
 	}
 	for _, want := range []string{"ubuntu 24.04 (noble)", "4 vCPU", "2.0 GiB swap", "not installed"} {
+		if strings.Contains(stdout, "swap (caramelo)") {
+			t.Errorf("swap this machine came with is credited to caramelo:\n%s", stdout)
+		}
 		if !strings.Contains(stdout, want) {
 			t.Errorf("stdout missing %q:\n%s", want, stdout)
 		}
@@ -259,6 +262,23 @@ func TestMachineShowBareBox(t *testing.T) {
 	}
 	if strings.Contains(stdout, "disks") {
 		t.Errorf("no disks were gauged, the row should be omitted:\n%s", stdout)
+	}
+}
+
+func TestMachineShowSaysWhenCarameloMadeTheSwap(t *testing.T) {
+	rec := &machine.Record{
+		Hostname: "fresh",
+		OS:       machine.OS{ID: "ubuntu", VersionID: "24.04", Arch: "aarch64"},
+		CPU:      machine.CPU{Count: 4},
+		Memory:   machine.Memory{TotalBytes: 4 << 30, AvailableBytes: 3 << 30, SwapTotalBytes: 4 << 30, SwapManaged: true},
+		DataDir:  machine.Mount{Path: "/mnt/caramelo"},
+	}
+	code, stdout, _ := runWithService(t, &fakeAPI{record: rec}, "machine", "show")
+	if code != ExitOK {
+		t.Fatalf("exit = %d", code)
+	}
+	if !strings.Contains(stdout, "4.0 GiB swap (caramelo)") {
+		t.Errorf("stdout does not say caramelo made the swap:\n%s", stdout)
 	}
 }
 

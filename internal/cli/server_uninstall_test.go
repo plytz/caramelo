@@ -209,6 +209,71 @@ func TestUninstallFallsBackToStdoutForTheReason(t *testing.T) {
 	}
 }
 
+func TestUninstallTurnsSwapOffBeforeItRemovesTheSwapfile(t *testing.T) {
+	dir := t.TempDir()
+	cfg := serverconfig.Default()
+	cfg.StateDir = filepath.Join(dir, "state")
+	swapfile := cfg.SwapFilePath()
+	if err := os.WriteFile(swapfile, []byte("swap"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	stub := &scriptedRunner{results: map[string]runner.Result{
+		"systemd-escape -p --suffix=swap " + swapfile: {Stdout: "the-swap-unit.swap\n"},
+	}}
+	u := &uninstaller{cfg: cfg, configDir: dir, exec: stub}
+	report := u.run(context.Background())
+
+	if report.Failed != 0 {
+		t.Fatalf("failed = %d, want 0: %+v", report.Failed, report.Actions)
+	}
+	var order []string
+	for _, act := range report.Actions {
+		switch act.Action {
+		case "stop-swap", "swapoff", "remove swap-unit", "remove swap-sysctl", "remove swapfile", "daemon-reload":
+			order = append(order, act.Action)
+		}
+	}
+	want := []string{"stop-swap", "swapoff", "remove swap-unit", "remove swap-sysctl", "remove swapfile", "daemon-reload"}
+	if strings.Join(order, ",") != strings.Join(want, ",") {
+		t.Errorf("actions = %v, want %v", order, want)
+	}
+	for _, line := range []string{
+		"systemctl disable --now the-swap-unit.swap",
+		"swapoff -- " + swapfile,
+		"rm -rf -- " + swapfile,
+	} {
+		if !stub.ran(line) {
+			t.Errorf("uninstall did not run %q: %v", line, stub.lines)
+		}
+	}
+	if _, err := os.Stat(swapfile); err != nil {
+		t.Errorf("the fake runner's rm actually removed the file: %v", err)
+	}
+}
+
+func TestUninstallWithoutASwapUnitNameSaysSo(t *testing.T) {
+	stub := &scriptedRunner{results: map[string]runner.Result{
+		"systemd-escape -p --suffix=swap " + serverconfig.Default().SwapFilePath(): {ExitCode: 1},
+	}}
+	u := &uninstaller{cfg: serverconfig.Default(), configDir: t.TempDir(), exec: stub}
+	report := u.run(context.Background())
+	if report.Failed != 0 {
+		t.Fatalf("failed = %d, want 0: %+v", report.Failed, report.Actions)
+	}
+	var found bool
+	for _, act := range report.Actions {
+		if act.Action == "stop-swap" {
+			found = true
+			if act.Status != "skipped" || act.Detail == "" {
+				t.Errorf("stop-swap = %+v, want a skip that says why", act)
+			}
+		}
+	}
+	if !found {
+		t.Errorf("no stop-swap action at all: %+v", report.Actions)
+	}
+}
+
 func TestUninstallSurvivesTheRunnerItselfFailing(t *testing.T) {
 	u := &uninstaller{cfg: serverconfig.Default(), configDir: t.TempDir(), exec: stubRunner{}}
 	report := u.run(context.Background())

@@ -92,6 +92,17 @@ func TestSetupPlanNamesWhatWillChange(t *testing.T) {
 			t.Errorf("plan does not mention %q:\n%s", want, plan)
 		}
 	}
+	for _, want := range []string{"4.0 GiB at /var/lib/caramelo.swapfile", "vm.swappiness 10"} {
+		if !strings.Contains(plan, want) {
+			t.Errorf("plan does not say what swap it will allocate (%q):\n%s", want, plan)
+		}
+	}
+	env.Config.Swap = serverconfig.Swap{Backend: serverconfig.SwapOff}
+	if !strings.Contains(setupPlan(env), "none (swap: off)") {
+		t.Errorf("plan does not say that swap is off:\n%s", setupPlan(env))
+	}
+	env.Config = serverconfig.Default()
+
 	env.Opts.InstallPackages = false
 	if !strings.Contains(setupPlan(env), "--no-packages") {
 		t.Errorf("plan does not say that packages are skipped:\n%s", setupPlan(env))
@@ -193,7 +204,10 @@ func TestUninstallDryRunChangesNothing(t *testing.T) {
 		}
 	}
 	for _, line := range stub.lines {
-		if !strings.HasPrefix(line, "getent ") && !strings.HasPrefix(line, "dpkg-query ") {
+		readOnly := strings.HasPrefix(line, "getent ") ||
+			strings.HasPrefix(line, "dpkg-query ") ||
+			strings.HasPrefix(line, "systemd-escape ")
+		if !readOnly {
 			t.Errorf("a dry run ran %q, want only read-only commands: %v", line, stub.lines)
 		}
 	}
@@ -233,7 +247,7 @@ func TestSetupStepsAreTheWholePlanInOrder(t *testing.T) {
 	for _, s := range setupSteps() {
 		names = append(names, s.Name())
 	}
-	want := []string{"preflight", "firewall", "gauge", "user", "dirs", "host-config", "docker-packages",
+	want := []string{"preflight", "firewall", "gauge", "swap", "user", "dirs", "host-config", "docker-packages",
 		"docker-rootless", "vpn", "vault", "caramelod", "edge", "peer", "join", "summary"}
 	if strings.Join(names, ",") != strings.Join(want, ",") {
 		t.Errorf("steps = %v, want %v", names, want)
@@ -268,6 +282,77 @@ func TestResolveSetupConfigKeepsTheNetworkAMachineAlreadyHas(t *testing.T) {
 	}
 	if got.APIListen != serverconfig.APIListenBoth {
 		t.Errorf("api_listen = %q, want the flag to win", got.APIListen)
+	}
+}
+
+func TestResolveSetupConfigKeepsTheSwapAMachineAlreadyHas(t *testing.T) {
+	dir := t.TempDir()
+	existing := serverconfig.Default()
+	existing.Swap = serverconfig.Swap{Backend: serverconfig.SwapOff, Swappiness: 10}
+	if err := serverconfig.Save(dir, existing, 0o640); err != nil {
+		t.Fatal(err)
+	}
+
+	a := &app{}
+	cmd := a.serverSetupCmd()
+	if err := cmd.Flags().Parse([]string{"--api-listen", "both"}); err != nil {
+		t.Fatal(err)
+	}
+	flags := serverconfig.Default()
+	flags.APIListen = serverconfig.APIListenBoth
+
+	got, err := resolveSetupConfig(cmd, dir, flags)
+	if err != nil {
+		t.Fatalf("resolveSetupConfig() error: %v", err)
+	}
+	if got.Swap != existing.Swap {
+		t.Errorf("swap = %+v, want the one the machine already has (%+v)", got.Swap, existing.Swap)
+	}
+}
+
+func TestParseSwapFlag(t *testing.T) {
+	tests := []struct {
+		arg     string
+		want    serverconfig.Swap
+		wantErr bool
+	}{
+		{arg: "4G", want: serverconfig.Swap{Backend: serverconfig.SwapFile, SizeBytes: 4 << 30, Swappiness: serverconfig.DefaultSwappiness}},
+		{arg: "512m", want: serverconfig.Swap{Backend: serverconfig.SwapFile, SizeBytes: 512 << 20, Swappiness: serverconfig.DefaultSwappiness}},
+		{arg: "off", want: serverconfig.Swap{Backend: serverconfig.SwapOff, Swappiness: serverconfig.DefaultSwappiness}},
+		{arg: "OFF", want: serverconfig.Swap{Backend: serverconfig.SwapOff, Swappiness: serverconfig.DefaultSwappiness}},
+		{arg: "0", want: serverconfig.Swap{Backend: serverconfig.SwapOff, Swappiness: serverconfig.DefaultSwappiness}},
+		{arg: "none", want: serverconfig.Swap{Backend: serverconfig.SwapOff, Swappiness: serverconfig.DefaultSwappiness}},
+		{arg: "zram", want: serverconfig.Swap{Backend: serverconfig.SwapZram, Swappiness: serverconfig.DefaultSwappiness}},
+		{arg: "plenty", wantErr: true},
+		{arg: "", wantErr: true},
+	}
+	for _, tc := range tests {
+		got, err := parseSwapFlag(tc.arg)
+		if tc.wantErr {
+			if err == nil {
+				t.Errorf("parseSwapFlag(%q) = %+v, want an error", tc.arg, got)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("parseSwapFlag(%q) error: %v", tc.arg, err)
+			continue
+		}
+		if got != tc.want {
+			t.Errorf("parseSwapFlag(%q) = %+v, want %+v", tc.arg, got, tc.want)
+		}
+	}
+}
+
+func TestSetupRejectsSwapValuesTheMachineCannotHave(t *testing.T) {
+	for _, arg := range []string{"zram", "plenty", "64m"} {
+		code, _, stderr := run(t, "server", "setup", "--yes", "--swap", arg, "--config-dir", t.TempDir())
+		if code == ExitOK {
+			t.Errorf("--swap %s was accepted", arg)
+		}
+		if !strings.Contains(stderr, "swap") {
+			t.Errorf("--swap %s: stderr does not say what is wrong: %q", arg, stderr)
+		}
 	}
 }
 

@@ -5,6 +5,7 @@ func HostSteps() (before, after []Step) {
 		NewPreflightStep(),
 		NewFirewallStep(),
 		NewGaugeStep(),
+		NewSwapStep(),
 		NewUserStep(),
 		NewDirsStep(),
 		NewHostConfigStep(),

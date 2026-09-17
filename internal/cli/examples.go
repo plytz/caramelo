@@ -274,6 +274,8 @@ caramelo server setup --target you@box --release v0.0.1         # ship that rele
 caramelo server setup --target you@box --dry-run                # say what would change
 sudo caramelo server setup --yes                                # on the box itself
 sudo caramelo server setup --yes --open-ports                   # let setup open udp 4021 in this box's own firewall
+sudo caramelo server setup --yes --swap 8G                      # 8 GiB of swap instead of the default 4 GiB
+sudo caramelo server setup --yes --swap off                     # no swap on this machine
 caramelo server setup --target you@box --json --progress json`,
 
 	"caramelo server probe": `

@@ -9,6 +9,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/netip"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -51,6 +53,140 @@ func TestSetup(t *testing.T) {
 			t.Errorf("step %s failed: %s", r.Step, r.Error)
 		}
 	}
+}
+
+func TestSwap(t *testing.T) {
+	_, m := begin(t)
+	if firstRunErr != nil {
+		t.Skip("first run failed; the swap step proves nothing")
+	}
+	var res *setuppkg.Result
+	for i := range firstRun.Results {
+		if firstRun.Results[i].Step == "swap" {
+			res = &firstRun.Results[i]
+		}
+	}
+	if res == nil {
+		t.Fatalf("setup ran no swap step at all: %s", firstRunRaw)
+	}
+	t.Logf("swap: %s %s%s", res.Status, res.Detail, res.Error)
+	if res.Status == setuppkg.StatusFailed {
+		t.Fatalf("the swap step failed: %s", res.Error)
+	}
+	said := res.Detail
+	if res.Status == setuppkg.StatusSkipped && said == "" {
+		t.Fatal("the swap step skipped without saying why")
+	}
+	if m.Target() == itest.TargetDocker {
+		if res.Status != setuppkg.StatusSkipped {
+			t.Errorf("swap = %s on a container, want it skipped: a container shares the host kernel's swap", res.Status)
+		}
+		if !strings.Contains(said, "container") {
+			t.Errorf("swap skipped on a container without saying so: %q", said)
+		}
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), itest.Scale(2*time.Minute))
+	defer cancel()
+	fstype, avail := swapGround(ctx, t, m)
+	roomy := swapFilesystems[fstype] && avail >= serverconfig.Default().Swap.SizeBytes+swapFreeHeadroomBytes
+	t.Logf("swap ground: %s filesystem, %d bytes free, caramelo had room: %v", fstype, avail, roomy)
+
+	switch res.Status {
+	case setuppkg.StatusSkipped:
+		if !documentedSwapRefusal(said) {
+			t.Errorf("the swap step skipped for a reason nothing documents: %q", said)
+		}
+		if roomy {
+			t.Errorf("swap skipped on a %s filesystem with %d bytes free, where caramelo had room to make it: %q",
+				fstype, avail, said)
+		}
+		t.Logf("swap was not made on this machine: %s", said)
+	case setuppkg.StatusOK, setuppkg.StatusChanged:
+		if said == "" {
+			t.Error("the swap step says nothing about the swap it made or found")
+		}
+		marker := "sudo test -f " + setuppkg.SwapSysctlFile
+		made, err := m.Run(ctx, marker)
+		if err != nil {
+			t.Fatalf("look for %s: %v", setuppkg.SwapSysctlFile, err)
+		}
+		if made.ExitCode != 0 {
+			if roomy && !strings.Contains(said, "left alone") {
+				t.Errorf("swap = %s on a %s filesystem with %d bytes free, but %s is not there: %q",
+					res.Status, fstype, avail, setuppkg.SwapSysctlFile, said)
+			}
+			t.Logf("caramelo left the swap this machine already had: %s", said)
+			return
+		}
+		on, err := m.Run(ctx, "sudo swapon --show=NAME --noheadings")
+		if err != nil {
+			t.Fatalf("swapon --show: %v", err)
+		}
+		if !strings.Contains(on.Stdout, serverconfig.Default().SwapFilePath()) {
+			t.Errorf("the swapfile is not swapped on:\n%s", on.Stdout)
+		}
+	default:
+		t.Errorf("swap = %s, want ok, changed or skipped", res.Status)
+	}
+}
+
+const swapFreeHeadroomBytes = 5 << 30
+
+var swapFilesystems = map[string]bool{"ext2": true, "ext3": true, "ext4": true, "xfs": true}
+
+var swapRefusals = []string{
+	"swap off: this machine is set up without swap",
+	"zram is not implemented yet",
+	"container shares the host kernel's swap",
+	"is on btrfs",
+	"is on ZFS",
+	"flash storage",
+	"free on",
+	"name the swap unit",
+	"swap backend",
+}
+
+func documentedSwapRefusal(reason string) bool {
+	for _, r := range swapRefusals {
+		if strings.Contains(reason, r) {
+			return true
+		}
+	}
+	return false
+}
+
+func swapGround(ctx context.Context, t *testing.T, m *itest.Machine) (fstype string, avail int64) {
+	t.Helper()
+	dir := filepath.Dir(serverconfig.Default().SwapFilePath())
+	fs, err := m.Run(ctx, "findmnt -n -o FSTYPE -T "+dir)
+	if err != nil {
+		t.Fatalf("findmnt -T %s: %v", dir, err)
+	}
+	if fs.ExitCode != 0 {
+		t.Logf("findmnt -T %s exited %d: %s", dir, fs.ExitCode, fs.Stderr)
+		return "", 0
+	}
+	fstype = strings.TrimSpace(fs.Stdout)
+	df, err := m.Run(ctx, "df -B1 --output=avail "+dir)
+	if err != nil {
+		t.Fatalf("df %s: %v", dir, err)
+	}
+	if df.ExitCode != 0 {
+		t.Logf("df %s exited %d: %s", dir, df.ExitCode, df.Stderr)
+		return fstype, 0
+	}
+	fields := strings.Fields(df.Stdout)
+	if len(fields) < 2 {
+		t.Logf("unexpected df output %q", df.Stdout)
+		return fstype, 0
+	}
+	n, err := strconv.ParseInt(fields[len(fields)-1], 10, 64)
+	if err != nil {
+		t.Logf("unexpected df output %q", df.Stdout)
+		return fstype, 0
+	}
+	return fstype, n
 }
 
 func TestGossSetup(t *testing.T) {
@@ -218,6 +354,12 @@ func TestServerStatus(t *testing.T) {
 			VPNPort      int    `json:"vpn_port"`
 			VPNListening bool   `json:"vpn_listening"`
 		} `json:"port"`
+		Swap struct {
+			TotalBytes int64  `json:"total_bytes"`
+			Managed    bool   `json:"managed"`
+			Backend    string `json:"backend"`
+			SizeBytes  int64  `json:"size_bytes"`
+		} `json:"swap"`
 	}
 	if err := json.Unmarshal([]byte(strings.TrimSpace(res.Stdout)), &st); err != nil {
 		t.Fatalf("server status --json is not JSON: %v\nstdout: %q", err, res.Stdout)
@@ -248,6 +390,23 @@ func TestServerStatus(t *testing.T) {
 	if st.Port.VPNPort != vpn.DefaultListenPort || !st.Port.VPNListening {
 		t.Errorf("tunnel port = %d listening=%v, want %d listening: it is the one port a "+
 			"Caramelo machine needs reachable", st.Port.VPNPort, st.Port.VPNListening, vpn.DefaultListenPort)
+	}
+	if st.Swap.Backend != serverconfig.SwapFile {
+		t.Errorf("swap backend = %q, want the default %q", st.Swap.Backend, serverconfig.SwapFile)
+	}
+	if st.Swap.SizeBytes != serverconfig.DefaultSwapSizeBytes {
+		t.Errorf("swap size = %d, want the default %d", st.Swap.SizeBytes, serverconfig.DefaultSwapSizeBytes)
+	}
+	made, err := m.Run(ctx, "sudo test -f "+setuppkg.SwapSysctlFile)
+	if err != nil {
+		t.Fatalf("look for %s: %v", setuppkg.SwapSysctlFile, err)
+	}
+	if carameloMadeIt := made.ExitCode == 0; carameloMadeIt != st.Swap.Managed {
+		t.Errorf("server status says managed=%v, but %s is %s",
+			st.Swap.Managed, setuppkg.SwapSysctlFile, map[bool]string{true: "there", false: "not there"}[carameloMadeIt])
+	}
+	if st.Swap.Managed && st.Swap.TotalBytes <= 0 {
+		t.Errorf("server status credits caramelo with %d bytes of swap", st.Swap.TotalBytes)
 	}
 }
 

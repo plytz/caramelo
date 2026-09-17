@@ -24,6 +24,7 @@ func TestDefault(t *testing.T) {
 		VPNSubnet: "10.86.0.0/16", VPNListen: "0.0.0.0:4021", APIListen: "vpn",
 		Edge: false, TLS: "acme", HTTP3: true,
 		Reserve: Reserve{MemoryBytes: 256 << 20, CPU: 0.25},
+		Swap:    Swap{Backend: "file", SizeBytes: 4 << 30, Swappiness: 10},
 	}
 	if !reflect.DeepEqual(c, want) {
 		t.Errorf("Default() =\n %+v\nwant\n %+v", c, want)
@@ -55,6 +56,7 @@ func TestDerivedPaths(t *testing.T) {
 		{"AuthorizedKeysPath", c.AuthorizedKeysPath(), "/state/ssh/authorized_keys"},
 		{"SocketPath", c.SocketPath(), "/run/caramelod.sock"},
 		{"DockerDataRoot", c.DockerDataRoot(), "/data/docker"},
+		{"SwapFilePath", c.SwapFilePath(), "/state.swapfile"},
 		{"AppsDir", c.AppsDir(), "/data/apps"},
 	}
 	for _, tc := range tests {
@@ -95,6 +97,7 @@ func TestSaveLoadRoundTrip(t *testing.T) {
 	want.Bind = "127.0.0.1"
 	want.StateDir, want.DataDir, want.RunDir = "/srv/state", "/srv/data", "/srv/run"
 	want.Reserve = Reserve{MemoryBytes: 1 << 30, CPU: 1.5}
+	want.Swap = Swap{Backend: SwapFile, SizeBytes: 8 << 30, Swappiness: 20}
 
 	if Exists(dir) {
 		t.Fatal("Exists = true before anything was written")
@@ -133,7 +136,7 @@ func TestSaveLoadRoundTrip(t *testing.T) {
 	if err := yaml.Unmarshal(b, &raw); err != nil {
 		t.Fatalf("unmarshal written config: %v", err)
 	}
-	for _, key := range []string{"user", "group", "state_dir", "data_dir", "run_dir", "ssh_port", "bind", "reserve", "vpn_subnet", "vpn_listen", "api_listen"} {
+	for _, key := range []string{"user", "group", "state_dir", "data_dir", "run_dir", "ssh_port", "bind", "reserve", "swap", "vpn_subnet", "vpn_listen", "api_listen"} {
 		if _, ok := raw[key]; !ok {
 			t.Errorf("written config has no %q key: %s", key, b)
 		}
@@ -199,6 +202,43 @@ func TestLoadFillsDefaults(t *testing.T) {
 	want.SSHPort = 2200
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("load =\n %+v\nwant\n %+v", got, want)
+	}
+}
+
+func TestLoadWithoutASwapKeyKeepsTheDefault(t *testing.T) {
+	dir := t.TempDir()
+
+	write(t, dir, "ssh_port: 2200\nstate_dir: /srv/state\n")
+	got, err := Load(dir)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if got.Swap != (Swap{Backend: SwapFile, SizeBytes: 4 << 30, Swappiness: 10}) {
+		t.Errorf("swap = %+v, want the default", got.Swap)
+	}
+	if want := "/srv/state.swapfile"; got.SwapFilePath() != want {
+		t.Errorf("SwapFilePath = %q, want %q", got.SwapFilePath(), want)
+	}
+}
+
+func TestSwapFilePathSitsBesideTheStateTree(t *testing.T) {
+	tests := []struct {
+		state string
+		want  string
+	}{
+		{"/var/lib/caramelo", "/var/lib/caramelo.swapfile"},
+		{"/var/lib/caramelo/", "/var/lib/caramelo.swapfile"},
+		{"/srv/state", "/srv/state.swapfile"},
+	}
+	for _, tc := range tests {
+		c := Default()
+		c.StateDir = tc.state
+		if got := c.SwapFilePath(); got != tc.want {
+			t.Errorf("SwapFilePath(%q) = %q, want %q", tc.state, got, tc.want)
+		}
+		if strings.HasPrefix(c.SwapFilePath(), strings.TrimRight(tc.state, "/")+"/") {
+			t.Errorf("SwapFilePath(%q) = %q is inside the state tree", tc.state, c.SwapFilePath())
+		}
 	}
 }
 
@@ -292,6 +332,11 @@ func TestValidate(t *testing.T) {
 		c.SSHPort = p
 		return c
 	}
+	swap := func(s Swap) Config {
+		c := Default()
+		c.Swap = s
+		return c
+	}
 
 	tests := []struct {
 		name string
@@ -314,6 +359,43 @@ func TestValidate(t *testing.T) {
 		{name: "port zero", cfg: port(0), want: []string{"ssh_port 0 out of range"}},
 		{name: "port negative", cfg: port(-1), want: []string{"ssh_port -1 out of range"}},
 		{name: "port too high", cfg: port(65536), want: []string{"ssh_port 65536 out of range"}},
+		{name: "swap off", cfg: swap(Swap{Backend: SwapOff, Swappiness: 10})},
+		{name: "swap file at the floor", cfg: swap(Swap{Backend: SwapFile, SizeBytes: 256 << 20, Swappiness: 10})},
+		{
+			name: "unknown swap backend",
+			cfg:  swap(Swap{Backend: "tmpfs", SizeBytes: 4 << 30, Swappiness: 10}),
+			want: []string{`swap.backend "tmpfs": want one of file, zram, off`},
+		},
+		{
+			name: "swap backend zram",
+			cfg:  swap(Swap{Backend: SwapZram, Swappiness: 10}),
+			want: []string{"zram is not implemented yet: use a size such as 4G, or off"},
+		},
+		{
+			name: "swap file without a size",
+			cfg:  swap(Swap{Backend: SwapFile, Swappiness: 10}),
+			want: []string{"swap.size_bytes 0: a swapfile is at least 256 MiB"},
+		},
+		{
+			name: "swap file below the floor",
+			cfg:  swap(Swap{Backend: SwapFile, SizeBytes: 64 << 20, Swappiness: 10}),
+			want: []string{"swap.size_bytes 67108864: a swapfile is at least 256 MiB"},
+		},
+		{
+			name: "swap off carrying a size",
+			cfg:  swap(Swap{Backend: SwapOff, SizeBytes: 4 << 30, Swappiness: 10}),
+			want: []string{"swap.size_bytes 4294967296: swap.backend off takes no size"},
+		},
+		{
+			name: "swappiness out of range",
+			cfg:  swap(Swap{Backend: SwapFile, SizeBytes: 4 << 30, Swappiness: 101}),
+			want: []string{"swap.swappiness 101 out of range"},
+		},
+		{
+			name: "swappiness negative",
+			cfg:  swap(Swap{Backend: SwapFile, SizeBytes: 4 << 30, Swappiness: -1}),
+			want: []string{"swap.swappiness -1 out of range"},
+		},
 		{
 			name: "everything wrong is reported at once",
 			cfg:  Config{},

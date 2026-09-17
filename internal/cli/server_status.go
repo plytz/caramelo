@@ -15,6 +15,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/plytz/caramelo/internal/api"
+	"github.com/plytz/caramelo/internal/machine"
 	"github.com/plytz/caramelo/internal/runner"
 	"github.com/plytz/caramelo/internal/serverconfig"
 	"github.com/plytz/caramelo/internal/setup"
@@ -35,7 +36,15 @@ type serverStatus struct {
 	Socket      socketStatus `json:"socket"`
 	Port        portStatus   `json:"port"`
 	Paths       api.Paths    `json:"paths"`
+	Swap        swapStatus   `json:"swap"`
 	BinaryFound bool         `json:"binary_found"`
+}
+
+type swapStatus struct {
+	TotalBytes int64  `json:"total_bytes"`
+	Managed    bool   `json:"managed"`
+	Backend    string `json:"backend"`
+	SizeBytes  int64  `json:"size_bytes,omitempty"`
 }
 
 type userStatus struct {
@@ -123,6 +132,8 @@ func serverStatusOf(ctx context.Context, run runner.Runner, configDir string) se
 		st.Port.VPNPort = port
 		st.Port.VPNListening = udpBound(port)
 	}
+	st.Swap = swapStatus{Backend: cfg.Swap.Backend, SizeBytes: cfg.Swap.SizeBytes}
+	st.Swap.TotalBytes, st.Swap.Managed = machine.ReadSwap(ctx, run, cfg.SwapFilePath())
 	if _, err := os.Stat(serverconfig.BinaryPath); err == nil {
 		st.BinaryFound = true
 	}
@@ -211,6 +222,7 @@ func writeServerStatus(w io.Writer, st serverStatus) error {
 	fmt.Fprintf(tw, "config\t%s\n", st.ConfigFile)
 	fmt.Fprintf(tw, "state\t%s\n", st.Paths.State)
 	fmt.Fprintf(tw, "data\t%s\n", st.Paths.Data)
+	fmt.Fprintf(tw, "swap\t%s\n", describeSwapStatus(st.Swap))
 	fmt.Fprintf(tw, "user\t%s\n", describeUserStatus(st.User))
 	fmt.Fprintf(tw, "caramelod\t%s\n", describeUnit(st.Caramelod))
 	fmt.Fprintf(tw, "docker\t%s\n", describeUnit(st.Docker))
@@ -221,6 +233,21 @@ func writeServerStatus(w io.Writer, st serverStatus) error {
 			yesNo(st.Port.VPNListening, "listening", "not listening"))
 	}
 	return tw.Flush()
+}
+
+func describeSwapStatus(s swapStatus) string {
+	switch {
+	case s.TotalBytes > 0 && s.Managed:
+		return fmtBytesIEC(s.TotalBytes) + " (caramelo)"
+	case s.TotalBytes > 0:
+		return fmtBytesIEC(s.TotalBytes)
+	case s.Backend == serverconfig.SwapOff:
+		return "none (swap: off)"
+	case s.SizeBytes > 0:
+		return "none (" + fmtBytesIEC(s.SizeBytes) + " configured)"
+	default:
+		return "none"
+	}
 }
 
 func describeAPIPort(p portStatus) string {
