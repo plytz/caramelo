@@ -49,6 +49,10 @@ func (r *tableRecorder) Counts(_ context.Context, since time.Time) (*edge.Counts
 	return &edge.Counts{Since: since}, nil
 }
 
+func (r *tableRecorder) Prune(_ context.Context, req certs.PruneRequest) (*certs.PruneResult, error) {
+	return &certs.PruneResult{KeepFor: req.Keep(), DryRun: req.DryRun}, nil
+}
+
 func (r *tableRecorder) Close() error { return nil }
 
 func fleetStore(t *testing.T) state.Store {

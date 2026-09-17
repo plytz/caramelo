@@ -43,7 +43,8 @@ caramelo down production --force          # a protected env needs --force`,
 	"caramelo edge": `
 caramelo edge status
 caramelo edge enable --acme-email ops@example.com
-caramelo edge counts --since 10m`,
+caramelo edge counts --since 10m
+caramelo edge prune --dry-run`,
 
 	"caramelo edge ca": `
 caramelo edge ca > caramelo-ca.pem        # the internal CA's certificate, to trust it locally`,
@@ -60,9 +61,15 @@ sudo caramelo edge enable --acme-email ops@example.com
 sudo caramelo edge enable --tls internal               # an internal CA instead of ACME
 sudo caramelo edge enable --acme-ca https://acme.example.com/dir --no-http3`,
 
+	"caramelo edge prune": `
+caramelo edge prune --dry-run             # what a prune would remove, and what it would keep
+caramelo edge prune                       # stale certificates the machine's certs_keep no longer keeps
+caramelo edge prune --older-than 168h     # a week instead of the machine's certs_keep
+caramelo edge prune --older-than 0 --json # every stale certificate, expired or not`,
+
 	"caramelo edge status": `
 caramelo edge status                      # every route, its targets and its certificate
-caramelo edge status --json`,
+caramelo edge status --json               # stale certificates carry their state and issuer key`,
 
 	"caramelo env": `
 caramelo env create feat-x --from main

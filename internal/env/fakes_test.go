@@ -549,6 +549,10 @@ func (e *fakeEdge) Subscribe(ctx context.Context, since time.Time, fn func(edge.
 
 func (e *fakeEdge) CA(ctx context.Context) (*certs.CA, error) { return nil, nil }
 
+func (e *fakeEdge) Prune(_ context.Context, req certs.PruneRequest) (*certs.PruneResult, error) {
+	return &certs.PruneResult{KeepFor: req.Keep(), DryRun: req.DryRun}, nil
+}
+
 func (e *fakeEdge) Counts(_ context.Context, since time.Time) (*edge.Counts, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
