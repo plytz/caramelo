@@ -32,7 +32,7 @@ func TestHostStepsAreInDependencyOrder(t *testing.T) {
 	for _, s := range append(append([]Step{}, before...), after...) {
 		names = append(names, s.Name())
 	}
-	want := []string{"preflight", "firewall", "gauge", "user", "dirs", "host-config", "vpn", "vault", "caramelod",
+	want := []string{"preflight", "firewall", "gauge", "swap", "user", "dirs", "host-config", "vpn", "vault", "caramelod",
 		"edge", "peer", "join", "summary"}
 	if strings.Join(names, " ") != strings.Join(want, " ") {
 		t.Fatalf("host steps = %q, want %q", names, want)

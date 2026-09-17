@@ -52,6 +52,55 @@ func TestServerStatusOmitsTheTunnelWhenThereIsNone(t *testing.T) {
 	}
 }
 
+func TestServerStatusSaysHowMuchSwapThereIsAndWhoMadeIt(t *testing.T) {
+	tests := []struct {
+		name string
+		swap swapStatus
+		want string
+	}{
+		{
+			name: "caramelo made it",
+			swap: swapStatus{TotalBytes: 4 << 30, Managed: true, Backend: serverconfig.SwapFile, SizeBytes: 4 << 30},
+			want: "4.0 GiB (caramelo)",
+		},
+		{
+			name: "the machine came with it",
+			swap: swapStatus{TotalBytes: 2 << 30, Backend: serverconfig.SwapFile, SizeBytes: 4 << 30},
+			want: "2.0 GiB",
+		},
+		{
+			name: "asked for none",
+			swap: swapStatus{Backend: serverconfig.SwapOff},
+			want: "none (swap: off)",
+		},
+		{
+			name: "asked for some and has none yet",
+			swap: swapStatus{Backend: serverconfig.SwapFile, SizeBytes: 4 << 30},
+			want: "none (4.0 GiB configured)",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var b bytes.Buffer
+			if err := writeServerStatus(&b, serverStatus{Swap: tc.swap}); err != nil {
+				t.Fatal(err)
+			}
+			line := ""
+			for _, l := range strings.Split(b.String(), "\n") {
+				if strings.HasPrefix(l, "swap") {
+					line = l
+				}
+			}
+			if line == "" {
+				t.Fatalf("no swap row at all:\n%s", b.String())
+			}
+			if !strings.Contains(line, tc.want) {
+				t.Errorf("swap row = %q, want it to say %q", line, tc.want)
+			}
+		})
+	}
+}
+
 func TestVPNListenPort(t *testing.T) {
 	for _, c := range []struct {
 		in   string

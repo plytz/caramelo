@@ -64,6 +64,9 @@ func GaugeWith(ctx context.Context, run runner.Runner, cfg serverconfig.Config, 
 	if r.Memory, err = parseMeminfo(string(b)); err != nil {
 		return nil, fmt.Errorf("gauge memory: %w", err)
 	}
+	if total, managed := ReadSwap(ctx, run, cfg.SwapFilePath()); total > 0 {
+		r.Memory.SwapTotalBytes, r.Memory.SwapManaged = total, managed
+	}
 
 	b, err = readFile("/etc/os-release")
 	if err != nil {

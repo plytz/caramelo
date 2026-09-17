@@ -62,6 +62,22 @@ const (
 
 var APIListenValues = []string{APIListenVPN, APIListenPublic, APIListenBoth}
 
+const (
+	SwapFile = "file"
+
+	SwapZram = "zram"
+
+	SwapOff = "off"
+
+	DefaultSwapSizeBytes = 4 << 30
+
+	MinSwapSizeBytes = 256 << 20
+
+	DefaultSwappiness = 10
+)
+
+var SwapBackends = []string{SwapFile, SwapZram, SwapOff}
+
 type Config struct {
 	User     string `yaml:"user"`
 	Group    string `yaml:"group"`
@@ -91,12 +107,20 @@ type Config struct {
 
 	Reserve Reserve `yaml:"reserve"`
 
+	Swap Swap `yaml:"swap"`
+
 	Fleet Fleet `yaml:"fleet,omitempty"`
 }
 
 type Reserve struct {
 	MemoryBytes int64   `yaml:"memory_bytes"`
 	CPU         float64 `yaml:"cpu"`
+}
+
+type Swap struct {
+	Backend    string `yaml:"backend"`
+	SizeBytes  int64  `yaml:"size_bytes"`
+	Swappiness int    `yaml:"swappiness"`
 }
 
 func Default() Config {
@@ -107,6 +131,7 @@ func Default() Config {
 		VPNSubnet: DefaultVPNSubnet, VPNListen: DefaultVPNListen, APIListen: DefaultAPIListen,
 		Edge: DefaultEdge, TLS: DefaultTLS, HTTP3: DefaultHTTP3,
 		Reserve: Reserve{MemoryBytes: 256 << 20, CPU: 0.25},
+		Swap:    Swap{Backend: SwapFile, SizeBytes: DefaultSwapSizeBytes, Swappiness: DefaultSwappiness},
 	}
 }
 
@@ -116,6 +141,8 @@ func (c Config) HostKeyPath() string        { return filepath.Join(c.SSHDir(), "
 func (c Config) AuthorizedKeysPath() string { return filepath.Join(c.SSHDir(), "authorized_keys") }
 func (c Config) SocketPath() string         { return filepath.Join(c.RunDir, SocketFile) }
 func (c Config) DockerDataRoot() string     { return filepath.Join(c.DataDir, "docker") }
+
+func (c Config) SwapFilePath() string { return strings.TrimRight(c.StateDir, "/") + ".swapfile" }
 
 func (c Config) VPNDir() string     { return filepath.Join(c.StateDir, filepath.Dir(vpn.KeyFile)) }
 func (c Config) VPNKeyPath() string { return filepath.Join(c.StateDir, vpn.KeyFile) }
@@ -246,6 +273,32 @@ func validateVPN(c Config) []error {
 	return errs
 }
 
+func validateSwap(c Config) []error {
+	var errs []error
+	s := c.Swap
+	backend := strings.TrimSpace(s.Backend)
+	switch backend {
+	case "":
+	case SwapFile:
+		if s.SizeBytes < MinSwapSizeBytes {
+			errs = append(errs, fmt.Errorf("swap.size_bytes %d: a swapfile is at least %d MiB",
+				s.SizeBytes, MinSwapSizeBytes>>20))
+		}
+	case SwapZram:
+		errs = append(errs, fmt.Errorf("swap.backend %s: zram is not implemented yet: use a size such as 4G, or off", SwapZram))
+	case SwapOff:
+		if s.SizeBytes != 0 {
+			errs = append(errs, fmt.Errorf("swap.size_bytes %d: swap.backend %s takes no size", s.SizeBytes, SwapOff))
+		}
+	default:
+		errs = append(errs, fmt.Errorf("swap.backend %q: want one of %s", s.Backend, strings.Join(SwapBackends, ", ")))
+	}
+	if s.Swappiness < 0 || s.Swappiness > 100 {
+		errs = append(errs, fmt.Errorf("swap.swappiness %d out of range: want 0 to 100", s.Swappiness))
+	}
+	return errs
+}
+
 const MaxVPNSubnetBits = 22
 
 func Path(dir string) string { return filepath.Join(dir, ConfigFile) }
@@ -305,6 +358,7 @@ func (c Config) Validate() error {
 	}
 	errs = append(errs, validateVPN(c)...)
 	errs = append(errs, validateEdge(c)...)
+	errs = append(errs, validateSwap(c)...)
 	errs = append(errs, validateFleet(c)...)
 	return errors.Join(errs...)
 }

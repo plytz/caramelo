@@ -98,7 +98,7 @@ type bootstrapFlags struct {
 var forwardedFlags = []string{
 	"config-dir", "state-dir", "data-dir", "user", "group", "ssh-port", "bind",
 	"vpn-subnet", "vpn-listen", "api-listen",
-	"edge", "acme-email", "acme-ca", "tls", "no-http3",
+	"edge", "acme-email", "acme-ca", "tls", "no-http3", "swap",
 	"join-token", "join-name", "private",
 	"force", "low-ports", "open-ports", "dry-run", "no-packages",
 }
@@ -390,6 +390,7 @@ func bootstrapPlan(target remote.Target, f bootstrapFlags) string {
 	fmt.Fprintf(&b, "  config    %s\n", f.configDir)
 	fmt.Fprintf(&b, "  state     %s (home of the %s user)\n", cfg.StateDir, cfg.User)
 	fmt.Fprintf(&b, "  data      %s (apps and Docker images)\n", cfg.DataDir)
+	fmt.Fprintf(&b, "  swap      %s\n", swapPlanLine(cfg))
 	fmt.Fprintf(&b, "  user      %s:%s, system user with rootless Docker\n", cfg.User, cfg.Group)
 	fmt.Fprintf(&b, "  API       ssh on %s:%d\n", cfg.Bind, cfg.SSHPort)
 	if cfg.Edge {

@@ -93,7 +93,7 @@ func runArgs(spec runtime.ContainerSpec) []string {
 		"--log-opt", "max-file="+strconv.Itoa(runtime.LogMaxFiles))
 
 	if v := memoryArg(spec.Memory); v != "" {
-		args = append(args, "--memory", v)
+		args = append(args, "--memory", v, "--memory-swap", v)
 	}
 	if v := cpuArg(spec.CPU); v != "" {
 		args = append(args, "--cpus", v)

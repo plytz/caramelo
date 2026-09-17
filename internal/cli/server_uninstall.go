@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -137,13 +138,31 @@ func (u *uninstaller) run(ctx context.Context) uninstallReport {
 		u.skip("stop-caramelod", "user "+u.cfg.User+" does not exist")
 	}
 
+	type hostFile struct{ name, path string }
+
+	swapfile := u.cfg.SwapFilePath()
+	swapUnit, swapUnitErr := setup.SwapUnitPath(ctx, u.exec, swapfile)
+	if swapUnitErr != nil {
+		u.skip("stop-swap", swapUnitErr.Error()+"; the swap unit, if there is one, is left in place")
+	} else {
+		u.tryTo(ctx, "stop-swap", "swap unit "+filepath.Base(swapUnit)+" disabled", runner.Cmd{
+			Name: "systemctl", Args: []string{"disable", "--now", filepath.Base(swapUnit)},
+		})
+	}
+	u.tryTo(ctx, "swapoff", swapfile+" swapped off", runner.Cmd{Name: "swapoff", Args: []string{"--", swapfile}})
+
 	u.remove(ctx, "unit", setup.UserUnitPath(u.cfg.StateDir))
-	for _, f := range []struct{ name, path string }{
+	files := []hostFile{
 		{"tmpfiles", setup.TmpfilesFile},
 		{"modules", setup.ModulesFile},
 		{"delegate", setup.DelegateFile},
 		{"sysctl", setup.SysctlFile},
-	} {
+	}
+	if swapUnitErr == nil {
+		files = append(files, hostFile{"swap-unit", swapUnit})
+	}
+	files = append(files, hostFile{"swap-sysctl", setup.SwapSysctlFile}, hostFile{"swapfile", swapfile})
+	for _, f := range files {
 		u.remove(ctx, f.name, f.path)
 	}
 	u.do(ctx, "daemon-reload", "systemd reloaded", runner.Cmd{Name: "systemctl", Args: []string{"daemon-reload"}})

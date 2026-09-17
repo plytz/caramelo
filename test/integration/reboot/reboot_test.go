@@ -15,6 +15,8 @@ import (
 	capi "github.com/plytz/caramelo/internal/api"
 	cenv "github.com/plytz/caramelo/internal/env"
 	"github.com/plytz/caramelo/internal/remote"
+	"github.com/plytz/caramelo/internal/serverconfig"
+	setuppkg "github.com/plytz/caramelo/internal/setup"
 	"github.com/plytz/caramelo/internal/vpn"
 	"github.com/plytz/caramelo/test/integration/itest"
 )
@@ -154,6 +156,31 @@ func TestRebootRecovery(t *testing.T) {
 		if units := failedUnits(user.Stdout); len(units) != 0 {
 			t.Errorf("the %s user's units failed at boot: %s; nothing of caramelo's may need a login",
 				itest.CarameloUser, strings.Join(units, " "))
+		}
+	})
+
+	t.Run("swap came back with the machine", func(t *testing.T) {
+		if m.Target() == itest.TargetDocker {
+			t.Skip("a container shares the host kernel's swap and never got its own")
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), itest.Scale(time.Minute))
+		defer cancel()
+		made, err := m.RunAsRoot(ctx, "test -f "+setuppkg.SwapSysctlFile)
+		if err != nil {
+			t.Fatalf("look for %s on %s: %v", setuppkg.SwapSysctlFile, m.Alias, err)
+		}
+		if made.ExitCode != 0 {
+			t.Skipf("caramelo made no swap on %s", m.Alias)
+		}
+		waitUntil(t, deadline, "the swapfile is swapped on again", func() error {
+			return runOK(m, "sudo swapon --show=NAME --noheadings | grep -q "+serverconfig.Default().SwapFilePath())
+		})
+		res, err := m.RunAsRoot(ctx, "sysctl -n vm.swappiness")
+		if err != nil {
+			t.Fatalf("read vm.swappiness on %s: %v", m.Alias, err)
+		}
+		if got := strings.TrimSpace(res.Stdout); got != "10" {
+			t.Errorf("vm.swappiness = %q after the power cycle, want 10: the drop-in must survive a boot", got)
 		}
 	})
 

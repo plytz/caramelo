@@ -705,6 +705,16 @@ func TestSetupTargetDoesNotSendTheOperatorAfterAnOpenPort(t *testing.T) {
 	}
 }
 
+func TestSetupArgsForwardsSwap(t *testing.T) {
+	sh := useScriptedTarget(t, greenReport(), okVerify)
+	if code, _, stderr := run(t, "server", "setup", "--target", "root@box", "--yes", "--swap", "8G"); code != ExitOK {
+		t.Fatalf("exit %d\n%s", code, stderr)
+	}
+	if !strings.Contains(lastSetupLine(sh), "--swap=8G") {
+		t.Errorf("--swap was dropped on the way to the machine: %q", lastSetupLine(sh))
+	}
+}
+
 func TestSetupArgsForwardsOpenPorts(t *testing.T) {
 	sh := useScriptedTarget(t, greenReport(), okVerify)
 	if code, _, stderr := run(t, "server", "setup", "--target", "root@box", "--yes", "--open-ports"); code != ExitOK {
