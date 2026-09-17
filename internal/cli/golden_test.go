@@ -73,9 +73,9 @@ func TestGoldenPlainOutput(t *testing.T) {
 		{"down", func(w io.Writer) error { return writeDownResult(w, "feat-x", downFixture()) }},
 		{"down-empty", func(w io.Writer) error { return writeDownResult(w, "feat-x", &api.DownResult{}) }},
 		{"config-show", func(w io.Writer) error { return writeEffectiveConfig(w, configFixture()) }},
-		{"edge-status", func(w io.Writer) error { return writeEdgeStatus(w, steadyEdgeStatus()) }},
+		{"edge-status", func(w io.Writer) error { return writeEdgeStatus(w, steadyEdgeStatus(), edgeNow()) }},
 		{"edge-status-off", func(w io.Writer) error {
-			return writeEdgeStatus(w, &edge.Status{Error: "no edge on this machine"})
+			return writeEdgeStatus(w, &edge.Status{Error: "no edge on this machine"}, edgeNow())
 		}},
 		{"key-list", func(w io.Writer) error { return renderKeys(w, keysFixture()) }},
 		{"key-list-empty", func(w io.Writer) error { return renderKeys(w, nil) }},
@@ -129,7 +129,12 @@ func TestGoldenPlainOutput(t *testing.T) {
 			return statusResultView(&statusResult{Status: statusFixture(), Fleet: fleetFixture()},
 				fleetNow()).Write(w)
 		}},
-		{"edge-status-via", func(w io.Writer) error { return writeEdgeStatus(w, viaEdgeStatus()) }},
+		{"edge-status-via", func(w io.Writer) error { return writeEdgeStatus(w, viaEdgeStatus(), edgeNow()) }},
+		{"edge-status-stale", func(w io.Writer) error { return writeEdgeStatus(w, staleEdgeStatus(), edgeNow()) }},
+		{"edge-prune", func(w io.Writer) error { return writeEdgePrune(w, prunedFixture()) }},
+		{"edge-prune-none", func(w io.Writer) error {
+			return writeEdgePrune(w, &certs.PruneResult{KeepFor: certs.DefaultKeepStale})
+		}},
 		{"vpn-status", func(w io.Writer) error { return renderVPNState(w, vpnStateFixture()) }},
 		{"vpn-status-transparent", func(w io.Writer) error {
 			st := vpnStateFixture()
@@ -232,6 +237,8 @@ func TestCommanderRenderMatchesTheDaemon(t *testing.T) {
 			svc: &fakeAPI{status: statusFixture(), machines: quietFleetFixture()}},
 		{name: "edge-status-via", args: []string{"edge", "status"}, path: "edge status",
 			svc: &edgeService{status: viaEdgeStatus()}},
+		{name: "edge-prune", args: []string{"edge", "prune"}, path: "edge prune",
+			svc: &edgeService{pruned: prunedFixture()}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			code, human, stderr := runWithService(t, tc.svc, tc.args...)
@@ -431,6 +438,44 @@ func steadyEdgeStatus() *edge.Status {
 		}, {
 			Host: "api.shop.test", Kind: edge.KindHTTPS, App: "shop", Env: "production", Service: "api",
 		}},
+	}
+}
+
+func edgeNow() time.Time { return time.Date(2026, 9, 9, 12, 0, 0, 0, time.UTC) }
+
+func staleEdgeStatus() *edge.Status {
+	st := steadyEdgeStatus()
+	st.ACMEDirectory = "https://acme-v02.api.letsencrypt.org/directory"
+	st.Certificates = []certs.Certificate{
+		{Host: "api.shop.test", Issuer: "E7", Serial: "0A1B", Managed: true, State: certs.Live,
+			IssuerKey: "acme-v02.api.letsencrypt.org-directory",
+			NotBefore: time.Date(2026, 9, 1, 12, 0, 0, 0, time.UTC),
+			NotAfter:  time.Date(2026, 12, 1, 12, 0, 0, 0, time.UTC)},
+		{Host: "feat-x.shop.test", Issuer: "E7", Serial: "0C3D", Managed: true, State: certs.Live,
+			IssuerKey: "acme-v02.api.letsencrypt.org-directory",
+			NotBefore: time.Date(2026, 9, 1, 12, 0, 0, 0, time.UTC),
+			NotAfter:  time.Date(2026, 12, 1, 12, 0, 0, 0, time.UTC)},
+		{Host: "feat-x.shop.test", Issuer: "Caramelo Internal CA", Serial: "0B7F",
+			State: certs.Stale, IssuerKey: "internal",
+			NotBefore: time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC),
+			NotAfter:  time.Date(2026, 7, 1, 12, 0, 0, 0, time.UTC)},
+	}
+	return st
+}
+
+func prunedFixture() *certs.PruneResult {
+	return &certs.PruneResult{
+		KeepFor: certs.DefaultKeepStale,
+		Removed: []certs.Certificate{
+			{Host: "feat-x.shop.test", IssuerKey: "internal", State: certs.Stale,
+				NotAfter: time.Date(2026, 7, 1, 12, 0, 0, 0, time.UTC)},
+			{Host: "old.shop.test", IssuerKey: "acme-staging-v02.api.letsencrypt.org-directory",
+				State: certs.Stale, NotAfter: time.Date(2026, 6, 15, 12, 0, 0, 0, time.UTC)},
+		},
+		Kept: []certs.Certificate{
+			{Host: "api.shop.test", IssuerKey: "internal", State: certs.Stale,
+				NotAfter: time.Date(2027, 1, 1, 12, 0, 0, 0, time.UTC)},
+		},
 	}
 }
 

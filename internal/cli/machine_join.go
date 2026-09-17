@@ -38,12 +38,12 @@ func (a *app) runMachineJoin(ctx context.Context, configDir, hub, token, name st
 	if h := strings.TrimSpace(hub); h != "" {
 		ticket.Endpoint = withDefaultPort(h, ticket.Endpoint)
 	}
-	cfg, err := serverconfig.Load(configDir)
+	pre, err := joinPreflightOf(configDir)
 	if err != nil {
-		return fmt.Errorf("read %s: %w (run this on the machine that is joining, as root)",
-			serverconfig.Path(configDir), err)
+		return err
 	}
-	if cfg.IsMember() {
+	cfg := pre.cfg
+	if pre.loaded && cfg.IsMember() {
 		if cfg.Fleet.Hub.Name == ticket.Hub && cfg.Fleet.Hub.PublicKey == ticket.PublicKey {
 
 			return a.printJoined(&api.MachineJoinResult{
@@ -58,6 +58,9 @@ func (a *app) runMachineJoin(ctx context.Context, configDir, hub, token, name st
 		return fmt.Errorf(
 			"this machine is already a member of %s; remove it there (`caramelo machine remove %s`) before joining %s",
 			cfg.Fleet.Hub.Name, cfg.Fleet.Name, ticket.Hub)
+	}
+	if err := pre.err(); err != nil {
+		return err
 	}
 	key, err := vpn.ReadPrivateKey(cfg.VPNKeyPath())
 	if err != nil {

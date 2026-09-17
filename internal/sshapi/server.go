@@ -361,7 +361,8 @@ func commandWord(args []string) (word string, rest []string) {
 var globalFlagValues = map[string]bool{"machine": true}
 
 var EdgeSubcommands = map[string]bool{
-	"status": true, "enable": true, "disable": true, "ca": true, "counts": true, "help": true,
+	"status": true, "enable": true, "disable": true, "ca": true, "counts": true, "prune": true,
+	"help": true,
 }
 
 func (s *Server) handler(transport string) ssh.Handler {
