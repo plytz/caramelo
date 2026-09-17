@@ -3,6 +3,7 @@ package setup
 func HostSteps() (before, after []Step) {
 	before = []Step{
 		NewPreflightStep(),
+		NewFirewallStep(),
 		NewGaugeStep(),
 		NewUserStep(),
 		NewDirsStep(),

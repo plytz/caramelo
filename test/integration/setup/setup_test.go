@@ -17,6 +17,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	capi "github.com/plytz/caramelo/internal/api"
+	"github.com/plytz/caramelo/internal/firewall"
 	"github.com/plytz/caramelo/internal/serverconfig"
 	setuppkg "github.com/plytz/caramelo/internal/setup"
 	"github.com/plytz/caramelo/internal/state"
@@ -346,6 +347,102 @@ func TestSetupRecordsAPeer(t *testing.T) {
 	}
 	if found.IP == "" {
 		t.Errorf("peer %q has no address", peerName)
+	}
+}
+
+func TestFirewallIsCheckedAndReported(t *testing.T) {
+	begin(t)
+	if firstRunErr != nil {
+		t.Skip("first run failed; the firewall report proves nothing")
+	}
+	var res *setuppkg.Result
+	for i := range firstRun.Results {
+		if firstRun.Results[i].Step == "firewall" {
+			res = &firstRun.Results[i]
+		}
+	}
+	if res == nil {
+		t.Fatalf("the run has no firewall step:\n%s", firstRunRaw)
+	}
+	t.Logf("firewall: %s %s", res.Status, res.Detail)
+	if res.Status != setuppkg.StatusOK {
+		t.Errorf("the firewall step is %q on a box with nothing in the way: %s%s", res.Status, res.Detail, res.Error)
+	}
+	if strings.Contains(res.Detail, string(firewall.VerdictBlocked)) {
+		t.Errorf("a box with no firewall reports a blocked port: %s", res.Detail)
+	}
+	if strings.Contains(firstRunRaw, "make sure these ports reach this machine") {
+		t.Errorf("setup still hands out advice nobody checked:\n%s", firstRunRaw)
+	}
+}
+
+func TestSetupStopsWhenTheTunnelPortIsDropped(t *testing.T) {
+	_, m := begin(t)
+	if firstRunErr != nil {
+		t.Skip("first run failed; a firewall in the way proves nothing")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), itest.Scale(20*time.Minute))
+	defer cancel()
+
+	if res, err := m.Run(ctx, "sudo sh -c 'command -v nft'"); err != nil || res.ExitCode != 0 {
+		t.Skip("this machine has no nft; the blocked-port case needs one")
+	}
+	const table = "caramelo_itest"
+	install := strings.Join([]string{
+		"sudo nft add table inet " + table,
+		"sudo nft add chain inet " + table + " input '{ type filter hook input priority 0 ; }'",
+		fmt.Sprintf("sudo nft add rule inet %s udp dport %d drop", table, vpn.DefaultListenPort),
+	}, " && ")
+	res, err := m.Run(ctx, install)
+	if err != nil {
+		t.Fatalf("install the deny rule: %v", err)
+	}
+	if res.ExitCode != 0 {
+		t.Fatalf("install the deny rule: exit %d\nstdout:%s\nstderr:%s", res.ExitCode, res.Stdout, res.Stderr)
+	}
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), itest.Scale(2*time.Minute))
+		defer cancel()
+		if res, err := m.Run(ctx, "sudo nft delete table inet "+table); err != nil || res.ExitCode != 0 {
+			t.Fatalf("the deny rule was not removed: %v (exit %d: %s)", err, res.ExitCode, res.Stderr)
+		}
+		res, err := m.Run(ctx, "sudo nft list ruleset")
+		if err != nil || res.ExitCode != 0 {
+			t.Fatalf("read the ruleset back: %v (exit %d: %s)", err, res.ExitCode, res.Stderr)
+		}
+		if strings.Contains(res.Stdout, table) {
+			t.Fatalf("the deny rule is still in force; every later suite would start from a blocked machine:\n%s", res.Stdout)
+		}
+	})
+
+	report, raw, err := runSetup(ctx, m, itest.CarameloBinary)
+	if err == nil {
+		t.Fatalf("setup reported success with udp %d dropped:\n%s", vpn.DefaultListenPort, raw)
+	}
+	var blocked *setuppkg.Result
+	for i := range report.Results {
+		if report.Results[i].Step == "firewall" {
+			blocked = &report.Results[i]
+		}
+		if report.Results[i].Step == "vpn" {
+			t.Errorf("the run reached the vpn step: a blocked tunnel port must stop setup first\n%s", raw)
+		}
+	}
+	if blocked == nil || blocked.Status != setuppkg.StatusFailed {
+		t.Fatalf("the firewall step did not fail: %+v\n%s", blocked, raw)
+	}
+	for _, want := range []string{fmt.Sprintf("udp %d", vpn.DefaultListenPort), "nft add rule"} {
+		if !strings.Contains(blocked.Error, want) {
+			t.Errorf("the failure %q does not mention %q", blocked.Error, want)
+		}
+	}
+
+	forced, forcedRaw, err := runSetupWith(ctx, m, itest.CarameloBinary, "--force")
+	if err != nil {
+		t.Fatalf("--force did not get past the firewall: %v\n%s", err, forcedRaw)
+	}
+	if forced.Failed != 0 {
+		t.Errorf("--force run failed %d step(s)\n%s", forced.Failed, forcedRaw)
 	}
 }
 

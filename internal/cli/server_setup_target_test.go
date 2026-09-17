@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/plytz/caramelo/internal/bootstrap"
 	"github.com/plytz/caramelo/internal/remote"
@@ -66,7 +67,9 @@ func useScriptedTarget(t *testing.T, report setup.Report, verify func(address st
 		return verify(address)
 	}
 
-	joinMachine = func(context.Context, string, vpnclient.Control) error { return nil }
+	joinMachine = func(context.Context, string, vpnclient.Control) (*vpnclient.State, error) {
+		return &vpnclient.State{Machine: "box", Endpoint: "10.0.0.5:4021", LastHandshake: time.Now()}, nil
+	}
 	t.Cleanup(func() { newBootstrapShell, verifyMachine, joinMachine = prevShell, prevVerify, prevJoin })
 	return sh
 }
@@ -426,7 +429,10 @@ func TestSetupTargetReportsHowItVerified(t *testing.T) {
 	})
 	joined := ""
 	prev := joinMachine
-	joinMachine = func(_ context.Context, machine string, _ vpnclient.Control) error { joined = machine; return nil }
+	joinMachine = func(_ context.Context, machine string, _ vpnclient.Control) (*vpnclient.State, error) {
+		joined = machine
+		return &vpnclient.State{Machine: machine, Endpoint: "10.0.0.5:4021", LastHandshake: time.Now()}, nil
+	}
 	t.Cleanup(func() { joinMachine = prev })
 
 	code, stdout, _ := run(t, "server", "setup", "--target", "root@box", "--yes", "--json")
@@ -449,7 +455,10 @@ func TestSetupTargetJoinsThroughTheBootstrapShell(t *testing.T) {
 	sh := useScriptedTarget(t, greenReport(), okVerify)
 	var ctl vpnclient.Control
 	prev := joinMachine
-	joinMachine = func(_ context.Context, _ string, c vpnclient.Control) error { ctl = c; return nil }
+	joinMachine = func(_ context.Context, _ string, c vpnclient.Control) (*vpnclient.State, error) {
+		ctl = c
+		return nil, nil
+	}
 	t.Cleanup(func() { joinMachine = prev })
 
 	if code, _, stderr := run(t, "server", "setup", "--target", "root@box", "--yes"); code != ExitOK {
@@ -475,7 +484,9 @@ func TestSetupTargetJoinsThroughTheBootstrapShell(t *testing.T) {
 func TestSetupTargetSurvivesANetworkItCannotJoin(t *testing.T) {
 	useScriptedTarget(t, greenReport(), okVerify)
 	prev := joinMachine
-	joinMachine = func(context.Context, string, vpnclient.Control) error { return errors.New("no handshake") }
+	joinMachine = func(context.Context, string, vpnclient.Control) (*vpnclient.State, error) {
+		return nil, errors.New("no handshake")
+	}
 	t.Cleanup(func() { joinMachine = prev })
 
 	code, _, stderr := run(t, "server", "setup", "--target", "root@box", "--yes")
@@ -523,4 +534,183 @@ func placeholderLinuxSibling(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { os.Remove(sibling) })
+}
+
+func TestSetupTargetRecordsWhatItsHandshakeSaw(t *testing.T) {
+	useScriptedTarget(t, greenReport(), func(machine string) (json.RawMessage, error) {
+		return json.RawMessage(`{"transport":"tunnel","machine":"` + machine + `"}`), nil
+	})
+
+	code, stdout, stderr := run(t, "server", "setup", "--target", "root@box", "--yes", "--json")
+	if code != ExitOK {
+		t.Fatalf("exit %d\n%s", code, stderr)
+	}
+	var res bootstrapResult
+	if err := json.Unmarshal([]byte(stdout), &res); err != nil {
+		t.Fatal(err)
+	}
+	if res.Reachability == nil || res.Reachability.Result != vpnclient.ProbeReached {
+		t.Fatalf("reachability = %+v, want it to record the handshake it performed", res.Reachability)
+	}
+
+	code, stdout, stderr = run(t, "server", "setup", "--target", "root@box", "--yes")
+	if code != ExitOK {
+		t.Fatalf("exit %d\n%s", code, stderr)
+	}
+	if !strings.Contains(stdout, "udp 4021 reached from here") {
+		t.Errorf("stdout = %q, want the one thing that proves a packet arrived", stdout)
+	}
+}
+
+func TestSetupTargetClaimsNothingWhenItNeverDialled(t *testing.T) {
+	useScriptedTarget(t, greenReport(), func(machine string) (json.RawMessage, error) {
+		return json.RawMessage(`{"transport":"tunnel","machine":"` + machine + `"}`), nil
+	})
+	prev := joinMachine
+	joinMachine = func(context.Context, string, vpnclient.Control) (*vpnclient.State, error) { return nil, nil }
+	t.Cleanup(func() { joinMachine = prev })
+
+	code, stdout, stderr := run(t, "server", "setup", "--target", "root@box", "--yes", "--json")
+	if code != ExitOK {
+		t.Fatalf("exit %d\n%s", code, stderr)
+	}
+	var res bootstrapResult
+	if err := json.Unmarshal([]byte(stdout), &res); err != nil {
+		t.Fatal(err)
+	}
+	if res.Reachability != nil {
+		t.Errorf("a join that never dialled claimed %+v", res.Reachability)
+	}
+}
+
+func TestSetupTargetDoesNotClaimReachedOverSSH(t *testing.T) {
+	useScriptedTarget(t, greenReport(), okVerify)
+
+	code, stdout, stderr := run(t, "server", "setup", "--target", "root@box", "--yes", "--json")
+	if code != ExitOK {
+		t.Fatalf("exit %d\n%s", code, stderr)
+	}
+	var res bootstrapResult
+	if err := json.Unmarshal([]byte(stdout), &res); err != nil {
+		t.Fatal(err)
+	}
+	if res.Reachability == nil || res.Reachability.Result == vpnclient.ProbeReached {
+		t.Errorf("reachability = %+v, want no claim: the API answered over ssh, not through the tunnel",
+			res.Reachability)
+	}
+}
+
+func TestSetupTargetUnreachableAPINamesTheFirewallAndTheMachineVerdict(t *testing.T) {
+	report := greenReport()
+	report.Results = append(report.Results, setup.Result{
+		Step: "firewall", Status: setup.StatusOK,
+		Detail: "no firewall manager is in charge here (udp 4021 open)",
+	})
+	useScriptedTarget(t, report, func(string) (json.RawMessage, error) {
+		return nil, context.DeadlineExceeded
+	})
+	joinWithoutAHandshake()
+
+	code, _, stderr := run(t, "server", "setup", "--target", "root@box", "--yes")
+	if code != ExitError {
+		t.Fatalf("exit %d, want %d", code, ExitError)
+	}
+	for _, want := range []string{"firewall", "not the one blocking the way in",
+		"security group", "port 4022", "caramelo --machine box status"} {
+		if !strings.Contains(stderr, want) {
+			t.Errorf("stderr lacks %q:\n%s", want, stderr)
+		}
+	}
+}
+
+func TestSetupTargetRepeatsTheMachineOwnVerdictWhenItBlockedAPort(t *testing.T) {
+	report := greenReport()
+	report.Results = append(report.Results, setup.Result{
+		Step: "firewall", Status: setup.StatusFailed,
+		Error: "ufw is active and denies udp 4021: 4021/udp DENY IN Anywhere. Open it with 'ufw allow 4021/udp'",
+	})
+	useScriptedTarget(t, report, func(string) (json.RawMessage, error) {
+		return nil, context.DeadlineExceeded
+	})
+	joinWithoutAHandshake()
+
+	code, _, stderr := run(t, "server", "setup", "--target", "root@box", "--yes")
+	if code != ExitError {
+		t.Fatalf("exit %d, want %d", code, ExitError)
+	}
+	if !strings.Contains(stderr, "ufw allow 4021/udp") {
+		t.Errorf("stderr does not repeat the rule that would open the port:\n%s", stderr)
+	}
+}
+
+func joinWithoutAHandshake() {
+	joinMachine = func(context.Context, string, vpnclient.Control) (*vpnclient.State, error) {
+		return &vpnclient.State{Machine: "box", Endpoint: "10.0.0.5:4021"}, nil
+	}
+}
+
+func TestSetupTargetNeverCallsAHandshakeSilence(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		verify func(string) (json.RawMessage, error)
+		exit   int
+	}{
+		{"the API answered over ssh", okVerify, ExitOK},
+		{"the API did not answer at all", func(string) (json.RawMessage, error) {
+			return nil, context.DeadlineExceeded
+		}, ExitError},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			useScriptedTarget(t, greenReport(), tc.verify)
+			code, stdout, stderr := run(t, "server", "setup", "--target", "root@box", "--yes", "--json")
+			if code != tc.exit {
+				t.Fatalf("exit %d, want %d\n%s", code, tc.exit, stderr)
+			}
+			var res bootstrapResult
+			if err := json.Unmarshal([]byte(stdout), &res); err != nil {
+				t.Fatalf("stdout is not a bootstrap result: %v\n%s", err, stdout)
+			}
+			if res.Reachability == nil || res.Reachability.Handshake.IsZero() {
+				t.Fatalf("reachability = %+v, want the handshake the join performed", res.Reachability)
+			}
+			if res.Reachability.Result == vpnclient.ProbeNoAnswer {
+				t.Errorf("result = %q with a handshake at %s: a handshake that came back is not silence",
+					res.Reachability.Result, res.Reachability.Handshake)
+			}
+			if res.Reachability.Result == vpnclient.ProbeReached {
+				t.Errorf("result = %q without a tunnel transport: 'reached' rests on both signals",
+					res.Reachability.Result)
+			}
+		})
+	}
+}
+
+func TestSetupTargetDoesNotSendTheOperatorAfterAnOpenPort(t *testing.T) {
+	useScriptedTarget(t, greenReport(), func(string) (json.RawMessage, error) {
+		return nil, context.DeadlineExceeded
+	})
+
+	code, stdout, stderr := run(t, "server", "setup", "--target", "root@box", "--yes")
+	if code != ExitError {
+		t.Fatalf("exit %d, want %d", code, ExitError)
+	}
+	if !strings.Contains(stderr, "udp 4021 answered a handshake from here") {
+		t.Errorf("stderr does not say the tunnel port answered:\n%s", stderr)
+	}
+	if strings.Contains(stderr, "security group or the network in front of it") {
+		t.Errorf("stderr sends the operator after a port that answered:\n%s", stderr)
+	}
+	if strings.Contains(stdout, "did not answer from here") {
+		t.Errorf("stdout = %q, want no claim of silence after a handshake came back", stdout)
+	}
+}
+
+func TestSetupArgsForwardsOpenPorts(t *testing.T) {
+	sh := useScriptedTarget(t, greenReport(), okVerify)
+	if code, _, stderr := run(t, "server", "setup", "--target", "root@box", "--yes", "--open-ports"); code != ExitOK {
+		t.Fatalf("exit %d\n%s", code, stderr)
+	}
+	if !strings.Contains(lastSetupLine(sh), "--open-ports") {
+		t.Errorf("--open-ports was dropped on the way to the machine: %q", lastSetupLine(sh))
+	}
 }

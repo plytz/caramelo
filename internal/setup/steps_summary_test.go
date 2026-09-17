@@ -71,18 +71,89 @@ func TestSummaryFallsBackToHostnameForTheIP(t *testing.T) {
 	}
 }
 
+func checkedFirewall(t *testing.T, env *Env, run *testutil.FakeRunner) {
+	t.Helper()
+	asRoot(t)
+	noFirewall(run)
+	if _, _, err := (&FirewallStep{}).Check(context.Background(), env); err != nil {
+		t.Fatalf("the firewall step: %v", err)
+	}
+}
+
 func TestSummaryNamesThePortsThatMustBeReachable(t *testing.T) {
 	run := testutil.New()
 	env, log := testEnv(t, run)
-
 	env.Config.APIListen = serverconfig.APIListenBoth
+	checkedFirewall(t, env, run)
+
 	if _, _, err := (&SummaryStep{}).Check(context.Background(), env); err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"udp 4021", "tcp 4022", "10.86.0.0/16"} {
+	for _, want := range []string{"udp 4021", "tcp 4022", "10.86.0.0/16",
+		"this machine is not blocking it", "checked on this machine only"} {
 		if !strings.Contains(log.String(), want) {
 			t.Errorf("the summary does not mention %q:\n%s", want, log.String())
 		}
+	}
+	if strings.Contains(log.String(), "make sure these ports reach this machine") {
+		t.Errorf("the summary still hands out advice nobody checked:\n%s", log.String())
+	}
+}
+
+func TestSummaryNeverSaysAPortIsReachableFromALocalReading(t *testing.T) {
+	run := testutil.New()
+	env, log := testEnv(t, run)
+	env.Config.APIListen = serverconfig.APIListenBoth
+	env.Config.Edge = true
+	checkedFirewall(t, env, run)
+
+	if _, _, err := (&SummaryStep{}).Check(context.Background(), env); err != nil {
+		t.Fatal(err)
+	}
+	for _, forbidden := range []string{"reachable", "reached"} {
+		if strings.Contains(strings.ToLower(log.String()), forbidden) {
+			t.Errorf("the summary claims %q from a local reading:\n%s", forbidden, log.String())
+		}
+	}
+}
+
+func TestSummaryEndsWithAProbeCarryingTheMachinePublicKey(t *testing.T) {
+	key := sampleKey(t)
+	pub, err := key.Public()
+	if err != nil {
+		t.Fatal(err)
+	}
+	run := testutil.New()
+	run.Stdout("cat -- "+keyPath, key.Base64()+"\n")
+	run.Stdout("ip -j route get 1.1.1.1", `[{"prefsrc":"203.0.113.9"}]`)
+	env, log := testEnv(t, run)
+	checkedFirewall(t, env, run)
+
+	if _, _, err := (&SummaryStep{}).Check(context.Background(), env); err != nil {
+		t.Fatal(err)
+	}
+	want := "caramelo server probe 203.0.113.9:4021 --key " + pub.Base64()
+	if !strings.Contains(log.String(), want) {
+		t.Errorf("the summary does not end with %q:\n%s", want, log.String())
+	}
+	if !strings.Contains(log.String(), "caramelo peer add") {
+		t.Errorf("the summary does not say the probing computer must be admitted:\n%s", log.String())
+	}
+}
+
+func TestSummaryWorksWhenTheFirewallWasNotRead(t *testing.T) {
+	run := testutil.New()
+	env, log := testEnv(t, run)
+	env.Config.APIListen = serverconfig.APIListenBoth
+
+	if _, _, err := (&SummaryStep{}).Check(context.Background(), env); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(log.String(), "udp 4021, tcp 4022") {
+		t.Errorf("the summary does not name the ports:\n%s", log.String())
+	}
+	if !strings.Contains(log.String(), "the firewall was not read in this run") {
+		t.Errorf("the summary invented a verdict it does not have:\n%s", log.String())
 	}
 }
 
@@ -90,6 +161,8 @@ func TestSummaryOmitsTheAPIPortWhenItIsNotPublic(t *testing.T) {
 	run := testutil.New()
 	env, log := testEnv(t, run)
 	env.Config.APIListen = serverconfig.APIListenVPN
+	checkedFirewall(t, env, run)
+
 	if _, _, err := (&SummaryStep{}).Check(context.Background(), env); err != nil {
 		t.Fatal(err)
 	}
@@ -98,6 +171,21 @@ func TestSummaryOmitsTheAPIPortWhenItIsNotPublic(t *testing.T) {
 	}
 	if !strings.Contains(log.String(), "udp 4021") {
 		t.Errorf("the summary does not mention the tunnel's port:\n%s", log.String())
+	}
+}
+
+func TestSummaryOfAMemberAsksForNoInboundPort(t *testing.T) {
+	run := testutil.New()
+	env, log := testEnv(t, run)
+	env.Config.Fleet.Role, env.Config.Fleet.Private = serverconfig.RoleMember, true
+	env.Config.Edge = true
+	checkedFirewall(t, env, run)
+
+	if _, _, err := (&SummaryStep{}).Check(context.Background(), env); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(log.String(), "needs no inbound port") {
+		t.Errorf("a private member was asked for a port:\n%s", log.String())
 	}
 }
 

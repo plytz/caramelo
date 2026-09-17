@@ -347,3 +347,43 @@ func TestUninstallRemovesOnlyTheFilesThatAreThere(t *testing.T) {
 		t.Errorf("rm was not run on %s: %v", path, stub.lines)
 	}
 }
+
+func TestUninstallSaysItLeavesTheRuleSetupMayHaveOpened(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		listen string
+		port   string
+	}{
+		{"the default tunnel port", serverconfig.Default().VPNListen, "4021"},
+		{"a tunnel port of its own", "0.0.0.0:51820", "51820"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := serverconfig.Default()
+			cfg.VPNListen = tc.listen
+			stub := &scriptedRunner{}
+			u := &uninstaller{cfg: cfg, configDir: t.TempDir(), exec: stub}
+			report := u.run(context.Background())
+
+			var note *uninstallAction
+			for i, act := range report.Actions {
+				if act.Action == "firewall" {
+					note = &report.Actions[i]
+				}
+			}
+			if note == nil {
+				t.Fatalf("nothing said what happens to a rule setup may have added: %+v", report.Actions)
+			}
+			if note.Status != "skipped" {
+				t.Errorf("firewall = %+v, want it skipped: uninstall closes nobody's port", note)
+			}
+			for _, want := range []string{"udp " + tc.port, "--open-ports", "ufw delete allow " + tc.port + "/udp"} {
+				if !strings.Contains(note.Detail, want) {
+					t.Errorf("detail = %q, want it to name %q", note.Detail, want)
+				}
+			}
+			if stub.ran("ufw") || stub.ran("nft") || stub.ran("firewall-cmd") {
+				t.Errorf("uninstall touched a ruleset: %v", stub.lines)
+			}
+		})
+	}
+}

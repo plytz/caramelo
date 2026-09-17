@@ -78,6 +78,8 @@ type UpRequest struct {
 type Client interface {
 	Up(ctx context.Context, req UpRequest) (*State, error)
 
+	Probe(ctx context.Context, req ProbeRequest) (*Probe, error)
+
 	Down(ctx context.Context, machine string) error
 
 	Status(ctx context.Context, machine string) (*State, error)

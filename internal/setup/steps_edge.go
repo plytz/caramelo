@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/plytz/caramelo/internal/firewall"
 	"github.com/plytz/caramelo/internal/runner"
 	"github.com/plytz/caramelo/internal/serverconfig"
 )
@@ -288,11 +289,12 @@ func (s *EdgeStep) Apply(ctx context.Context, env *Env) error {
 }
 
 func (s *EdgeStep) firewallNote(env *Env) {
-	ports := "tcp 80, tcp 443"
-	if env.Config.HTTP3 {
-		ports += ", udp 443"
+	ports := firewall.EdgePorts(env.Config)
+	if len(ports) == 0 {
+		logf(env, "the edge answers on 127.0.0.1 only: a private member is served through its hub")
+		return
 	}
-	logf(env, "make sure these ports reach this machine: %s", ports)
+	logf(env, "the edge answers %s", firewall.List(ports))
 	if mode, err := env.Config.TLSMode(); err == nil && string(mode) == serverconfig.DefaultTLS {
 		logf(env, "the certificate authority has to reach tcp 80 and tcp 443 from the internet, "+
 			"and every exposed hostname has to resolve here")

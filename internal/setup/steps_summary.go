@@ -10,9 +10,9 @@ import (
 
 	gossh "golang.org/x/crypto/ssh"
 
+	"github.com/plytz/caramelo/internal/firewall"
 	"github.com/plytz/caramelo/internal/runner"
 	"github.com/plytz/caramelo/internal/serverconfig"
-	"github.com/plytz/caramelo/internal/vpn"
 )
 
 type SummaryStep struct{}
@@ -48,11 +48,7 @@ func (s *SummaryStep) Check(ctx context.Context, env *Env) (bool, string, error)
 
 	logf(env, "network: %s on %s (udp), api_listen: %s", cfg.VPNSubnet, cfg.VPNListen, cfg.APIListen)
 	logf(env, "fleet: %s", describeFleet(cfg))
-	ports := "udp " + vpnPort(cfg.VPNListen)
-	if cfg.APIListensPublic() {
-		ports += fmt.Sprintf(", tcp %d", cfg.SSHPort)
-	}
-	logf(env, "make sure these ports reach this machine: %s", ports)
+	s.reportPorts(ctx, env, ip)
 
 	if !cfg.APIListensPublic() {
 		logf(env, "the API answers inside the tunnel only: add a peer with "+
@@ -151,9 +147,42 @@ func primaryIP(ctx context.Context, env *Env) string {
 	return ""
 }
 
-func vpnPort(listen string) string {
-	if _, port, err := net.SplitHostPort(listen); err == nil {
-		return port
+func (s *SummaryStep) reportPorts(ctx context.Context, env *Env, ip string) {
+	cfg := env.Config
+	rep := env.Firewall
+	if rep == nil {
+		want := firewall.Required(cfg, WantsInbound(cfg, env.Opts))
+		if len(want) > 0 {
+			logf(env, "this machine needs %s; the firewall was not read in this run", firewall.List(want))
+		}
+		return
 	}
-	return strconv.Itoa(vpn.DefaultListenPort)
+	if len(rep.Ports) == 0 {
+		logf(env, "this machine needs no inbound port: it dials its hub and is served through it")
+		return
+	}
+	for _, p := range rep.Ports {
+		logf(env, "port %s (%s): %s", p.PortSpec, p.Why, portVerdict(*rep, p))
+	}
+	logf(env, "checked on this machine only. %s", s.probeLine(ctx, env, ip))
+}
+
+func portVerdict(rep firewall.Report, p firewall.PortCheck) string {
+	switch p.Verdict {
+	case firewall.VerdictOpen:
+		return "this machine is not blocking it"
+	case firewall.VerdictBlocked:
+		return fmt.Sprintf("%s denies it: %s", rep.Manager, strOr(p.Rule, rep.Detail))
+	}
+	return "cannot tell from here: " + strOr(p.Rule, rep.Detail)
+}
+
+func (s *SummaryStep) probeLine(ctx context.Context, env *Env, ip string) string {
+	endpoint := net.JoinHostPort(strOr(ip, "<this-machine>"),
+		strconv.Itoa(firewall.VPNPort(env.Config.VPNListen)))
+	line := "From a computer outside: caramelo server probe " + endpoint
+	if pub, err := (&VPNStep{}).publicKey(ctx, env); err == nil {
+		line += " --key " + pub
+	}
+	return line + " (that computer's key must be admitted: 'caramelo peer add NAME KEY' here)"
 }

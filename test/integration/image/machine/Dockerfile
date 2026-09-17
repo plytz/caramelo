@@ -12,6 +12,7 @@ RUN apt-get update \
       ca-certificates \
       openssh-server \
       iproute2 \
+      nftables \
       iputils-ping \
       procps \
       kmod \

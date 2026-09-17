@@ -11,6 +11,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/plytz/caramelo/internal/firewall"
 	"github.com/plytz/caramelo/internal/runner"
 	"github.com/plytz/caramelo/internal/serverconfig"
 	"github.com/plytz/caramelo/internal/setup"
@@ -146,6 +147,10 @@ func (u *uninstaller) run(ctx context.Context) uninstallReport {
 		u.remove(ctx, f.name, f.path)
 	}
 	u.do(ctx, "daemon-reload", "systemd reloaded", runner.Cmd{Name: "systemctl", Args: []string{"daemon-reload"}})
+	u.skip("firewall", fmt.Sprintf(
+		"a rule for udp %d may have been added by 'server setup --open-ports'; it is left in place — "+
+			"remove it with 'ufw delete allow %d/udp' if you want it gone",
+		firewall.VPNPort(u.cfg.VPNListen), firewall.VPNPort(u.cfg.VPNListen)))
 
 	if !u.purge {
 		u.skip("purge", "kept "+strings.Join([]string{u.configDir, u.cfg.StateDir, u.cfg.DataDir}, ", ")+" and the Docker packages (--purge removes them)")

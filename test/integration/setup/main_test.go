@@ -185,7 +185,12 @@ func start() (err error) {
 func authorizedKeys(m *itest.Machine) string { return itest.HomeOf(m) + "/.ssh/authorized_keys" }
 
 func runSetup(ctx context.Context, m *itest.Machine, bin string) (setuppkg.Report, string, error) {
-	cmd := fmt.Sprintf("sudo %s server setup --yes --json --authorized-keys %s", bin, authorizedKeys(m))
+	return runSetupWith(ctx, m, bin)
+}
+
+func runSetupWith(ctx context.Context, m *itest.Machine, bin string, extra ...string) (setuppkg.Report, string, error) {
+	cmd := strings.TrimSpace(fmt.Sprintf("sudo %s server setup --yes --json --authorized-keys %s %s",
+		bin, authorizedKeys(m), strings.Join(extra, " ")))
 	res, err := m.Run(ctx, cmd)
 	raw := res.Stdout + "\n--- stderr ---\n" + res.Stderr
 	if err != nil {

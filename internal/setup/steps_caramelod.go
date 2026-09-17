@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
 	gossh "golang.org/x/crypto/ssh"
 
+	"github.com/plytz/caramelo/internal/firewall"
 	"github.com/plytz/caramelo/internal/runner"
 	"github.com/plytz/caramelo/internal/serverconfig"
 )
@@ -457,7 +459,7 @@ func (s *CaramelodStep) waitListening(ctx context.Context, env *Env) error {
 			return portListening(ctx, env, cfg.SSHPort)
 		})
 	}
-	port := vpnPort(cfg.VPNListen)
+	port := strconv.Itoa(firewall.VPNPort(cfg.VPNListen))
 	return waitFor(ctx, startTimeout, "udp "+port, func() (bool, error) {
 		return udpListening(ctx, env, port)
 	})

@@ -120,14 +120,15 @@ func TestSilenceErrorSaysWhatToCheck(t *testing.T) {
 	ap := netip.MustParseAddrPort("10.86.0.1:4022")
 
 	never := silenceError(rec, ap, time.Time{}, true).Error()
-	for _, want := range []string{"no handshake with box", "192.168.56.11:4021", "peer list"} {
+	for _, want := range []string{"no handshake with box", "192.168.56.11:4021", "peer list",
+		"firewall", "security group", "caramelo server probe box"} {
 		if !strings.Contains(never, want) {
 			t.Errorf("a device that never handshook says %q, want it to mention %q", never, want)
 		}
 	}
 
 	revoked := silenceError(rec, ap, time.Now().Add(-90*time.Second), true).Error()
-	for _, want := range []string{"handshake", "1m30s ago", "no longer be admitted", "peer list"} {
+	for _, want := range []string{"handshake", "1m30s ago", "no longer be admitted", "peer list", "firewall"} {
 		if !strings.Contains(revoked, want) {
 			t.Errorf("a revoked peer says %q, want it to mention %q", revoked, want)
 		}
@@ -142,5 +143,10 @@ func TestSilenceErrorSaysWhatToCheck(t *testing.T) {
 	}
 	if !strings.Contains(unknown, "nothing answered within") {
 		t.Errorf("unknown = %q, want it to say nothing answered", unknown)
+	}
+	for _, want := range []string{"firewall", "security group", "caramelo server probe box"} {
+		if !strings.Contains(unknown, want) {
+			t.Errorf("unknown = %q, want it to mention %q", unknown, want)
+		}
 	}
 }
