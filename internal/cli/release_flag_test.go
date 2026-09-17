@@ -59,6 +59,73 @@ func TestReleaseWithoutATargetIsAUsageError(t *testing.T) {
 	}
 }
 
+func TestBinaryWithoutATargetIsAUsageError(t *testing.T) {
+	useScriptedTarget(t, greenReport(), okVerify)
+	binary := filepath.Join(t.TempDir(), "caramelo-linux-arm64")
+	if err := os.WriteFile(binary, []byte("elf"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	code, _, stderr := run(t, "server", "setup", "--yes", "--dry-run",
+		"--config-dir", t.TempDir(), "--binary", binary)
+	if code != ExitUsage {
+		t.Fatalf("exit %d, want %d (stderr %q)", code, ExitUsage, stderr)
+	}
+	if !strings.Contains(stderr, "--binary only makes sense with --target") {
+		t.Errorf("stderr = %q", stderr)
+	}
+}
+
+func TestAnEmptyBinaryOrReleaseIsAUsageError(t *testing.T) {
+	cases := []struct {
+		args []string
+		want string
+	}{
+		{[]string{"server", "setup", "--target", "root@box", "--yes", "--release="}, "--release was given with no value"},
+		{[]string{"server", "setup", "--target", "root@box", "--yes", "--binary="}, "--binary was given with no value"},
+		{[]string{"machine", "add", "root@box", "--release="}, "--release was given with no value"},
+		{[]string{"machine", "add", "root@box", "--binary="}, "--binary was given with no value"},
+	}
+	for _, c := range cases {
+		t.Run(strings.Join(c.args, " "), func(t *testing.T) {
+			useScriptedTarget(t, greenReport(), okVerify)
+			stubHubForMachineAdd(t, "box")
+			code, _, stderr := run(t, c.args...)
+			if code != ExitUsage {
+				t.Fatalf("exit %d, want %d (stderr %q)", code, ExitUsage, stderr)
+			}
+			if !strings.Contains(stderr, c.want) {
+				t.Errorf("stderr = %q, want it to say %q", stderr, c.want)
+			}
+		})
+	}
+}
+
+func TestAnEmptyMachineAddTargetIsNotBlamedOnATargetFlag(t *testing.T) {
+	binary := filepath.Join(t.TempDir(), "caramelo-linux-arm64")
+	if err := os.WriteFile(binary, []byte("elf"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{
+		{"machine", "add", "", "--release", "v0.0.1"},
+		{"machine", "add", "", "--binary", binary},
+	} {
+		t.Run(strings.Join(args, " "), func(t *testing.T) {
+			useScriptedTarget(t, greenReport(), okVerify)
+			stubHubForMachineAdd(t, "box")
+			code, _, stderr := run(t, args...)
+			if code != ExitUsage {
+				t.Fatalf("exit %d, want %d (stderr %q)", code, ExitUsage, stderr)
+			}
+			if strings.Contains(stderr, "only makes sense with --target") {
+				t.Errorf("machine add has no --target flag, but stderr = %q", stderr)
+			}
+			if !strings.Contains(stderr, "empty machine address") {
+				t.Errorf("stderr = %q, want the empty address refusal", stderr)
+			}
+		})
+	}
+}
+
 func TestReleaseAndVersionReachTheBootstrapOptions(t *testing.T) {
 	for _, args := range [][]string{
 		{"server", "setup", "--target", "root@box", "--yes", "--release", "v0.0.1"},
@@ -127,8 +194,37 @@ func TestBootstrapPlanNamesTheRelease(t *testing.T) {
 	if !strings.Contains(plan, "release v0.0.1, downloaded for the target's platform") {
 		t.Errorf("plan does not name the release:\n%s", plan)
 	}
-	plan = bootstrapPlan(target, bootstrapFlags{})
-	if !strings.Contains(plan, "the same release downloaded for the target") {
-		t.Errorf("plan does not explain the binary default:\n%s", plan)
+}
+
+func TestTheBinaryDefaultNamesTheRuleForThisBuild(t *testing.T) {
+	release := defaultBinaryPlan("v9.9.9")
+	for _, want := range []string{"caramelo-<os>-<arch>", "release v9.9.9", "downloaded for the target"} {
+		if !strings.Contains(release, want) {
+			t.Errorf("the plan for a release build does not say %q: %s", want, release)
+		}
+	}
+
+	dev := defaultBinaryPlan("dev")
+	for _, want := range []string{
+		"caramelo-<os>-<arch>", "this build is not a release", "--binary <path>", "--release <tag>",
+	} {
+		if !strings.Contains(dev, want) {
+			t.Errorf("the plan for a dev build does not say %q: %s", want, dev)
+		}
+	}
+	if strings.Contains(dev, "downloaded") {
+		t.Errorf("the plan for a dev build still promises a download: %s", dev)
+	}
+}
+
+func TestTheBootstrapPlanUsesTheBinaryDefaultOfThisBuild(t *testing.T) {
+	target, err := remote.ParseTargetWith("admin@box", "me", bootstrapSSHPort)
+	if err != nil {
+		t.Fatal(err)
+	}
+	useVersion(t, "v9.9.9")
+	plan := bootstrapPlan(target, bootstrapFlags{})
+	if !strings.Contains(plan, defaultBinaryPlan("v9.9.9")) {
+		t.Errorf("the plan does not carry the binary default of this build:\n%s", plan)
 	}
 }
