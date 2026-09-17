@@ -27,6 +27,8 @@ const (
 	OpCA Op = "ca"
 
 	OpCounts Op = "counts"
+
+	OpPrune Op = "prune"
 )
 
 type Request struct {
@@ -35,6 +37,8 @@ type Request struct {
 	Table *Table `json:"table,omitempty"`
 
 	Since time.Time `json:"since,omitempty"`
+
+	Prune *certs.PruneRequest `json:"prune,omitempty"`
 }
 
 type Response struct {
@@ -48,6 +52,8 @@ type Response struct {
 	Event *Event `json:"event,omitempty"`
 
 	Counts *Counts `json:"counts,omitempty"`
+
+	Pruned *certs.PruneResult `json:"pruned,omitempty"`
 }
 
 type Counts struct {
@@ -201,6 +207,8 @@ type Client interface {
 
 	Counts(ctx context.Context, since time.Time) (*Counts, error)
 
+	Prune(ctx context.Context, req certs.PruneRequest) (*certs.PruneResult, error)
+
 	Close() error
 }
 
@@ -214,6 +222,8 @@ type Handler interface {
 	CA(ctx context.Context) (*certs.CA, error)
 
 	Counts(ctx context.Context, since time.Time) (*Counts, error)
+
+	Prune(ctx context.Context, req certs.PruneRequest) (*certs.PruneResult, error)
 }
 
 type Server interface {

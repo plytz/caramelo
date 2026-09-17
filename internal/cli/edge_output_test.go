@@ -153,6 +153,47 @@ func TestCertificateTableMarksAnExpiredOne(t *testing.T) {
 	}
 }
 
+func TestEdgeCertificateTableNamesTheIssuerOfAStaleOne(t *testing.T) {
+	now := time.Date(2026, 9, 9, 12, 0, 0, 0, time.UTC)
+	var out bytes.Buffer
+	if err := edgeCertificatesTable([]certs.Certificate{
+		{Host: "feat-x.shop.test", Issuer: "Pebble Intermediate CA", Managed: true,
+			NotAfter: now.Add(48 * time.Hour), State: certs.Live, IssuerKey: "pebble-14000-dir"},
+		{Host: "feat-i.shop.internal", Issuer: "Caramelo Internal CA", Managed: false,
+			NotAfter: now.Add(-24 * time.Hour), State: certs.Stale, IssuerKey: "internal"},
+	}, now).Write(&out); err != nil {
+		t.Fatalf("edgeCertificatesTable: %v", err)
+	}
+	got := out.String()
+	for _, want := range []string{
+		"CERTIFICATE", "STATE", "MANAGED",
+		"live", "stale (internal)", "(expired)", "caramelo edge prune",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("the certificate table does not carry %q:\n%s", want, got)
+		}
+	}
+	for _, line := range strings.Split(got, "\n") {
+		if strings.HasPrefix(line, "feat-i.shop.internal") && !strings.HasSuffix(line, "false") {
+			t.Errorf("the stale row is %q, want it to end in false: nothing renews it", line)
+		}
+	}
+}
+
+func TestEnvShowStaysFourColumnsBecauseTheDaemonFiltersIt(t *testing.T) {
+	var out bytes.Buffer
+	if err := writeCertificates(&out, []certs.Certificate{
+		{Host: "feat-x.shop.test", Issuer: "Pebble Intermediate CA", Managed: true,
+			NotAfter: time.Now().Add(48 * time.Hour), State: certs.Live},
+	}); err != nil {
+		t.Fatalf("writeCertificates: %v", err)
+	}
+	if strings.Contains(out.String(), "STATE") {
+		t.Errorf("`env show` grew a state column; the daemon hands it live certificates only:\n%s",
+			out.String())
+	}
+}
+
 func TestEnvURLNamesThePublicAddress(t *testing.T) {
 	svc := &urlService{urls: sampleURLs(), routes: []edge.Route{
 		{Host: "feat-x.shop.test", Service: "web"},

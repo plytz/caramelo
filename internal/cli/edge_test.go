@@ -23,10 +23,12 @@ type edgeService struct {
 	status *edge.Status
 	ca     *certs.CA
 	expose *api.ExposeResult
+	pruned *certs.PruneResult
 	err    error
 
 	exposeReq   env.ExposeRequest
 	unexposeReq env.UnexposeRequest
+	pruneReq    certs.PruneRequest
 }
 
 func (s *edgeService) EdgeStatus(context.Context) (*edge.Status, error) {
@@ -34,6 +36,17 @@ func (s *edgeService) EdgeStatus(context.Context) (*edge.Status, error) {
 }
 
 func (s *edgeService) EdgeCA(context.Context) (*certs.CA, error) { return s.ca, s.err }
+
+func (s *edgeService) EdgePrune(_ context.Context, req certs.PruneRequest) (*certs.PruneResult, error) {
+	s.pruneReq = req
+	if s.err != nil {
+		return nil, s.err
+	}
+	if s.pruned != nil {
+		return s.pruned, nil
+	}
+	return &certs.PruneResult{KeepFor: req.Keep(), DryRun: req.DryRun}, nil
+}
 
 func (s *edgeService) Expose(_ context.Context, req env.ExposeRequest) (*api.ExposeResult, error) {
 	s.exposeReq = req
@@ -61,6 +74,11 @@ func edgeStatusFixture() *edge.Status {
 		Certificates: []certs.Certificate{{
 			Host: "feat-x.shop.test", Issuer: "Pebble Intermediate CA", Serial: "42C5",
 			NotAfter: now.Add(48 * time.Hour), Managed: true,
+			State: certs.Live, IssuerKey: "acme-staging-v02.api.example.test-directory",
+		}, {
+			Host: "feat-i.shop.internal", Issuer: "Caramelo Internal CA", Serial: "0B7F",
+			NotAfter: now.Add(-24 * time.Hour), Managed: false,
+			State: certs.Stale, IssuerKey: "internal",
 		}},
 	}
 }
@@ -75,10 +93,84 @@ func TestEdgeStatusHumanOutput(t *testing.T) {
 		"edge running", "v0.6.0", "https://127.0.0.1:14000/dir", "udp 0.0.0.0:443",
 		"feat-x.shop.test", "shop/feat-x", "web", "active", "draining", "20002",
 		"Pebble Intermediate CA",
+
+		"STATE", "live", "stale (internal)", "feat-i.shop.internal", "(expired)",
+		"caramelo edge prune",
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Errorf("stdout does not carry %q:\n%s", want, stdout)
 		}
+	}
+}
+
+func TestEdgeStatusSaysNothingAboutStaleWhenThereIsNone(t *testing.T) {
+	st := edgeStatusFixture()
+	st.Certificates = st.Certificates[:1]
+	code, stdout, stderr := runWithService(t, &edgeService{status: st}, "edge", "status")
+	if code != ExitOK {
+		t.Fatalf("exit = %d (stderr %q)", code, stderr)
+	}
+	if strings.Contains(stdout, "stale") || strings.Contains(stdout, "edge prune") {
+		t.Errorf("a machine that never changed issuer is told about stale certificates:\n%s", stdout)
+	}
+}
+
+func TestEdgePruneSendsWhatTheFlagsDescribe(t *testing.T) {
+	svc := &edgeService{pruned: &certs.PruneResult{
+		KeepFor: 2 * time.Hour,
+		DryRun:  true,
+		Removed: []certs.Certificate{{
+			Host: "feat-i.shop.internal", IssuerKey: "internal", State: certs.Stale,
+			NotAfter: time.Date(2026, 9, 1, 12, 0, 0, 0, time.UTC),
+		}},
+		Kept: []certs.Certificate{{
+			Host: "feat-y.shop.test", IssuerKey: "ca-one.example.test-dir", State: certs.Stale,
+		}},
+	}}
+	code, stdout, stderr := runWithService(t, svc, "edge", "prune", "--older-than", "2h", "--dry-run")
+	if code != ExitOK {
+		t.Fatalf("exit = %d (stderr %q)", code, stderr)
+	}
+	if svc.pruneReq.KeepFor == nil || *svc.pruneReq.KeepFor != 2*time.Hour || !svc.pruneReq.DryRun {
+		t.Fatalf("the daemon was asked %+v, want 2h and a dry run", svc.pruneReq)
+	}
+	for _, want := range []string{
+		"would be removed", "feat-i.shop.internal", "internal", "2026-09-01", "1 kept", "2h0m0s",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Errorf("stdout does not carry %q:\n%s", want, stdout)
+		}
+	}
+}
+
+func TestEdgePruneLeavesTheRetentionToTheMachine(t *testing.T) {
+	svc := &edgeService{}
+	code, _, stderr := runWithService(t, svc, "edge", "prune")
+	if code != ExitOK {
+		t.Fatalf("exit = %d (stderr %q)", code, stderr)
+	}
+	if svc.pruneReq.KeepFor != nil {
+		t.Errorf("the daemon was asked to keep for %s; with no --older-than the machine's "+
+			"certs_keep decides", *svc.pruneReq.KeepFor)
+	}
+
+	zero := &edgeService{}
+	if code, _, stderr := runWithService(t, zero, "edge", "prune", "--older-than", "0"); code != ExitOK {
+		t.Fatalf("exit = %d (stderr %q)", code, stderr)
+	}
+	if zero.pruneReq.KeepFor == nil || *zero.pruneReq.KeepFor != 0 {
+		t.Errorf("--older-than 0 reached the daemon as %+v, want an explicit zero", zero.pruneReq)
+	}
+}
+
+func TestEdgePruneOnAStoreWithNothingStale(t *testing.T) {
+	svc := &edgeService{pruned: &certs.PruneResult{KeepFor: certs.DefaultKeepStale}}
+	code, stdout, stderr := runWithService(t, svc, "edge", "prune")
+	if code != ExitOK {
+		t.Fatalf("exit = %d (stderr %q)", code, stderr)
+	}
+	if !strings.Contains(stdout, "nothing to prune") {
+		t.Errorf("stdout = %q, want it to say there was nothing to remove", stdout)
 	}
 }
 
@@ -106,8 +198,19 @@ func TestEdgeStatusJSON(t *testing.T) {
 	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
 		t.Fatalf("--json emitted %q: %v", stdout, err)
 	}
-	if len(got.Routes) != 1 || len(got.Routes[0].Targets) != 2 || len(got.Certificates) != 1 {
-		t.Errorf("parsed %+v, want the routes, their targets and the certificate", got)
+	if len(got.Routes) != 1 || len(got.Routes[0].Targets) != 2 || len(got.Certificates) != 2 {
+		t.Errorf("parsed %+v, want the routes, their targets and both certificates", got)
+	}
+	live, stale := got.Certificates[0], got.Certificates[1]
+	if live.State != certs.Live || live.IssuerKey == "" {
+		t.Errorf("the live certificate came back as %+v, want its state and issuer key", live)
+	}
+	if stale.State != certs.Stale || stale.IssuerKey != "internal" {
+		t.Errorf("the stale certificate came back as %+v, want stale and the issuer key it is "+
+			"stored under", stale)
+	}
+	if stale.Managed {
+		t.Error("a stale certificate is reported as managed; nothing renews it")
 	}
 }
 
