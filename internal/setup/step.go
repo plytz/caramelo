@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/plytz/caramelo/internal/firewall"
 	"github.com/plytz/caramelo/internal/runner"
 	"github.com/plytz/caramelo/internal/serverconfig"
 	"github.com/plytz/caramelo/internal/vpn"
@@ -38,6 +39,8 @@ type Env struct {
 	BinaryPath string
 
 	ConfigChanged bool
+
+	Firewall *firewall.Report
 }
 
 type Options struct {
@@ -46,6 +49,7 @@ type Options struct {
 	Force              bool
 	LowPorts           bool
 	InstallPackages    bool
+	OpenPorts          bool
 
 	Join JoinSpec
 

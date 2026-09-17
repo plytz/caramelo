@@ -154,6 +154,8 @@ the machine is recorded in the commander config and the API is checked from here
 	f.BoolVar(&opts.Yes, "yes", false, "do not ask for confirmation")
 	f.BoolVar(&opts.Force, "force", false, "continue even when the machine is unsupported or too small")
 	f.BoolVar(&opts.LowPorts, "low-ports", false, "let containers publish ports below 1024")
+	f.BoolVar(&opts.OpenPorts, "open-ports", false,
+		"open the ports this machine needs in its own firewall (off by default: caramelo only looks)")
 	f.BoolVar(&dryRun, "dry-run", false, "report what would change, change nothing")
 	f.BoolVar(&noPkgs, "no-packages", false, "assume Docker is already installed")
 	f.StringVar(&target, "target", "", "set up another machine from here: [user@]host[:port] for ssh (default user: yours, port 22)")
@@ -300,6 +302,9 @@ func setupPlan(env *setup.Env) string {
 	fmt.Fprintf(&b, "  network   %s, wireguard on %s (udp)\n", cfg.VPNSubnet, cfg.VPNListen)
 	if !env.Opts.Peer.Empty() {
 		fmt.Fprintf(&b, "  peer      %s admitted on the network\n", env.Opts.Peer.Name)
+	}
+	if env.Opts.OpenPorts {
+		fmt.Fprintf(&b, "  firewall  opens the ports this machine needs in ufw or firewalld\n")
 	}
 	fmt.Fprintf(&b, "  keys      %s\n", keys)
 	fmt.Fprintf(&b, "  packages  %s\n", packages)

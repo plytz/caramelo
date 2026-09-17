@@ -233,7 +233,7 @@ func TestSetupStepsAreTheWholePlanInOrder(t *testing.T) {
 	for _, s := range setupSteps() {
 		names = append(names, s.Name())
 	}
-	want := []string{"preflight", "gauge", "user", "dirs", "host-config", "docker-packages",
+	want := []string{"preflight", "firewall", "gauge", "user", "dirs", "host-config", "docker-packages",
 		"docker-rootless", "vpn", "vault", "caramelod", "edge", "peer", "join", "summary"}
 	if strings.Join(names, ",") != strings.Join(want, ",") {
 		t.Errorf("steps = %v, want %v", names, want)

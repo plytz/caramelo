@@ -32,7 +32,7 @@ func TestHostStepsAreInDependencyOrder(t *testing.T) {
 	for _, s := range append(append([]Step{}, before...), after...) {
 		names = append(names, s.Name())
 	}
-	want := []string{"preflight", "gauge", "user", "dirs", "host-config", "vpn", "vault", "caramelod",
+	want := []string{"preflight", "firewall", "gauge", "user", "dirs", "host-config", "vpn", "vault", "caramelod",
 		"edge", "peer", "join", "summary"}
 	if strings.Join(names, " ") != strings.Join(want, " ") {
 		t.Fatalf("host steps = %q, want %q", names, want)
@@ -81,6 +81,9 @@ func TestReadOnlyStepsDoNotApply(t *testing.T) {
 	}
 	if err := NewPreflightStep().Apply(ctx, env); err == nil {
 		t.Error("PreflightStep.Apply = nil, want a refusal: preflight problems are fixed by hand")
+	}
+	if err := NewFirewallStep().Apply(ctx, env); err == nil {
+		t.Error("FirewallStep.Apply = nil, want a refusal: a firewall is read, never changed without --open-ports")
 	}
 	if run := env.Run.(*testutil.FakeRunner); len(run.Calls()) != 0 {
 		t.Errorf("a read-only Apply ran commands:\n%s", run.Transcript())

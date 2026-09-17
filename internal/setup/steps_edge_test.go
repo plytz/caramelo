@@ -179,8 +179,11 @@ func TestEdgeStepApplyInstallsAndStarts(t *testing.T) {
 		t.Errorf("the sysctl drop-in was written but never loaded:\n%s", run.Transcript())
 	}
 
-	if !strings.Contains(log.String(), "tcp 80, tcp 443, udp 443") {
-		t.Errorf("log = %q, want the firewall note for all three ports", log.String())
+	if !strings.Contains(log.String(), "the edge answers tcp 80, tcp 443, udp 443") {
+		t.Errorf("log = %q, want the edge to state what it binds", log.String())
+	}
+	if strings.Contains(log.String(), "make sure these ports reach this machine") {
+		t.Errorf("the edge still hands out advice nobody checked: %q", log.String())
 	}
 }
 

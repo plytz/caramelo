@@ -118,6 +118,14 @@ user you log in as, and it must be reachable at the address you write in the inv
 machine running the tests and from the other boxes. The fleet suites join machines to each other
 over exactly that address.
 
+`caramelo server setup` reads that box's own firewall before it installs anything and stops when it
+denies UDP 4021, the one port a machine needs, printing the rule that would open it (`--force` to
+continue anyway, `--open-ports` to let setup add the rule itself). It never changes a firewall
+otherwise, and a local reading only ever says this machine is not the one blocking a port: a
+security group in front of it, or the network between, can still drop the packets. The part a box
+cannot answer about itself is `caramelo server probe <host>`, which sends a handshake from the
+computer you run it on and says whether it arrived.
+
 The boxes form one caramelo fleet. The first machine in the inventory is the **hub**. Every other
 machine is a **member** that joins the hub's fleet. Three machines run the whole test suite. With
 fewer, the cases that need more machines skip with a message naming what they wanted.

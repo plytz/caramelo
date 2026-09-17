@@ -7,8 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"os/user"
+	"strconv"
 	"strings"
 	"time"
 
@@ -17,9 +19,11 @@ import (
 
 	"github.com/plytz/caramelo/internal/bootstrap"
 	"github.com/plytz/caramelo/internal/edge/certs"
+	"github.com/plytz/caramelo/internal/firewall"
 	"github.com/plytz/caramelo/internal/remote"
 	"github.com/plytz/caramelo/internal/serverconfig"
 	"github.com/plytz/caramelo/internal/setup"
+	"github.com/plytz/caramelo/internal/vpn"
 	"github.com/plytz/caramelo/internal/vpnclient"
 )
 
@@ -96,7 +100,7 @@ var forwardedFlags = []string{
 	"vpn-subnet", "vpn-listen", "api-listen",
 	"edge", "acme-email", "acme-ca", "tls", "no-http3",
 	"join-token", "join-name", "private",
-	"force", "low-ports", "dry-run", "no-packages",
+	"force", "low-ports", "open-ports", "dry-run", "no-packages",
 }
 
 type bootstrapResult struct {
@@ -111,6 +115,8 @@ type bootstrapResult struct {
 	Verified  bool            `json:"verified"`
 	Transport string          `json:"transport,omitempty"`
 	Status    json.RawMessage `json:"status,omitempty"`
+
+	Reachability *vpnclient.Probe `json:"reachability,omitempty"`
 }
 
 type machineEntry struct {
@@ -223,19 +229,23 @@ func (a *app) runBootstrap(cmd *cobra.Command, f bootstrapFlags) error {
 	}
 	res.Machine = entry
 
-	if err := a.join(ctx, name, peer, f, shellControl{shell: shell, sudo: out.Probe.Privilege != bootstrap.PrivilegeRoot}); err != nil {
-		fmt.Fprintf(a.stderr, "[bootstrap] warning: could not join the machine's network: %v\n", err)
+	endpoint := net.JoinHostPort(target.Host, strconv.Itoa(firewall.VPNPort(f.cfg.VPNListen)))
+	joined, joinErr := a.join(ctx, name, peer, f, shellControl{shell: shell, sudo: out.Probe.Privilege != bootstrap.PrivilegeRoot})
+	if joinErr != nil {
+		fmt.Fprintf(a.stderr, "[bootstrap] warning: could not join the machine's network: %v\n", joinErr)
 	}
 
 	status, err := verifyMachine(ctx, a, name)
 	if err != nil {
+		res.Reachability = reachability(name, endpoint, joined, joinErr, res.Transport)
 		_ = answer(res, false)
 		return fmt.Errorf("setup finished on %s and it is recorded as machine %q, but the API at %s did not answer from here: %w\n"+
-			"check that port %d and udp %s are reachable (firewall, security group), then try: caramelo --machine %s status",
-			target, name, address, err, address.Port, f.cfg.VPNListen, name)
+			"%s\ncheck that port %d and udp %s are reachable (firewall, security group), then try: caramelo --machine %s status",
+			target, name, address, err, bootstrapFailureCause(out.Report, res.Reachability), address.Port, f.cfg.VPNListen, name)
 	}
 	res.Verified, res.Status = true, status
 	res.Transport = transportOf(status)
+	res.Reachability = reachability(name, endpoint, joined, joinErr, res.Transport)
 	return answer(res, true)
 }
 
@@ -326,6 +336,11 @@ func (a *app) printBootstrap(res bootstrapResult, name string, verified bool) er
 		if res.Machine != nil {
 			how := "machine %s (%s) recorded in %s\n"
 			if _, err := fmt.Fprintf(w, how, res.Machine.Name, res.Machine.Address, res.Machine.Config); err != nil {
+				return err
+			}
+		}
+		if res.Reachability != nil {
+			if _, err := fmt.Fprintln(w, bootstrapReachLine(res.Reachability)); err != nil {
 				return err
 			}
 		}
@@ -422,14 +437,13 @@ func localUser() string {
 var (
 	commanderPeerKey = ensurePeerKey
 
-	joinMachine = func(ctx context.Context, machine string, ctl vpnclient.Control) error {
+	joinMachine = func(ctx context.Context, machine string, ctl vpnclient.Control) (*vpnclient.State, error) {
 
 		c, err := vpnclient.NewWith(vpnclient.Options{Control: ctl, Log: io.Discard})
 		if err != nil {
-			return err
+			return nil, err
 		}
-		_, err = c.Up(ctx, vpnclient.UpRequest{Machine: machine})
-		return err
+		return c.Up(ctx, vpnclient.UpRequest{Machine: machine})
 	}
 )
 
@@ -464,11 +478,94 @@ func (a *app) bootstrapPeer(f bootstrapFlags, machine string) (setup.PeerSpec, e
 	return peer, nil
 }
 
-func (a *app) join(ctx context.Context, machine string, peer setup.PeerSpec, f bootstrapFlags, ctl vpnclient.Control) error {
+func (a *app) join(ctx context.Context, machine string, peer setup.PeerSpec, f bootstrapFlags, ctl vpnclient.Control) (*vpnclient.State, error) {
 	if joinMachine == nil || peer.Empty() || !f.peer.Empty() {
-		return nil
+		return nil, nil
 	}
 	return joinMachine(ctx, machine, ctl)
+}
+
+func reachability(machine, endpoint string, st *vpnclient.State, joinErr error, transport string) *vpnclient.Probe {
+	if st == nil && joinErr == nil {
+		return nil
+	}
+	p := &vpnclient.Probe{Machine: machine, Endpoint: endpoint, Admitted: true}
+	if st != nil {
+		p.Handshake = st.LastHandshake
+		if st.Endpoint != "" {
+			p.Endpoint = st.Endpoint
+		}
+	}
+	port := portOfEndpoint(p.Endpoint)
+	switch {
+	case st == nil || st.LastHandshake.IsZero():
+		p.Result = vpnclient.ProbeNoAnswer
+		p.Detail = fmt.Sprintf("nothing from here got an answer on udp %s", port)
+	case transport == "tunnel":
+		p.Result = vpnclient.ProbeReached
+		p.Detail = fmt.Sprintf("a packet from here arrived on udp %s and was answered, "+
+			"and the API then answered through that tunnel", port)
+	default:
+		p.Result = vpnclient.ProbeUnproven
+		p.Detail = fmt.Sprintf("a handshake came back on udp %s, so this machine answered a packet "+
+			"from here; %s, so the tunnel is not proven end to end", port, apiWentWhere(transport))
+	}
+	return p
+}
+
+func apiWentWhere(transport string) string {
+	if transport == "" {
+		return "the API did not answer"
+	}
+	return "the API answered over " + transport + ", not through that tunnel"
+}
+
+func portOfEndpoint(endpoint string) string {
+	if _, port, err := net.SplitHostPort(endpoint); err == nil {
+		return port
+	}
+	return strconv.Itoa(vpn.DefaultListenPort)
+}
+
+func bootstrapReachLine(p *vpnclient.Probe) string {
+	port := portOfEndpoint(p.Endpoint)
+	switch p.Result {
+	case vpnclient.ProbeReached:
+		return fmt.Sprintf("udp %s reached from here", port)
+	case vpnclient.ProbeNoAnswer:
+		return fmt.Sprintf("udp %s did not answer from here: setup finished, "+
+			"but nothing outside can reach this machine's tunnel", port)
+	}
+	return fmt.Sprintf("udp %s answered a handshake from here, "+
+		"but the tunnel is not proven end to end: the API was not confirmed through it", port)
+}
+
+func bootstrapFailureCause(r setup.Report, p *vpnclient.Probe) string {
+	if p != nil && !p.Handshake.IsZero() {
+		return fmt.Sprintf("udp %s answered a handshake from here, so the way in to the tunnel is open: "+
+			"the API is what did not answer through it", portOfEndpoint(p.Endpoint))
+	}
+	return remoteFirewallLine(r)
+}
+
+func remoteFirewallLine(r setup.Report) string {
+	for _, res := range r.Results {
+		if res.Step != "firewall" {
+			continue
+		}
+		switch {
+		case res.Status == setup.StatusFailed:
+			return "the machine's own firewall stopped setup: " + res.Error
+		case strings.Contains(res.Detail, string(firewall.VerdictBlocked)):
+			return "the machine read its own firewall and found a port it needs blocked: " + res.Detail
+		case strings.Contains(res.Detail, string(firewall.VerdictUnknown)):
+			return "the machine could not read its own firewall (" + res.Detail +
+				"), so nothing here says where the packets are going"
+		}
+		return "the machine read its own firewall and is not the one blocking the way in (" + res.Detail +
+			"): look at the security group or the network in front of it"
+	}
+	return "the machine did not report on its own firewall"
 }
 
 func ensurePeerKey(machine string) (setup.PeerSpec, error) {

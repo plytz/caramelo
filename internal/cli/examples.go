@@ -262,6 +262,7 @@ printf 'STRIPE_KEY=sk_live_...' | caramelo secrets set --app-scope --stdin   # K
 	"caramelo server": `
 caramelo server setup --target you@box
 caramelo server status
+caramelo server probe box
 sudo caramelo server uninstall --yes`,
 
 	"caramelo server setup": `
@@ -272,7 +273,13 @@ caramelo server setup --target you@box --peer agent-7 Nq0Xw2mS8VbZ1YtR7dK3jL5pQ9
 caramelo server setup --target you@box --release v0.0.1         # ship that release, not this build
 caramelo server setup --target you@box --dry-run                # say what would change
 sudo caramelo server setup --yes                                # on the box itself
+sudo caramelo server setup --yes --open-ports                   # let setup open udp 4021 in this box's own firewall
 caramelo server setup --target you@box --json --progress json`,
+
+	"caramelo server probe": `
+caramelo server probe box                       # does its udp 4021 answer from here?
+caramelo server probe 203.0.113.9:4021 --key Nq0Xw2mS8VbZ1YtR7dK3jL5pQ9cF4hG6uI8oP0aB2wE=
+caramelo server probe box --timeout 3s --json`,
 
 	"caramelo server status": `
 caramelo server status

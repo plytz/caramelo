@@ -19,6 +19,8 @@ package:
     installed: true
   passt:
     installed: false
+  ufw:
+    installed: false
   git:
     installed: true
 
@@ -218,4 +220,8 @@ command:
     stdout:
       - rootless
   test -d /sys/module/br_netfilter || test -e /proc/sys/net/bridge/bridge-nf-call-iptables:
+    exit-status: 0
+  '! command -v ufw >/dev/null 2>&1 || ufw status | grep -q "Status: inactive"':
+    exit-status: 0
+  '! command -v nft >/dev/null 2>&1 || ! nft list ruleset | grep -q "hook input"':
     exit-status: 0
