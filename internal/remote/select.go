@@ -49,19 +49,40 @@ type Choice struct {
 	Why string
 }
 
+type Plan struct {
+	Kind string
+
+	Target Target
+
+	Fleet string
+
+	Why string
+}
+
 func Select(ctx context.Context, s Selection) (Choice, error) {
+	p, err := s.Plan()
+	if err != nil {
+		return Choice{}, err
+	}
+	if p.Kind == KindSocket {
+		return Choice{Kind: KindSocket, SocketPath: s.SocketPath, User: s.SocketUser, Why: p.Why}, nil
+	}
+	return s.remote(ctx, p.Target, p.Fleet, p.Why)
+}
+
+func (s Selection) Plan() (Plan, error) {
 	exists := s.SocketExists
 	if exists == nil {
 		exists = SocketExists
 	}
-	socket := func(why string) Choice {
-		return Choice{Kind: KindSocket, SocketPath: s.SocketPath, User: s.SocketUser, Why: why}
+	socket := func(why string) Plan {
+		return Plan{Kind: KindSocket, Why: why}
 	}
 
 	machine := strings.TrimSpace(s.Machine)
 	fleet := strings.TrimSpace(s.Fleet)
 	if machine != "" && fleet != "" {
-		return Choice{}, fmt.Errorf(
+		return Plan{}, fmt.Errorf(
 			"--machine %s and --fleet %s ask for two different things: --fleet names a fleet of the "+
 				"commander config and --machine a raw ssh target that is in no fleet yet", machine, fleet)
 	}
@@ -72,13 +93,13 @@ func Select(ctx context.Context, s Selection) (Choice, error) {
 		}
 		target, err := ParseTarget(machine)
 		if err != nil {
-			return Choice{}, err
+			return Plan{}, err
 		}
-		return s.remote(ctx, target, "", "--machine "+machine)
+		return Plan{Kind: KindSSH, Target: target, Why: "--machine " + machine}, nil
 	}
 
 	if fleet != "" {
-		return s.fleet(ctx, fleet, "--fleet "+fleet)
+		return s.planFleet(fleet, "--fleet "+fleet)
 	}
 
 	if exists(s.SocketPath) {
@@ -87,25 +108,33 @@ func Select(ctx context.Context, s Selection) (Choice, error) {
 
 	if app := s.app(); app != "" {
 		if name := s.Config.FleetForApp(app); name != "" {
-			return s.fleet(ctx, name, "the fleet recorded for app "+app)
+			return s.planFleet(name, "the fleet recorded for app "+app)
 		}
 	}
 
 	if name := strings.TrimSpace(s.Config.Commander.DefaultFleet); name != "" {
-		return s.fleet(ctx, name, "commander.default_fleet")
+		return s.planFleet(name, "commander.default_fleet")
 	}
 
 	names := s.Config.FleetNames()
 	switch len(names) {
 	case 0:
-		return Choice{}, ErrNoFleet
+		return Plan{}, ErrNoFleet
 	case 1:
-		return s.fleet(ctx, names[0], "the only fleet in the commander config")
+		return s.planFleet(names[0], "the only fleet in the commander config")
 	}
-	return Choice{}, fmt.Errorf(
+	return Plan{}, fmt.Errorf(
 		"this commander knows %d fleets (%s) and nothing here says which one to talk to: "+
 			"pass --fleet NAME (or CARAMELO_FLEET), or make one the default with "+
 			"'caramelo fleet default NAME'", len(names), s.Config.FleetList())
+}
+
+func (s Selection) planFleet(name, why string) (Plan, error) {
+	target, err := s.Config.FleetTarget(name)
+	if err != nil {
+		return Plan{}, err
+	}
+	return Plan{Kind: KindSSH, Target: target, Fleet: name, Why: why}, nil
 }
 
 func (s Selection) app() string {
@@ -113,14 +142,6 @@ func (s Selection) app() string {
 		return ""
 	}
 	return strings.TrimSpace(s.App())
-}
-
-func (s Selection) fleet(ctx context.Context, name, why string) (Choice, error) {
-	target, err := s.Config.FleetTarget(name)
-	if err != nil {
-		return Choice{}, err
-	}
-	return s.remote(ctx, target, name, why)
 }
 
 func (s Selection) remote(ctx context.Context, target Target, fleet, why string) (Choice, error) {

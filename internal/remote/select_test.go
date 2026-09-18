@@ -335,3 +335,58 @@ func TestTunnelTransportAddress(t *testing.T) {
 		t.Errorf("Address = %q, want the name the dialer resolves", tr.Address)
 	}
 }
+
+func TestPlanAnswersTheSameAsSelectAndNeverDials(t *testing.T) {
+	ctx := context.Background()
+	for _, tc := range []struct {
+		name string
+		mut  func(*Selection)
+	}{
+		{"the local socket", func(s *Selection) { s.SocketExists = func(string) bool { return true } }},
+		{"--machine", func(s *Selection) { s.Machine = "alex@10.0.0.5:4023" }},
+		{"--fleet", func(s *Selection) { s.Fleet = "work" }},
+		{"the app's fleet", func(s *Selection) { s.App = func() string { return "blog" } }},
+		{"the default fleet", func(s *Selection) { s.Config.Commander.DefaultFleet = "home" }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := selection()
+			s.Config = twoFleets()
+			tc.mut(&s)
+			s.Tunnel = func(context.Context, string, Target) (Dialer, error) { return nil, ErrNoTunnel }
+			want, err := Select(ctx, s)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			s.Tunnel = func(context.Context, string, Target) (Dialer, error) {
+				t.Error("Plan dialed a tunnel")
+				return nil, ErrNoTunnel
+			}
+			got, err := s.Plan()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.Kind != want.Kind || got.Target != want.Target || got.Fleet != want.Fleet || got.Why != want.Why {
+				t.Errorf("Plan() = %+v, want the choice Select made: %+v", got, want)
+			}
+		})
+	}
+}
+
+func TestPlanRefusesToGuessBetweenFleets(t *testing.T) {
+	s := selection()
+	s.Config = twoFleets()
+	_, err := s.Plan()
+	if err == nil {
+		t.Fatal("want a refusal when two fleets are configured and nothing picks one")
+	}
+	for _, want := range []string{"home, work", "--fleet"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error %q does not name %q", err, want)
+		}
+	}
+	s.Config = CommanderConfig{}
+	if _, err := s.Plan(); !errors.Is(err, ErrNoFleet) {
+		t.Errorf("err = %v, want ErrNoFleet with nothing configured", err)
+	}
+}

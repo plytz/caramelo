@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"io"
 	"net/netip"
 	"os"
@@ -18,6 +19,7 @@ import (
 	"github.com/plytz/caramelo/internal/edge"
 	"github.com/plytz/caramelo/internal/edge/certs"
 	"github.com/plytz/caramelo/internal/env"
+	"github.com/plytz/caramelo/internal/place"
 	"github.com/plytz/caramelo/internal/remote"
 	"github.com/plytz/caramelo/internal/state"
 	"github.com/plytz/caramelo/internal/vpnclient"
@@ -71,6 +73,11 @@ func TestGoldenPlainOutput(t *testing.T) {
 		{"status-none", func(w io.Writer) error { return writeStatus(w, nil) }},
 		{"member-show", func(w io.Writer) error { return writeMachine(w, machineFixture()) }},
 		{"app-list", func(w io.Writer) error { return writeApps(w, appsFixture()) }},
+		{"context-fresh", canonicalContext(place.CanonicalFresh)},
+		{"context-commander", canonicalContext(place.CanonicalCommander)},
+		{"context-commander-checkout", canonicalContext(place.CanonicalCommanderCheckout)},
+		{"context-hub", canonicalContext(place.CanonicalHub)},
+		{"context-member", canonicalContext(place.CanonicalMember)},
 		{"fleet-list", func(w io.Writer) error { return fleetsView(fleetsFixture()).Write(w) }},
 		{"fleet-list-empty", func(w io.Writer) error { return fleetsView(nil).Write(w) }},
 		{"app-list-empty", func(w io.Writer) error { return writeApps(w, nil) }},
@@ -555,5 +562,15 @@ func commanderInitFixture() commanderInitResult {
 		},
 		Created: []string{dir, dir + "/vpn", "/home/alex/.cache/caramelo", dir + "/config.yaml", dir + "/identity.key"},
 		Changed: true,
+	}
+}
+
+func canonicalContext(name string) func(w io.Writer) error {
+	return func(w io.Writer) error {
+		c, ok := place.Canonical(name)
+		if !ok {
+			return fmt.Errorf("no canonical context named %q", name)
+		}
+		return contextView(c).Write(w)
 	}
 }

@@ -6,16 +6,14 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 
 	"github.com/plytz/caramelo/internal/api"
 	"github.com/plytz/caramelo/internal/config"
 	"github.com/plytz/caramelo/internal/env"
+	"github.com/plytz/caramelo/internal/place"
 )
 
 func init() {
@@ -211,80 +209,10 @@ func currentBranch(ctx context.Context) string {
 	return branch
 }
 
-var runGit = func(ctx context.Context, dir string, args ...string) (string, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	cmd := exec.CommandContext(ctx, "git", append([]string{"-C", dir}, args...)...)
-	out, err := cmd.Output()
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(out)), nil
-}
+var runGit place.GitFunc = place.ExecGit
 
 func appFromCheckout(ctx context.Context, dir string) string {
-	if common, err := runGit(ctx, dir, "rev-parse", "--git-common-dir"); err == nil {
-		if app := appFromRepoPath(absFrom(dir, common)); app != "" {
-			return app
-		}
-	}
-	top, err := runGit(ctx, dir, "rev-parse", "--show-toplevel")
-	if err != nil || top == "" {
-		return ""
-	}
-	if name := nameFromConfig(filepath.Join(top, config.FileName)); name != "" {
-		return name
-	}
-
-	return config.DefaultName(top)
-}
-
-func absFrom(dir, path string) string {
-	if path == "" {
-		return ""
-	}
-	if filepath.IsAbs(path) {
-		return filepath.Clean(path)
-	}
-	abs, err := filepath.Abs(filepath.Join(dir, path))
-	if err != nil {
-		return filepath.Clean(filepath.Join(dir, path))
-	}
-	return abs
-}
-
-func appFromRepoPath(gitDir string) string {
-	if gitDir == "" || filepath.Base(gitDir) != "repo.git" {
-		return ""
-	}
-	appDir := filepath.Dir(gitDir)
-	if filepath.Base(filepath.Dir(appDir)) != "apps" {
-		return ""
-	}
-	name := filepath.Base(appDir)
-	if !env.ValidSlug(name) {
-		return ""
-	}
-	return name
-}
-
-func nameFromConfig(path string) string {
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return ""
-	}
-	var doc struct {
-		Name string `yaml:"name"`
-	}
-	if err := yaml.Unmarshal(b, &doc); err != nil {
-		return ""
-	}
-	name := strings.TrimSpace(doc.Name)
-	if !env.ValidSlug(name) {
-		return ""
-	}
-	return name
+	return place.AppFromCheckout(ctx, runGit, dir)
 }
 
 func (e *envCmd) requireApp() error {
