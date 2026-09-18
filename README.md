@@ -139,6 +139,11 @@ member; failing that the commander's config makes it a commander; failing that i
 and `caramelo commander init` is the one command it can run. Under `sudo` on a box that is not a
 server, the commander config read is the invoking user's, not root's.
 
+A box can be both. On a server the role always comes from the machine's own `config.yaml`, and the
+commander config beside it is read all the same, for the fleets it records: when no local caramelod
+answers, that is where a command typed there goes, so the place and the command never disagree
+about the fleet.
+
 `caramelo context` prints that place in full: the machine's name and role, the config file that
 says so, the paths and services a server holds — state, data, run, apps, edge, vpn and secrets
 directories, the caramelod socket, whether the edge is on and where it answers, `vpn_listen` and

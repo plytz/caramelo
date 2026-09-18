@@ -161,7 +161,7 @@ func TestAServerConfigSaysWhatThisMachineIs(t *testing.T) {
 				t.Errorf("edge = %v, want %v", c.Server.Services.Edge.Enabled, tc.edge)
 			}
 			if c.Commander != nil {
-				t.Errorf("a server holds no commander: %+v", c.Commander)
+				t.Errorf("no commander config on this box, so no fleets: %+v", c.Commander)
 			}
 		})
 	}
@@ -230,13 +230,63 @@ func TestACommanderIsReadFromTheUsersOwnConfig(t *testing.T) {
 	}
 }
 
-func TestAServerConfigBeatsTheCommanderConfig(t *testing.T) {
-	serverDir(t, hubConfig)
-	saveCommander(t, oneFleet())
+func TestAServerConfigSaysTheRoleAndTheCommanderConfigIsReadToo(t *testing.T) {
+	dir := serverDir(t, hubConfig)
+	path := saveCommander(t, oneFleet())
 
 	c := detect(t, Options{})
-	if c.Role != RoleHub || c.Commander != nil {
-		t.Errorf("context = %+v, want the machine's own config to win", c)
+	if c.Role != RoleHub || c.Name != "box" || c.ConfigFile != serverconfig.Path(dir) {
+		t.Errorf("context = %+v, want the role of the machine's own config", c)
+	}
+	if c.CommanderConfig != path || c.Commander == nil || len(c.Commander.Fleets) != 1 {
+		t.Errorf("context = %+v, want the fleets of %s as well: a server can be a commander too", c, path)
+	}
+}
+
+func TestOnAServerTheContextAndTheTransportPickTheSameFleet(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		cfg   remote.CommanderConfig
+		opts  Options
+		fleet string
+	}{
+		{"--fleet names one of the commander's fleets", twoFleets(), Options{Fleet: "work"}, "work"},
+		{"the default fleet when no socket answers", oneFleet(), Options{}, "home"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			serverDir(t, hubConfig)
+			saveCommander(t, tc.cfg)
+
+			c := detect(t, tc.opts)
+			if c.Role != RoleHub {
+				t.Fatalf("role = %q, want %q: the machine's own config says what it is", c.Role, RoleHub)
+			}
+			if c.TalksTo.Kind != TalksSSH || c.TalksTo.Fleet != tc.fleet {
+				t.Fatalf("talks to = %+v, want fleet %s", c.TalksTo, tc.fleet)
+			}
+
+			cfg, err := remote.LoadCommanderConfig()
+			if err != nil {
+				t.Fatal(err)
+			}
+			choice, err := remote.Select(context.Background(), remote.Selection{
+				Machine:      tc.opts.Machine,
+				Fleet:        tc.opts.Fleet,
+				Config:       cfg,
+				SocketPath:   c.Server.Paths.Socket,
+				SocketExists: func(string) bool { return false },
+				Tunnel: func(context.Context, string, remote.Target) (remote.Dialer, error) {
+					return nil, remote.ErrNoTunnel
+				},
+			})
+			if err != nil {
+				t.Fatalf("remote.Select: %v", err)
+			}
+			if choice.Fleet != c.TalksTo.Fleet || choice.Target.String() != c.TalksTo.Target {
+				t.Errorf("the context says fleet %s at %s and a command goes to fleet %s at %s",
+					c.TalksTo.Fleet, c.TalksTo.Target, choice.Fleet, choice.Target)
+			}
+		})
 	}
 }
 

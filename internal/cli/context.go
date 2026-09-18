@@ -80,6 +80,9 @@ func contextView(c place.Context) *ui.View {
 func serverFields(f *ui.Fields, c place.Context) {
 	s := c.Server
 	f.Add("config", "%s", c.ConfigFile)
+	if c.Commander != nil {
+		f.Add("commander", "%s", c.CommanderConfig)
+	}
 	f.Add("user", "%s:%s", s.User, s.Group)
 	if s.Fleet != "" {
 		f.Add("fleet", "%s", s.Fleet)
