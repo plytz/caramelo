@@ -456,7 +456,7 @@ var (
 		if err != nil {
 			return nil, err
 		}
-		return c.Up(ctx, vpnclient.UpRequest{Machine: fleet, PeerName: commanderPeerName("")})
+		return c.Up(ctx, vpnclient.UpRequest{Machine: fleet, Identity: commanderName()})
 	}
 )
 
@@ -586,7 +586,7 @@ func ensurePeerKey(machine string) (setup.PeerSpec, error) {
 	if err != nil {
 		return setup.PeerSpec{}, err
 	}
-	return setup.PeerSpec{Name: vpnclient.DefaultPeerName(), PublicKey: kp.Public}, nil
+	return setup.PeerSpec{Name: strOr(commanderName(), vpnclient.DefaultPeerName()), PublicKey: kp.Public}, nil
 }
 
 func transportOf(status json.RawMessage) string {
