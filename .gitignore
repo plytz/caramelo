@@ -4,4 +4,3 @@
 *.out
 /test/integration/.cache/
 /test/integration/.logs/
-/MANUAL.md
