@@ -301,7 +301,8 @@ func TestMachineShowServiceError(t *testing.T) {
 	}
 }
 
-func TestMemberGroupIsRegistered(t *testing.T) {
+func TestMemberGroupIsRegisteredAndListedWhereItHolds(t *testing.T) {
+	commanderPlace(t)
 	code, stdout, _ := run(t)
 	if code != ExitOK {
 		t.Fatalf("exit = %d", code)

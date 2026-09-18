@@ -39,24 +39,20 @@ func aJoinTicket(t *testing.T) (fleet.Ticket, string) {
 	return tk, s
 }
 
-func TestJoinOnAMachineThatWasNeverSetUpNamesTheStepsThatMakeWhatItNeeds(t *testing.T) {
+func TestJoinOnABoxWithNoConfigAtAllIsRefusedBeforeItRuns(t *testing.T) {
+	freshPlace(t)
 	_, token := aJoinTicket(t)
 	code, stdout, stderr := run(t, "member", "join", "hub.example.com:4021", "--token", token, "--config-dir", t.TempDir())
-	if code != ExitError {
-		t.Fatalf("exit = %d, want %d (stderr %q)", code, ExitError, stderr)
+	if code != ExitUsage {
+		t.Fatalf("exit = %d, want %d (stderr %q)", code, ExitUsage, stderr)
 	}
 	if stdout != "" {
 		t.Errorf("stdout = %q, want empty", stdout)
 	}
-	for _, want := range []string{
-		"caramelo hub setup",
-		"dirs",
-		serverconfig.ConfigFile,
-		serverconfig.DefaultUser,
-		"docker-rootless",
-		"WireGuard key",
-		"vpn",
-	} {
+	if n := strings.Count(strings.TrimSpace(stderr), "\n"); n != 0 {
+		t.Errorf("stderr = %q, want the refusal alone on one line", stderr)
+	}
+	for _, want := range []string{"a hub or a member", "caramelo hub setup"} {
 		if !strings.Contains(stderr, want) {
 			t.Errorf("stderr = %q, want it to name %q", stderr, want)
 		}
@@ -66,9 +62,10 @@ func TestJoinOnAMachineThatWasNeverSetUpNamesTheStepsThatMakeWhatItNeeds(t *test
 	}
 }
 
-func TestJoinRefusalLeadsWithALineThatStandsAlone(t *testing.T) {
+func TestJoinRefusalOnAServerLeadsWithALineThatStandsAlone(t *testing.T) {
+	configDir, _ := tempServerConfig(t)
 	_, token := aJoinTicket(t)
-	_, _, stderr := run(t, "member", "join", "hub.example.com:4021", "--token", token, "--config-dir", t.TempDir())
+	_, _, stderr := run(t, "member", "join", "hub.example.com:4021", "--token", token, "--config-dir", configDir)
 	first := strings.SplitN(strings.TrimSpace(stderr), "\n", 2)[0]
 	for _, want := range []string{"has not been set up", "caramelo hub setup"} {
 		if !strings.Contains(first, want) {

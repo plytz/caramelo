@@ -97,8 +97,8 @@ func TestTheTwoLocalFleetCommandsRefuseBeforeTheyTouchAnything(t *testing.T) {
 		code  int
 		want  string
 	}{
-		{freshPlace, []string{"member", "join", "hub.example.com", "--token", "t"}, ExitUsage, "caramelo-join-v1."},
-		{freshPlace, []string{"member", "join", "hub.example.com"}, ExitUsage, "needs a token"},
+		{hubPlace, []string{"member", "join", "hub.example.com", "--token", "t"}, ExitUsage, "caramelo-join-v1."},
+		{hubPlace, []string{"member", "join", "hub.example.com"}, ExitUsage, "needs a token"},
 		{commanderPlace, []string{"member", "add", "admin@nx2.local"}, ExitError, "take a join token from the hub"},
 		{commanderPlace, []string{"member", "add", "admin@nx2.local", "--edge", "--private"}, ExitUsage, "opposites"},
 	} {

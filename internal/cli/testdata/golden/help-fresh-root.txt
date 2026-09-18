@@ -20,7 +20,6 @@ Available Commands:
   help        Help about any command
   hub         Commands the machine itself runs: setup, uninstall, status, run
   manual      The manual of this machine: every command that holds here, with examples
-  member      Inspect this machine, and the fleet it is part of
   version     Print the caramelo version
 
 Flags:
@@ -32,4 +31,4 @@ Flags:
 
 Use "caramelo [command] --help" for more information about a command.
 
-58 commands are hidden here; 'caramelo manual --role all' lists every command of every role.
+59 commands are hidden here; 'caramelo manual --role all' lists every command of every role.

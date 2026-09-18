@@ -47,7 +47,7 @@ logs                 -      yes        yes                 yes  yes     a comman
 manual               yes    yes        yes                 yes  yes     any machine
 member add           -      yes        yes                 yes  -       a commander or a hub
 member announce      -      -          -                   yes  yes     a hub or a member
-member join          yes    -          -                   yes  yes     anything but a commander
+member join          -      -          -                   yes  yes     a hub or a member
 member leave         -      -          -                   -    yes     a member
 member list          -      yes        yes                 yes  yes     a commander or a hub or a member
 member redeem        -      -          -                   yes  yes     a hub or a member

@@ -265,8 +265,11 @@ func TestALeafTypedWhereItDoesNotBelongIsRefused(t *testing.T) {
 		{name: "member leave on a hub", where: hubPlace, args: []string{"member", "leave"},
 			want: "member leave runs on a member, and this machine is a hub; " +
 				"'caramelo context' says where you are"},
+		{name: "member join on a fresh box", where: freshPlace, args: []string{"member", "join", "box:4021"},
+			want: "member join runs on a hub or a member, and this box has no config at all; " +
+				"run 'sudo caramelo hub setup' to make this machine a hub"},
 		{name: "member join on a commander", where: commanderPlace, args: []string{"member", "join", "box:4021"},
-			want: "member join runs on anything but a commander, and this machine is a commander; " +
+			want: "member join runs on a hub or a member, and this machine is a commander; " +
 				"run 'sudo caramelo hub setup' to make this machine a hub"},
 		{name: "env sync on a fresh box", where: freshPlace, args: []string{"env", "sync", "feat-x"},
 			want: "env sync runs on a hub or a member, and this box has no config at all; " +
@@ -390,13 +393,27 @@ func TestALeafTypedWhereItBelongsRuns(t *testing.T) {
 }
 
 func TestTheHelpOfALeafThatDoesNotHoldHereStillPrints(t *testing.T) {
-	commanderPlace(t)
-	code, stdout, stderr := run(t, "hub", "run", "--help")
-	if code != ExitOK {
-		t.Fatalf("exit = %d: %s", code, stderr)
-	}
-	if !strings.Contains(stdout, "caramelod") {
-		t.Errorf("stdout = %q, want the help of hub run", stdout)
+	for _, tc := range []struct {
+		name  string
+		where func(t *testing.T)
+		args  []string
+		want  string
+	}{
+		{name: "hub run on a commander", where: commanderPlace,
+			args: []string{"hub", "run"}, want: "caramelod"},
+		{name: "member join on a fresh box", where: freshPlace,
+			args: []string{"member", "join"}, want: "caramelo hub setup"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.where(t)
+			code, stdout, stderr := run(t, append(tc.args, "--help")...)
+			if code != ExitOK {
+				t.Fatalf("exit = %d: %s", code, stderr)
+			}
+			if !strings.Contains(stdout, tc.want) {
+				t.Errorf("stdout = %q, want the help of %s", stdout, strings.Join(tc.args, " "))
+			}
+		})
 	}
 }
 
