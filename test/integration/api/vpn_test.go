@@ -36,6 +36,7 @@ func tunnelBox(t *testing.T) (*itest.Machine, *itest.Machine, itest.SSHAPIOption
 	if err := itest.InstallBinaryOn(ctx, commander); err != nil {
 		t.Fatalf("install the commander on %s: %v", commander.Alias, err)
 	}
+	mustOnCommander(t, commander, nil, itest.Scale(time.Minute), "commander", "init", "--json")
 	return m, commander, o
 }
 

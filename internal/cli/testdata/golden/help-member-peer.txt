@@ -1,5 +1,5 @@
-worker, member of fleet home (hub box.example.com:4021) · /etc/caramelo/config.yaml ·
-  caramelod socket /run/caramelo/caramelod.sock · edge off
+worker, member of fleet home (hub box at box.example.com:4021) ·
+  /etc/caramelo/config.yaml · caramelod socket /run/caramelo/caramelod.sock · edge off
 
 A peer is an identity — a laptop, an agent, a CI runner — admitted to
 the machine's private network by its WireGuard public key. The machine never

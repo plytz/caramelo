@@ -131,7 +131,7 @@ func (a *app) refuseWhereItDoesNotBelong(cmd *cobra.Command) error {
 		return nil
 	}
 	c, err := a.place(cmd.Context())
-	if err != nil {
+	if err != nil || cannotSayWhereThisIs(c) {
 		return nil
 	}
 	if w.ok(c) {
@@ -139,6 +139,10 @@ func (a *app) refuseWhereItDoesNotBelong(cmd *cobra.Command) error {
 	}
 	return &notHereError{fmt.Sprintf("%s runs on %s, and %s; %s",
 		leafName(cmd), w.text, whatThisIs(c), whatToDo(c, w))}
+}
+
+func cannotSayWhereThisIs(c place.Context) bool {
+	return c.Role == place.RoleUnknown
 }
 
 func leafName(cmd *cobra.Command) string {

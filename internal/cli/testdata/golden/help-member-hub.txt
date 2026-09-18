@@ -1,5 +1,5 @@
-worker, member of fleet home (hub box.example.com:4021) · /etc/caramelo/config.yaml ·
-  caramelod socket /run/caramelo/caramelod.sock · edge off
+worker, member of fleet home (hub box at box.example.com:4021) ·
+  /etc/caramelo/config.yaml · caramelod socket /run/caramelo/caramelod.sock · edge off
 
 The hub namespace acts on this machine directly. It is never
 forwarded to a daemon and caramelod refuses it over the SSH API.

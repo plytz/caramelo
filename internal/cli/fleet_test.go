@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 
 	"github.com/plytz/caramelo/internal/remote"
+	"github.com/plytz/caramelo/internal/vpnclient"
 )
 
 func runFleet(t *testing.T, args ...string) (int, string, string) {
@@ -199,5 +201,108 @@ func TestAnAppTheHubDoesNotHoldIsNotRecorded(t *testing.T) {
 	cfg, _ := remote.LoadCommanderConfig()
 	if got := cfg.Commander.Fleets["home"].Apps; len(got) != 0 {
 		t.Errorf("apps = %q, want none: the hub was asked and does not hold shop", got)
+	}
+}
+
+func TestFleetRemoveForgetsTheTunnelItKept(t *testing.T) {
+	isolateOnACommander(t)
+	if code, _, stderr := runFleet(t, "fleet", "add", "home", "eric@box.example.com"); code != ExitOK {
+		t.Fatalf("fleet add: exit %d: %s", code, stderr)
+	}
+	if err := (pinnedRecords{}).Save(homeRecord()); err != nil {
+		t.Fatal(err)
+	}
+	keys := &vpnclient.FileKeyStore{}
+	if _, _, err := keys.Ensure("home"); err != nil {
+		t.Fatal(err)
+	}
+
+	if code, _, stderr := runFleet(t, "fleet", "remove", "home"); code != ExitOK {
+		t.Fatalf("fleet remove: exit %d: %s", code, stderr)
+	}
+	if _, err := (&vpnclient.FileRecordStore{}).Load("home"); !errors.Is(err, vpnclient.ErrNoKey) {
+		t.Errorf("the tunnel record survived the removal (%v)", err)
+	}
+	if _, err := keys.Load("home"); !errors.Is(err, vpnclient.ErrNoKey) {
+		t.Errorf("the key survived the removal (%v)", err)
+	}
+
+	if code, _, stderr := runFleet(t, "fleet", "add", "home", "eric@box.example.com"); code != ExitOK {
+		t.Fatalf("fleet add again: exit %d: %s", code, stderr)
+	}
+	rebuilt := homeRecord()
+	rebuilt.MachineKey = anotherKey
+	if err := (pinnedRecords{}).Save(rebuilt); err != nil {
+		t.Fatalf("a hub rebuilt at the same address must be adopted after 'fleet remove': %v", err)
+	}
+}
+
+const oneFleetFile = `name: laptop
+role: commander
+commander:
+  default_fleet: home
+  fleets:
+    home:
+      hub: caramelo@box.example:4022
+`
+
+func TestACommandRecordsItsAppOnTheFleetItReached(t *testing.T) {
+	dir := isolate(t)
+	t.Setenv("CARAMELO_APP", "")
+	writeCommanderFile(t, dir, oneFleetFile)
+	fakeGit(t, nil)
+	f := &fakeTransport{apps: []string{"shop", "blog"}}
+	f.install(t)
+
+	if code, _, stderr := runFleet(t, "env", "list", "--app", "shop"); code != ExitOK {
+		t.Fatalf("env list: exit %d: %s", code, stderr)
+	}
+	cfg, _ := remote.LoadCommanderConfig()
+	if cfg.FleetForApp("shop") != "home" {
+		t.Errorf("fleets = %+v, want shop recorded on the fleet the command reached", cfg.Commander.Fleets)
+	}
+	if len(f.seen) != 2 {
+		t.Errorf("transports = %+v, want the command itself and the app list that confirms it", f.seen)
+	}
+}
+
+func TestAFailedCommandRecordsNoApp(t *testing.T) {
+	dir := isolate(t)
+	t.Setenv("CARAMELO_APP", "")
+	writeCommanderFile(t, dir, oneFleetFile)
+	fakeGit(t, nil)
+	f := &fakeTransport{apps: []string{"shop"}, code: ExitError}
+	f.install(t)
+
+	if code, _, _ := runFleet(t, "env", "list", "--app", "shop"); code != ExitError {
+		t.Fatalf("exit %d, want %d", code, ExitError)
+	}
+	cfg, _ := remote.LoadCommanderConfig()
+	if got := cfg.Commander.Fleets["home"].Apps; len(got) != 0 {
+		t.Errorf("apps = %q, want none: the command failed", got)
+	}
+	if len(f.seen) != 1 {
+		t.Errorf("transports = %+v, want no app list after a failure", f.seen)
+	}
+}
+
+func TestAnAppThatCannotBeRecordedIsOnlyAWarning(t *testing.T) {
+	dir := isolate(t)
+	t.Setenv("CARAMELO_APP", "")
+	writeCommanderFile(t, dir, oneFleetFile)
+	fakeGit(t, nil)
+	f := &fakeTransport{listErr: errors.New("the hub did not answer")}
+	f.install(t)
+
+	code, _, stderr := runFleet(t, "env", "list", "--app", "shop")
+	if code != ExitOK {
+		t.Fatalf("exit %d, want the command's own code: %s", code, stderr)
+	}
+	if !strings.Contains(stderr, "warning") || !strings.Contains(stderr, "shop") {
+		t.Errorf("stderr = %q, want a warning naming the app", stderr)
+	}
+	cfg, _ := remote.LoadCommanderConfig()
+	if got := cfg.Commander.Fleets["home"].Apps; len(got) != 0 {
+		t.Errorf("apps = %q, want none", got)
 	}
 }

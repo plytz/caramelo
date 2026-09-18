@@ -1,5 +1,5 @@
-worker, member of fleet home (hub box.example.com:4021) · /etc/caramelo/config.yaml ·
-  caramelod socket /run/caramelo/caramelod.sock · edge off
+worker, member of fleet home (hub box at box.example.com:4021) ·
+  /etc/caramelo/config.yaml · caramelod socket /run/caramelo/caramelod.sock · edge off
 
 An environment is an isolated, disposable copy of an app on the machine:
 a git worktree on its own branch, its own block of ports, a container and a

@@ -20,9 +20,11 @@ import (
 	"time"
 
 	"golang.org/x/crypto/curve25519"
+	"gopkg.in/yaml.v3"
 
 	capi "github.com/plytz/caramelo/internal/api"
 	cenv "github.com/plytz/caramelo/internal/env"
+	"github.com/plytz/caramelo/internal/remote"
 	"github.com/plytz/caramelo/internal/state"
 	"github.com/plytz/caramelo/internal/vpn"
 	"github.com/plytz/caramelo/internal/vpnclient"
@@ -40,6 +42,7 @@ const (
 	hostPeer      = itest.LabPeerName
 	commanderPeer = "vpn-itest-commander"
 	agentPeer     = "vpn-itest-agent"
+	vpnFleetName  = "lab"
 )
 
 var commanderTimeout = itest.Scale(5 * time.Minute)
@@ -278,10 +281,21 @@ func (s *suite) sudoCommanderCaramelo(t *testing.T, args string) itest.Result {
 
 func (s *suite) writeCommanderConfig(t *testing.T, hub string) {
 	t.Helper()
-	home := itest.HomeOf(s.commander)
-	cmd := fmt.Sprintf("mkdir -p %s/.config/caramelo && "+
-		"printf 'name: commander\\nrole: commander\\ncommander:\\n  default_fleet: lab\\n  fleets:\\n    lab:\\n      hub: %s\\n' "+
-		"> %s/.config/caramelo/config.yaml", home, hub, home)
+	body, err := yaml.Marshal(remote.CommanderConfig{
+		Name: itest.CommanderName,
+		Role: remote.RoleCommander,
+		Commander: remote.Commander{
+			DefaultFleet: vpnFleetName,
+			Fleets:       map[string]remote.Fleet{vpnFleetName: {Hub: hub}},
+		},
+	})
+	if err != nil {
+		t.Fatalf("encoding the commander config for %s: %v", s.commander.Alias, err)
+	}
+	dir := filepath.Join(itest.HomeOf(s.commander), ".config", remote.CommanderDirName)
+	path := filepath.Join(dir, remote.CommanderConfigFile)
+	cmd := fmt.Sprintf("mkdir -p %s && chmod 0700 %s && printf %%s %s | base64 -d > %s && chmod 0600 %s",
+		dir, dir, base64.StdEncoding.EncodeToString(body), path, path)
 	if res := s.runOnCommander(t, cmd, itest.Scale(time.Minute)); res.ExitCode != 0 {
 		t.Fatalf("writing the commander config on %s: exit %d: %s", s.commander.Alias, res.ExitCode, res.Stderr)
 	}

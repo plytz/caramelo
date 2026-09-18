@@ -108,6 +108,32 @@ func TestContextOnAServerReadsThatMachinesConfig(t *testing.T) {
 	}
 }
 
+func TestContextOnAServerThatIsAlsoACommanderNamesBothFiles(t *testing.T) {
+	freshPlace(t)
+	dir := t.TempDir()
+	body := "name: box\nrole: hub\nhub:\n  fleet: home\n"
+	if err := os.WriteFile(filepath.Join(dir, serverconfig.ConfigFile), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(serverconfig.ConfigDirEnv, dir)
+	useCommanderConfig(t, oneFleet())
+
+	c := contextOf(t, "context")
+	if c.Role != place.RoleHub || c.Commander == nil || len(c.Commander.Fleets) != 1 {
+		t.Fatalf("context = %+v, want the hub box with the fleets of its commander config", c)
+	}
+	if c.TalksTo.Fleet != "home" {
+		t.Errorf("talks to = %+v, want fleet home: no socket answers here", c.TalksTo)
+	}
+
+	_, stdout, _ := run(t, "context")
+	for _, want := range []string{"commander", c.CommanderConfig, "FLEET", "home"} {
+		if !strings.Contains(stdout, want) {
+			t.Errorf("stdout lacks %q:\n%s", want, stdout)
+		}
+	}
+}
+
 func TestContextFollowsTheFleetAndMachineFlags(t *testing.T) {
 	freshPlace(t)
 	useCommanderConfig(t, remote.CommanderConfig{

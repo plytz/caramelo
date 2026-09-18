@@ -8,6 +8,7 @@ file:
       - "member:"
       - "    fleet:"
       - "    hub:"
+      - "        name:"
 
   /var/lib/caramelo/caramelo.db:
     exists: true
