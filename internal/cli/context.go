@@ -18,7 +18,7 @@ func init() {
 }
 
 func (a *app) contextCmd() *cobra.Command {
-	return localCmd(&cobra.Command{
+	cmd := localCmd(&cobra.Command{
 		Use:   "context",
 		Short: "Say where this CLI is running and what a command typed here would act on",
 		Long: `context is the answer to "where am I": the name of this machine and its role,
@@ -40,11 +40,13 @@ anything else; --json is the same answer for an agent.`,
 			})
 		},
 	})
+	return available(cmd, always)
 }
 
 func (a *app) place(ctx context.Context) (place.Context, error) {
 	a.placeOnce.Do(func() {
 		a.placeHere, a.placeErr = place.Detect(ctx, place.Options{
+			ConfigDir:    a.configDir,
 			Machine:      a.machine,
 			Fleet:        a.fleet,
 			Git:          runGit,
@@ -52,6 +54,14 @@ func (a *app) place(ctx context.Context) (place.Context, error) {
 		})
 	})
 	return a.placeHere, a.placeErr
+}
+
+func (a *app) readConfigDirFlag(cmd *cobra.Command) {
+	f := cmd.Flags().Lookup("config-dir")
+	if f == nil {
+		return
+	}
+	a.configDir = strings.TrimSpace(f.Value.String())
 }
 
 func contextView(c place.Context) *ui.View {

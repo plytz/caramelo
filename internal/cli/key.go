@@ -71,7 +71,7 @@ func (a *app) keyAddCmd() *cobra.Command {
 		},
 	}
 	cmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
-		if err := a.setProgress(); err != nil {
+		if err := a.beforeRun(cmd); err != nil {
 			return err
 		}
 		if a.service == nil && strings.TrimSpace(name) == "" {
@@ -86,7 +86,7 @@ func (a *app) keyAddCmd() *cobra.Command {
 		"identity for this key (unique, no spaces; default: the commander's own name)")
 	cmd.Flags().StringVar(&options, "options", "", "authorized_keys options, e.g. caramelo-role=admin")
 	cmd.Flags().StringVarP(&file, "file", "f", "", "read the key from this file instead of standard input")
-	return cmd
+	return available(cmd, onCommander.or(onHub))
 }
 
 func readKeyLine(ctx context.Context, file string) (string, error) {
@@ -119,7 +119,7 @@ func readKeyLine(ctx context.Context, file string) (string, error) {
 }
 
 func (a *app) keyListCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List the authorized keys",
 		Args:  exactArgs(0),
@@ -136,6 +136,7 @@ func (a *app) keyListCmd() *cobra.Command {
 			})
 		},
 	}
+	return available(cmd, onCommander.or(onHub))
 }
 
 func renderKeys(w io.Writer, keys []state.Key) error { return keysView(keys).Write(w) }
@@ -156,7 +157,7 @@ func keysView(keys []state.Key) *ui.View {
 }
 
 func (a *app) keyRemoveCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:     "remove NAME",
 		Aliases: []string{"rm"},
 		Short:   "Revoke a key by name",
@@ -172,6 +173,7 @@ func (a *app) keyRemoveCmd() *cobra.Command {
 			})
 		},
 	}
+	return available(cmd, onCommander.or(onHub))
 }
 
 func keyAddedView(k *state.Key) *ui.View {

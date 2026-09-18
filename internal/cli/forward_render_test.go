@@ -68,6 +68,7 @@ func has(args []string, want ...string) bool {
 }
 
 func TestForwardAsksForJSONAndRendersHere(t *testing.T) {
+	initializedCommander(t)
 	d := &fakeDaemon{out: `{"version":"v0.1.0","hostname":"worker1","transport":"socket"}` + "\n"}
 	d.install(t)
 
@@ -87,6 +88,7 @@ func TestForwardAsksForJSONAndRendersHere(t *testing.T) {
 }
 
 func TestForwardWithJSONPassesThrough(t *testing.T) {
+	initializedCommander(t)
 	body := `{"version":"v0.1.0"}` + "\n"
 	d := &fakeDaemon{out: body}
 	d.install(t)
@@ -107,6 +109,7 @@ func TestForwardWithJSONPassesThrough(t *testing.T) {
 }
 
 func TestForwardWithAnExplicitProgressPassesThrough(t *testing.T) {
+	initializedCommander(t)
 	for _, format := range []string{"text", "json"} {
 		t.Run(format, func(t *testing.T) {
 			d := &fakeDaemon{out: "caramelod v0.1.0 on worker1\n"}
@@ -127,6 +130,7 @@ func TestForwardWithAnExplicitProgressPassesThrough(t *testing.T) {
 }
 
 func TestForwardLeavesStreamingCommandsAlone(t *testing.T) {
+	initializedCommander(t)
 	d := &fakeDaemon{out: "web | listening\nweb | request\n"}
 	d.install(t)
 
@@ -143,6 +147,7 @@ func TestForwardLeavesStreamingCommandsAlone(t *testing.T) {
 }
 
 func TestForwardRendersTheEventStreamAsTheOldLines(t *testing.T) {
+	initializedCommander(t)
 	events := []progress.Event{
 		{Action: "up", Step: "build", Status: progress.StatusChanged, Detail: "image built"},
 		{Action: "rollout", Service: "web", Replica: 2, Step: "flip", Status: progress.StatusOK, Detail: "active"},
@@ -172,6 +177,7 @@ func TestForwardRendersTheEventStreamAsTheOldLines(t *testing.T) {
 }
 
 func TestForwardPrintsNoResultWhenTheCommandFailed(t *testing.T) {
+	initializedCommander(t)
 	d := &fakeDaemon{
 		out:  `{"env":{"app":"shop","name":"feat-x","status":"failed"},"services":[]}` + "\n",
 		err:  "caramelo: web never became healthy\n",
@@ -192,6 +198,7 @@ func TestForwardPrintsNoResultWhenTheCommandFailed(t *testing.T) {
 }
 
 func TestForwardPassesThroughWhatItCannotDecode(t *testing.T) {
+	initializedCommander(t)
 	d := &fakeDaemon{out: "caramelod v0.1.0 on worker1 (via socket)\n  uptime  3m\n"}
 	d.install(t)
 
@@ -205,6 +212,7 @@ func TestForwardPassesThroughWhatItCannotDecode(t *testing.T) {
 }
 
 func TestForwardReportsATransportFailure(t *testing.T) {
+	initializedCommander(t)
 	d := &fakeDaemon{fail: errors.New("no caramelod socket"), code: ExitError}
 	d.install(t)
 
@@ -250,6 +258,7 @@ func TestProgressIsAlwaysPlain(t *testing.T) {
 }
 
 func TestForwardRendersTheFeedFromTheDaemonsStdout(t *testing.T) {
+	initializedCommander(t)
 	events := []progress.Event{
 		{App: "shop", Env: "feat-x", Action: "up", Status: progress.StatusOK, Detail: "web started",
 
@@ -283,6 +292,7 @@ func TestForwardRendersTheFeedFromTheDaemonsStdout(t *testing.T) {
 }
 
 func TestForwardLeavesTheStreamingCommandsUntouched(t *testing.T) {
+	initializedCommander(t)
 	for _, args := range [][]string{
 		{"env", "exec", "feat-x", "--app", "shop", "--", "sh", "-c", "echo hi"},
 		{"run", "feat-x", "--app", "shop", "--", "ls"},
@@ -308,6 +318,7 @@ func TestForwardLeavesTheStreamingCommandsUntouched(t *testing.T) {
 }
 
 func TestForwardKeepsTheExitCode(t *testing.T) {
+	initializedCommander(t)
 	for _, code := range []int{0, 1, 2, 42} {
 		d := &fakeDaemon{out: `{"services":[]}` + "\n", code: code}
 		d.install(t)
@@ -318,6 +329,7 @@ func TestForwardKeepsTheExitCode(t *testing.T) {
 }
 
 func TestForwardAsksForJSONForTheProductionCommands(t *testing.T) {
+	initializedCommander(t)
 	for _, name := range []string{"build", "deploy", "rollback", "promote", "releases"} {
 		t.Run(name, func(t *testing.T) {
 			if renderFor(name) == nil {
@@ -339,6 +351,7 @@ func TestForwardAsksForJSONForTheProductionCommands(t *testing.T) {
 }
 
 func TestAnOlderDaemonIsNamedRatherThanGuessedAt(t *testing.T) {
+	initializedCommander(t)
 	d := &fakeDaemon{err: "Error: unknown flag: --progress\n", code: ExitUsage}
 	d.install(t)
 

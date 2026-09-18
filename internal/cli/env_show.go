@@ -14,7 +14,7 @@ import (
 )
 
 func (e *envCmd) showCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "show NAME",
 		Short: "Show one environment and what its dependencies are doing",
 		Long: `show prints the environment's record together with the live state of its
@@ -34,6 +34,7 @@ store, and the tail of its audit trail.`,
 			})
 		},
 	}
+	return available(cmd, onCommander.or(onHub))
 }
 
 func writeEnvDetail(w io.Writer, d *api.EnvDetail) error { return envDetailView(d).Write(w) }

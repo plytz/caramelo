@@ -39,5 +39,5 @@ the history, and every line of it can be rolled back to.`,
 	cmd.Flags().StringVar(&f.to, "to", "", "release to go back to (default: the one before the current deploy)")
 	cmd.Flags().DurationVar(&f.timeout, "timeout", 0, "bound the whole walk (default 30m)")
 	t.addTargetFlags(cmd)
-	return cmd
+	return available(cmd, onCommander.or(onHub))
 }

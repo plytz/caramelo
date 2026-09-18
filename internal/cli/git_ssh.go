@@ -43,7 +43,7 @@ through the machine's private network instead of a system ssh client.`,
 				return nil
 			},
 		}
-		return cmd
+		return available(cmd, onCommander)
 	})
 }
 

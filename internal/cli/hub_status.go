@@ -103,7 +103,7 @@ daemon is down. It exits 1 when caramelod is not active.`,
 		},
 	}
 	cmd.Flags().StringVar(&configDir, "config-dir", serverconfig.ConfigDir(), "directory holding config.yaml")
-	return cmd
+	return available(cmd, not(onCommander))
 }
 
 func hubStatusOf(ctx context.Context, run runner.Runner, configDir string) hubStatus {

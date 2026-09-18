@@ -45,7 +45,7 @@ network, cgroups and Docker, gauged at setup and at every caramelod start.`,
 }
 
 func (a *app) memberShowCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "show [NAME]",
 		Short: "Print the machine record, or one machine of the fleet",
 		Long: `show prints this machine's record: what the box is, how big it is, where
@@ -81,6 +81,7 @@ asked about somebody else's box.`,
 			})
 		},
 	}
+	return available(cmd, onCommander.or(onServer))
 }
 
 func (a *app) indentedJSON(v any) error {

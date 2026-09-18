@@ -74,7 +74,7 @@ and MySQL read their password only when they first initialise their data.`,
 }
 
 func (s *secretsCmd) preRun(cmd *cobra.Command, args []string) error {
-	if err := s.a.setProgress(); err != nil {
+	if err := s.a.beforeRun(cmd); err != nil {
 		return err
 	}
 	if s.a.service != nil {
@@ -323,7 +323,7 @@ said here rather than pretended away.`,
 	cmd.Flags().StringVar(&s.f.fromFile, "from-file", "", "read KEY=value lines from this file")
 	cmd.Flags().BoolVar(&s.f.stdin, "stdin", false,
 		"read the secrets from standard input: KEY=value lines, or one JSON object of names to values")
-	return cmd
+	return available(cmd, onCommander.or(onServer))
 }
 
 func (s *secretsCmd) listCmd() *cobra.Command {
@@ -371,7 +371,7 @@ It never prints a value, so its output is safe to paste anywhere.`,
 	}
 	cmd.Flags().BoolVar(&s.f.machine, "machine-scope", false, "only the machine's scope")
 	cmd.Flags().BoolVar(&s.f.appScope, "app-scope", false, "only the app's scope")
-	return cmd
+	return available(cmd, onCommander.or(onServer))
 }
 
 func (s *secretsCmd) removeCmd() *cobra.Command {
@@ -409,7 +409,7 @@ A name nobody set is an error, because that is almost always a typo.`,
 	}
 	cmd.Flags().BoolVar(&s.f.machine, "machine-scope", false, "the machine's scope")
 	cmd.Flags().BoolVar(&s.f.appScope, "app-scope", false, "the app's scope")
-	return cmd
+	return available(cmd, onCommander.or(onServer))
 }
 
 func (s *secretsCmd) exportCmd() *cobra.Command {
@@ -444,7 +444,7 @@ audit trail exists for.`,
 	}
 	cmd.Flags().BoolVar(&s.f.reveal, "reveal", false, "print the real values (recorded as an event)")
 	cmd.Flags().StringVar(&s.f.format, "format", "env", "env (KEY=value lines) or json")
-	return cmd
+	return available(cmd, onCommander.or(onServer))
 }
 
 func splitSecretNames(args []string) (names, rest []string) {

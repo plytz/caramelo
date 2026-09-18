@@ -53,7 +53,7 @@ The exit code is the test command's own.`,
 		cmd.Flags().StringVar(&service, "service", "",
 			"service whose toolchain to use (default: the first one)")
 		cmd.Flags().DurationVar(&timeout, "timeout", 0, "give up after this long (default: no limit)")
-		return cmd
+		return available(cmd, onCommander.or(onHub))
 	})
 }
 

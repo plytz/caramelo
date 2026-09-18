@@ -62,7 +62,7 @@ sharing a machine finds its own work again.`,
 	}
 	cmd.Flags().BoolVar(&e.all, "all", false, "every app's environments, not only this one's")
 	cmd.Flags().BoolVar(&e.mine, "mine", false, "only the environments this peer owns")
-	return cmd
+	return available(cmd, onCommander.or(onHub))
 }
 
 func (e *envCmd) onlyMine(envs []env.Env) ([]env.Env, error) {

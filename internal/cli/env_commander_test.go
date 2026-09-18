@@ -136,6 +136,7 @@ func (f *fakeForward) install(t *testing.T) {
 }
 
 func TestEnvCommandInjectsTheResolvedApp(t *testing.T) {
+	initializedCommander(t)
 	t.Setenv("CARAMELO_APP", "")
 	fakeGit(t, map[string]string{
 		"rev-parse --git-common-dir": "/mnt/caramelo/apps/shop/repo.git",
@@ -155,6 +156,7 @@ func TestEnvCommandInjectsTheResolvedApp(t *testing.T) {
 }
 
 func TestEnvCommandKeepsAnExplicitApp(t *testing.T) {
+	initializedCommander(t)
 	fakeGit(t, map[string]string{
 		"rev-parse --git-common-dir": "/mnt/caramelo/apps/other/repo.git",
 	})
@@ -173,6 +175,7 @@ func TestEnvCommandKeepsAnExplicitApp(t *testing.T) {
 }
 
 func TestEnvCommandTakesTheAppFromTheEnvironment(t *testing.T) {
+	initializedCommander(t)
 	t.Setenv("CARAMELO_APP", "shop")
 	fakeGit(t, nil)
 	fwd := &fakeForward{}
@@ -187,6 +190,7 @@ func TestEnvCommandTakesTheAppFromTheEnvironment(t *testing.T) {
 }
 
 func TestEnvListWithoutAnAppListsEverything(t *testing.T) {
+	initializedCommander(t)
 	t.Setenv("CARAMELO_APP", "")
 	fakeGit(t, nil)
 	fwd := &fakeForward{}
@@ -202,6 +206,7 @@ func TestEnvListWithoutAnAppListsEverything(t *testing.T) {
 }
 
 func TestEnvWithoutAnAppIsAUsageError(t *testing.T) {
+	initializedCommander(t)
 	t.Setenv("CARAMELO_APP", "")
 	fakeGit(t, nil)
 	fwd := &fakeForward{}
@@ -227,6 +232,7 @@ func TestEnvWithoutAnAppIsAUsageError(t *testing.T) {
 }
 
 func TestEnvCommandPassesTheExitCodeBack(t *testing.T) {
+	initializedCommander(t)
 	t.Setenv("CARAMELO_APP", "shop")
 	fakeGit(t, nil)
 	fwd := &fakeForward{code: 3}
@@ -422,7 +428,7 @@ func TestPlanPush(t *testing.T) {
 func TestEnvCreateForwardsTheCurrentBranch(t *testing.T) {
 
 	t.Setenv("CARAMELO_APP", "shop")
-	noCommanderConfig(t)
+	initializedCommander(t)
 	useSystemConfigDir(t, t.TempDir())
 	fakeGit(t, map[string]string{
 		"rev-parse --git-dir":         ".git",
@@ -441,7 +447,7 @@ func TestEnvCreateForwardsTheCurrentBranch(t *testing.T) {
 
 func TestEnvCreateKeepsAnExplicitFrom(t *testing.T) {
 	t.Setenv("CARAMELO_APP", "shop")
-	noCommanderConfig(t)
+	initializedCommander(t)
 	useSystemConfigDir(t, t.TempDir())
 	fakeGit(t, map[string]string{
 		"rev-parse --git-dir":         ".git",
@@ -472,7 +478,7 @@ func TestEnvCreateOutsideACheckoutLeavesFromToTheDaemon(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Setenv("CARAMELO_APP", "shop")
-			noCommanderConfig(t)
+			initializedCommander(t)
 			useSystemConfigDir(t, t.TempDir())
 			fakeGit(t, answers)
 			fwd := &fakeForward{}
@@ -491,7 +497,7 @@ func TestEnvCreateOutsideACheckoutLeavesFromToTheDaemon(t *testing.T) {
 func TestEnvDestroyNeedsYesWithNoTerminal(t *testing.T) {
 
 	t.Setenv("CARAMELO_APP", "shop")
-	noCommanderConfig(t)
+	initializedCommander(t)
 	useSystemConfigDir(t, t.TempDir())
 	fakeGit(t, nil)
 	fwd := &fakeForward{}
@@ -511,7 +517,7 @@ func TestEnvDestroyNeedsYesWithNoTerminal(t *testing.T) {
 
 func TestEnvDestroyWithYesIsForwarded(t *testing.T) {
 	t.Setenv("CARAMELO_APP", "shop")
-	noCommanderConfig(t)
+	initializedCommander(t)
 	useSystemConfigDir(t, t.TempDir())
 	fakeGit(t, nil)
 	fwd := &fakeForward{}
@@ -560,7 +566,7 @@ func TestGitSSHCommandCarriesTheClientsOptions(t *testing.T) {
 
 func TestEnvCreatePushesBeforeForwarding(t *testing.T) {
 	t.Setenv("CARAMELO_APP", "shop")
-	noCommanderConfig(t)
+	initializedCommander(t)
 	useSystemConfigDir(t, t.TempDir())
 	useCommanderConfig(t, remote.CommanderConfig{
 		Name: "laptop",
@@ -610,7 +616,7 @@ func TestEnvCreatePushesBeforeForwarding(t *testing.T) {
 
 func TestEnvCreateReportsAFailedPushAndDoesNotForward(t *testing.T) {
 	t.Setenv("CARAMELO_APP", "shop")
-	noCommanderConfig(t)
+	initializedCommander(t)
 	useSystemConfigDir(t, t.TempDir())
 	useCommanderConfig(t, remote.CommanderConfig{
 		Name: "laptop",

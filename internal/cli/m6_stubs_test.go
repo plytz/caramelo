@@ -51,20 +51,21 @@ func TestM6EdgeCommandKinds(t *testing.T) {
 }
 
 func TestEdgeBoxCommandsRefuseOffAMachine(t *testing.T) {
-
+	freshPlace(t)
 	dir := t.TempDir()
 	for _, tc := range []struct {
 		args []string
+		code int
 		says string
 	}{
-		{[]string{"edge", "--config-dir", dir}, "read the machine's configuration"},
-		{[]string{"edge", "enable", "--config-dir", dir}, "is not a Caramelo machine"},
-		{[]string{"edge", "disable", "--config-dir", dir}, "is not a Caramelo machine"},
+		{[]string{"edge", "--config-dir", dir}, ExitError, "read the machine's configuration"},
+		{[]string{"edge", "enable", "--config-dir", dir}, ExitUsage, "runs on (a hub or a member), as root"},
+		{[]string{"edge", "disable", "--config-dir", dir}, ExitUsage, "runs on (a hub or a member), as root"},
 	} {
 		var stdout, stderr bytes.Buffer
 		code := Run(tc.args, &stdout, &stderr)
-		if code != ExitError {
-			t.Errorf("caramelo %s: exit %d, want %d", strings.Join(tc.args, " "), code, ExitError)
+		if code != tc.code {
+			t.Errorf("caramelo %s: exit %d, want %d", strings.Join(tc.args, " "), code, tc.code)
 		}
 		if !strings.Contains(stderr.String(), tc.says) {
 			t.Errorf("caramelo %s said %q, want it to mention %q",

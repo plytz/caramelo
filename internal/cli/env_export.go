@@ -67,5 +67,5 @@ machine records an event naming you.`,
 	cmd.Flags().StringVar(&format, "format", "", "shell (default), dotenv or json")
 	cmd.Flags().StringVar(&view, "view", "", "host (default: 127.0.0.1 and the published ports) or network (what a service container sees)")
 	cmd.Flags().BoolVar(&reveal, "reveal", false, "print the real values of variables that came from the vault (recorded as an event)")
-	return cmd
+	return available(cmd, onCommander.or(onHub))
 }

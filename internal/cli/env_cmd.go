@@ -73,7 +73,7 @@ type envCmd struct {
 
 func (e *envCmd) preRun(cmd *cobra.Command, args []string) error {
 
-	if err := e.a.setProgress(); err != nil {
+	if err := e.a.beforeRun(cmd); err != nil {
 		return err
 	}
 	if e.a.service != nil {

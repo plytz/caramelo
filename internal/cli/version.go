@@ -25,7 +25,7 @@ func currentVersion() versionInfo {
 }
 
 func (a *app) versionCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "version",
 		Short: "Print the caramelo version",
 		Args:  exactArgs(0),
@@ -37,4 +37,5 @@ func (a *app) versionCmd() *cobra.Command {
 			})
 		},
 	}
+	return available(cmd, always)
 }

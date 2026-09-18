@@ -78,7 +78,7 @@ func fleetsView(fs []fleetView) *ui.View {
 }
 
 func (a *app) fleetListCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:     "list",
 		Aliases: []string{"ls"},
 		Short:   "List the fleets this commander knows",
@@ -96,10 +96,11 @@ it, the apps this commander has seen there, and which one is the default.`,
 			})
 		},
 	}
+	return available(cmd, onCommander)
 }
 
 func (a *app) fleetAddCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "add NAME HUB",
 		Short: "Record a fleet by name and the ssh address of its hub",
 		Long: `add writes a fleet into the commander config. HUB is the hub's ssh address
@@ -145,6 +146,7 @@ that changed key is still refused. The first fleet recorded becomes the default.
 			})
 		},
 	}
+	return available(cmd, onCommander)
 }
 
 func defaultSuffix(isDefault bool) string {
@@ -155,7 +157,7 @@ func defaultSuffix(isDefault bool) string {
 }
 
 func (a *app) fleetRemoveCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:     "remove NAME",
 		Aliases: []string{"rm"},
 		Short:   "Forget a fleet",
@@ -186,10 +188,11 @@ adding it again pins its key afresh.`,
 			})
 		},
 	}
+	return available(cmd, onCommander)
 }
 
 func (a *app) fleetDefaultCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "default NAME",
 		Short: "Make a fleet the one commands talk to when nothing says otherwise",
 		Long: `default sets commander.default_fleet. It is what a command uses when --fleet
@@ -222,4 +225,5 @@ says nothing and the checkout names no app this commander has seen on a fleet.`,
 			})
 		},
 	}
+	return available(cmd, onCommander)
 }

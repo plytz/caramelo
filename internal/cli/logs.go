@@ -62,6 +62,6 @@ CARAMELO_ENV already names it, so every argument is a service name there:
 		cmd.Flags().BoolVar(&deps, "deps", false, "include the dependency containers")
 		cmd.Flags().BoolVar(&edge, "edge", false,
 			"read the machine's edge access log instead: one line per public request, with the target that answered")
-		return cmd
+		return available(cmd, onCommander.or(onServer))
 	})
 }

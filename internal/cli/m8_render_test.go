@@ -213,6 +213,7 @@ func TestMachineShowNameJSONIsIndented(t *testing.T) {
 }
 
 func TestMachineRemoveNeedsYes(t *testing.T) {
+	initializedCommander(t)
 	svc := &fleetService{}
 	code, _, stderr := runWithService(t, svc, "member", "remove", "nx3")
 	if code != ExitUsage {
@@ -418,6 +419,7 @@ func TestFeedLineNamesTheMachine(t *testing.T) {
 }
 
 func TestMachineAddRefusesAnEdgeOnAPrivateMachine(t *testing.T) {
+	initializedCommander(t)
 	var stdout, stderr bytes.Buffer
 	code := Run([]string{"member", "add", "admin@nx2.local", "--edge", "--private"}, &stdout, &stderr)
 	if code != ExitUsage {
@@ -429,6 +431,7 @@ func TestMachineAddRefusesAnEdgeOnAPrivateMachine(t *testing.T) {
 }
 
 func TestMachineJoinNeedsAToken(t *testing.T) {
+	freshPlace(t)
 	var stdout, stderr bytes.Buffer
 	code := Run([]string{"member", "join", "hub.example.com"}, &stdout, &stderr)
 	if code != ExitUsage {

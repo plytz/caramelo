@@ -55,7 +55,7 @@ verb that takes a production environment off the air without removing anything.`
 			"only these services (default: all of them)")
 		cmd.Flags().BoolVar(&force, "force", false,
 			"stop a protected environment (env create --production makes one)")
-		return cmd
+		return available(cmd, onCommander.or(onHub))
 	})
 }
 

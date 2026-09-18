@@ -47,10 +47,11 @@ type manual struct {
 var manualAgentNotes = []string{
 	"Every command accepts --json. A command that returns a result then prints exactly one JSON document on standard output and nothing else; events and logs print one JSON object per line; run, test and env exec give standard output to the command they run.",
 	"Progress and diagnostics go to standard error. With --progress json each line on standard error is one JSON event with the same shape as `caramelo events --json`.",
-	"Exit codes are stable: 0 is success, 1 is a failure the command reports, 2 is a usage error (unknown command, bad flag, missing argument).",
+	"Exit codes are stable: 0 is success, 1 is a failure the command reports, 2 is a usage error (unknown command, bad flag, missing argument, or a command typed on a machine it does not belong on).",
 	"No command needs a terminal. Anything a person is asked interactively can be answered with a flag, and when standard input is not a terminal the command fails at once naming that flag instead of waiting.",
 	"The fleet a command talks to is picked by --fleet (CARAMELO_FLEET is its default), then a local caramelod socket if there is one, then the fleet recorded for the app of this checkout, then commander.default_fleet, then the only fleet there is; with several fleets and none of those, the command refuses and names them. --machine user@host reaches a box that is in no fleet yet.",
 	"The app and the environment default to the git checkout the command runs in; --app and --env (or CARAMELO_APP and CARAMELO_ENV) name them explicitly.",
+	"Every command holds only where it makes sense: on a commander, on a hub, on a member, on a box with no config at all, or as root. A command typed where it does not hold is refused before it runs, exit 2, in one line naming where it belongs; `caramelo context` says where you are. A session the daemon runs for a command forwarded to another machine is never refused this way.",
 	"Names in the manual are placeholders: feat-x is an environment, shop is an app, box is a machine, home is a fleet.",
 }
 
@@ -111,7 +112,7 @@ flags instead.`,
 	}
 	cmd.Flags().BoolVar(&markdown, "markdown", false, "print the Markdown source instead of plain text")
 	cmd.Flags().BoolVar(&man, "man", false, "print a roff manual page instead of plain text")
-	return cmd
+	return available(cmd, always)
 }
 
 func buildManual(root *cobra.Command) manual {

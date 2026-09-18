@@ -117,6 +117,10 @@ func (s *suite) prepareCommander(t *testing.T) {
 	if err := s.seedCommanderSSHKey(ctx); err != nil {
 		t.Fatalf("prepare %s: %v", s.commander.Alias, err)
 	}
+	if res := s.commanderCaramelo(t, "commander init --json"); res.ExitCode != 0 {
+		t.Fatalf("caramelo commander init on %s: exit %d\nstdout:%s\nstderr:%s",
+			s.commander.Alias, res.ExitCode, res.Stdout, res.Stderr)
+	}
 }
 
 func (s *suite) prepareCommanderDNS(ctx context.Context) error {

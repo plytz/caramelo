@@ -61,7 +61,7 @@ all.`,
 	cmd.Flags().StringVar(&host, "host", "", "hostname to route (default: derived from the app's domain)")
 	cmd.Flags().StringVar(&e.exposeVia, "via", "",
 		"whose edge serves the name: `member` (the machine it runs on, the default) or `hub`")
-	return cmd
+	return available(cmd, onCommander.or(onHub))
 }
 
 func (e *envCmd) unexposeCmd() *cobra.Command {
@@ -102,7 +102,7 @@ single name with --host needs no force.`,
 	cmd.Flags().StringVar(&host, "host", "", "only this hostname (default: all of them)")
 	cmd.Flags().BoolVar(&force, "force", false,
 		"take every name of a protected environment off the edge")
-	return cmd
+	return available(cmd, onCommander.or(onHub))
 }
 
 func writeExposeResult(w io.Writer, r *api.ExposeResult, verb string) error {

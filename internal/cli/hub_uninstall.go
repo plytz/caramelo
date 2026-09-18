@@ -108,7 +108,7 @@ binary and the Docker packages setup installed. It is not reversible.`,
 	cmd.Flags().BoolVar(&purge, "purge", false, "also delete the config, state and data directories, the user and the Docker packages")
 	cmd.Flags().BoolVar(&yes, "yes", false, "do not ask for confirmation")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "report what would be removed, remove nothing")
-	return cmd
+	return available(cmd, not(onCommander))
 }
 
 type uninstaller struct {

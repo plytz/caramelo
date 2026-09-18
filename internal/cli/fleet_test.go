@@ -18,7 +18,7 @@ func runFleet(t *testing.T, args ...string) (int, string, string) {
 }
 
 func TestFleetAddListDefaultRemove(t *testing.T) {
-	isolate(t)
+	isolateOnACommander(t)
 
 	if code, _, stderr := runFleet(t, "fleet", "add", "home", "eric@box.example.com"); code != ExitOK {
 		t.Fatalf("fleet add: exit %d: %s", code, stderr)
@@ -69,7 +69,7 @@ func TestFleetAddListDefaultRemove(t *testing.T) {
 }
 
 func TestFleetAddKeepsThePinnedKeyWhenTheHubMoves(t *testing.T) {
-	isolate(t)
+	isolateOnACommander(t)
 	const key = "Nq0Xw2mS8VbZ1YtR7dK3jL5pQ9cF4hG6uI8oP0aB2wE="
 
 	if code, _, stderr := runFleet(t, "fleet", "add", "home", "eric@box.example.com"); code != ExitOK {
@@ -97,7 +97,7 @@ func TestFleetAddKeepsThePinnedKeyWhenTheHubMoves(t *testing.T) {
 }
 
 func TestFleetRefusesNamesAndFleetsItDoesNotKnow(t *testing.T) {
-	isolate(t)
+	isolateOnACommander(t)
 
 	if code, _, stderr := runFleet(t, "fleet", "add", "Home Fleet", "eric@box"); code != ExitUsage {
 		t.Errorf("fleet add of a name that is no slug: exit %d, want %d: %s", code, ExitUsage, stderr)
@@ -115,7 +115,7 @@ func TestFleetRefusesNamesAndFleetsItDoesNotKnow(t *testing.T) {
 }
 
 func TestFleetListJSONIsEmptyNotNull(t *testing.T) {
-	isolate(t)
+	isolateOnACommander(t)
 	code, stdout, stderr := runFleet(t, "fleet", "list", "--json")
 	if code != ExitOK {
 		t.Fatalf("exit %d: %s", code, stderr)
@@ -161,7 +161,7 @@ func appNames(names []string) []struct {
 }
 
 func TestAnAppIsRecordedOnTheFleetThatHoldsIt(t *testing.T) {
-	isolate(t)
+	isolateOnACommander(t)
 	if code, _, stderr := runFleet(t, "fleet", "add", "home", "eric@box.example.com"); code != ExitOK {
 		t.Fatalf("fleet add: exit %d: %s", code, stderr)
 	}
@@ -187,7 +187,7 @@ func TestAnAppIsRecordedOnTheFleetThatHoldsIt(t *testing.T) {
 }
 
 func TestAnAppTheHubDoesNotHoldIsNotRecorded(t *testing.T) {
-	isolate(t)
+	isolateOnACommander(t)
 	if code, _, stderr := runFleet(t, "fleet", "add", "home", "eric@box.example.com"); code != ExitOK {
 		t.Fatalf("fleet add: exit %d: %s", code, stderr)
 	}

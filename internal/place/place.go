@@ -57,6 +57,8 @@ type Context struct {
 
 	ServerConfigDir string `json:"server_config_dir"`
 
+	Root bool `json:"root"`
+
 	CommanderConfig string `json:"commander_config,omitempty"`
 
 	Problem string `json:"problem,omitempty"`
@@ -217,7 +219,7 @@ func Detect(ctx context.Context, o Options) (Context, error) {
 		o.SocketExists = remote.SocketExists
 	}
 
-	c := Context{Role: RoleFresh, ServerConfigDir: o.ConfigDir}
+	c := Context{Role: RoleFresh, ServerConfigDir: o.ConfigDir, Root: os.Geteuid() == 0}
 	c.Work = o.work(ctx)
 
 	commander := remote.CommanderConfig{}

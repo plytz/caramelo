@@ -37,7 +37,7 @@ configured port and local socket until told to stop.`,
 		}
 		cmd.Flags().StringVar(&configDir, "config-dir", serverconfig.ConfigDir(),
 			"directory holding config.yaml")
-		return cmd
+		return available(cmd, onServer)
 	})
 }
 

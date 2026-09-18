@@ -81,7 +81,7 @@ nothing and says so; --name alone renames this commander.`,
 		},
 	}
 	cmd.Flags().StringVar(&name, "name", "", "what to call this commander (default: this machine's hostname)")
-	return cmd
+	return available(cmd, fresh.or(onCommander))
 }
 
 func initCommander(name string) (commanderInitResult, error) {

@@ -57,7 +57,7 @@ connect' lends to a program that has not.`,
 			})
 		},
 	}
-	return cmd
+	return available(cmd, onCommander.or(onHub))
 }
 
 func writeURLs(w io.Writer, urls []env.URL, name, target string) error {

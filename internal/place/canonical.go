@@ -158,6 +158,7 @@ func serverContext(cfg serverconfig.Config) Context {
 		Role:            cfg.FleetRole(),
 		ConfigFile:      serverconfig.Path(dir),
 		ServerConfigDir: dir,
+		Root:            true,
 		Server:          serverOf(cfg, dir, running),
 		TalksTo: TalksTo{
 			Kind:   TalksSocket,

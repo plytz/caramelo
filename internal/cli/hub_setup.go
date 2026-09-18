@@ -188,7 +188,7 @@ the machine is recorded in the commander config and the API is checked from here
 	f.StringVar(&opts.Join.Name, "join-name", "", "what to call this machine in the fleet (default: its hostname)")
 	f.BoolVar(&opts.Private, "private", false,
 		"a member with no public listener at all: 80 and 443 on loopback, everything served through the hub")
-	return cmd
+	return available(cmd, fresh.or(onCommander).or(onServer))
 }
 
 func parseSwapFlag(v string) (serverconfig.Swap, error) {

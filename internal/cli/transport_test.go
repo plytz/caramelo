@@ -285,6 +285,7 @@ func (forwardService) AddKey(ctx context.Context, name, options, line string) (*
 func (forwardService) RemoveKey(context.Context, string) error { return nil }
 
 func TestForwardOverTheSocketEndToEnd(t *testing.T) {
+	initializedCommander(t)
 	noCommanderConfig(t)
 	dir := t.TempDir()
 	cfg := serverconfig.Default()
@@ -346,11 +347,11 @@ func TestForwardOverTheSocketEndToEnd(t *testing.T) {
 
 	stdout.Reset()
 	stderr.Reset()
-	if code := Run([]string{"hub", "run", "--config-dir", filepath.Join(dir, "missing")}, &stdout, &stderr); code != ExitError {
-		t.Errorf("hub run with no config = %d, want %d", code, ExitError)
+	if code := Run([]string{"hub", "run", "--config-dir", filepath.Join(dir, "missing")}, &stdout, &stderr); code != ExitUsage {
+		t.Errorf("hub run where there is no machine = %d, want %d", code, ExitUsage)
 	}
-	if !strings.Contains(stderr.String(), "config.yaml") {
-		t.Errorf("stderr = %q, want it to name the missing config", stderr.String())
+	if !strings.Contains(stderr.String(), "hub run runs on a hub or a member") {
+		t.Errorf("stderr = %q, want it to say where the daemon runs", stderr.String())
 	}
 }
 
