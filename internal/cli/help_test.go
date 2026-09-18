@@ -35,7 +35,7 @@ func helpIn(t *testing.T, c place.Context, path string) string {
 }
 
 func helpGroups() []string {
-	return []string{"hub", "member", "env", "edge", "vpn", "secrets", "key", "peer"}
+	return []string{"hub", "member", "env", "edge", "vpn", "secrets", "key", "peer", "task"}
 }
 
 func TestGoldenHelpOfEveryPlace(t *testing.T) {

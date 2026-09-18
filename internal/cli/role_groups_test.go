@@ -15,6 +15,8 @@ func TestRoleGroupsCarryEveryLeaf(t *testing.T) {
 		{"member", "add"}, {"member", "join"}, {"member", "leave"}, {"member", "list"},
 		{"member", "remove"}, {"member", "show"}, {"member", "token"},
 		{"member", "announce"}, {"member", "redeem"}, {"member", "removed"},
+		{"task", "list"}, {"task", "show"}, {"task", "run"},
+		{"commander", "init"}, {"commander", "write-config"}, {"vpn", "keygen"},
 	} {
 		cmd, _, err := root.Find(path)
 		if err != nil {

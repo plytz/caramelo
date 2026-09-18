@@ -29,6 +29,7 @@ Available Commands:
   releases    An environment's deploy history, or the app's releases
   secrets     The machine's vault: scoped secrets, encrypted at rest
   status      Show whether caramelod and Docker are up, and how we reached them
+  task        The tasks this binary carries: what they do and running one here
   version     Print the caramelo version
 
 Flags:

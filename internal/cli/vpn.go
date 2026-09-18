@@ -46,6 +46,7 @@ mode, where names like db.feat-x.shop.internal work in every program.`,
 			a.vpnUninstallCmd(),
 			a.vpnConfigCmd(),
 			a.vpnServiceCmd(),
+			a.vpnKeygenCmd(),
 		)
 		return cmd
 	})
@@ -478,3 +479,46 @@ hand is only useful for debugging transparent mode.`,
 	cmd.Flags().StringVar(&iface, "interface", "", "tunnel interface name (default: caramelo0)")
 	return available(cmd, onCommander)
 }
+
+func (a *app) vpnKeygenCmd() *cobra.Command {
+	var out string
+	var check bool
+	cmd := &cobra.Command{
+		Use:    "keygen",
+		Short:  "Write a WireGuard private key at a path, once (tasks only)",
+		Hidden: true,
+		Args:   exactArgs(0),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			path := strings.TrimSpace(out)
+			if path == "" {
+				return &usageError{errors.New("vpn keygen: --out says which file the key is written to")}
+			}
+			if check {
+				if _, err := vpnclient.LoadKeyAt(path, keygenOwner); err != nil {
+					if !errors.Is(err, vpnclient.ErrNoKey) {
+						return err
+					}
+					fmt.Fprintf(a.stdout, "%s missing\n", path)
+					return &exitError{ExitError}
+				}
+				fmt.Fprintln(a.stdout, path)
+				return nil
+			}
+			_, created, err := vpnclient.EnsureKeyAt(path, keygenOwner)
+			if err != nil {
+				return err
+			}
+			if created {
+				fmt.Fprintf(a.stdout, "%s created\n", path)
+				return nil
+			}
+			fmt.Fprintln(a.stdout, path)
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&out, "out", "", "the file the key is written to")
+	cmd.Flags().BoolVar(&check, "check", false, "say whether the key is already there, and change nothing")
+	return available(cmd, fresh.or(onCommander))
+}
+
+const keygenOwner = "this machine"

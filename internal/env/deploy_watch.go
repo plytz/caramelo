@@ -37,7 +37,8 @@ func (r *deployRun) watch(ctx context.Context) error {
 			return r.rollback(ctx, why)
 		}
 
-		elapsed, counted := r.elapsed(), r.counted()
+		now := r.m.now()
+		elapsed, counted := r.elapsedAt(now), r.countedAt(now)
 		if w := r.d.Watch; w != nil {
 			w.Elapsed, w.Counted, w.CountedFrom = elapsed, counted, r.countedFrom
 		}
@@ -147,7 +148,8 @@ func (r *deployRun) poll(ctx context.Context) error {
 	}
 
 	r.countFrom(ctx, counts.Since)
-	w.CountedFrom, w.Counted = r.countedFrom, r.counted()
+	now := r.m.now()
+	w.CountedFrom, w.Elapsed, w.Counted = r.countedFrom, r.elapsedAt(now), r.countedAt(now)
 	for _, pool := range r.pools {
 		if !pool.exposed {
 			continue
@@ -192,10 +194,14 @@ func (r *deployRun) countFrom(ctx context.Context, since time.Time) {
 }
 
 func (r *deployRun) counted() time.Duration {
+	return r.countedAt(r.m.now())
+}
+
+func (r *deployRun) countedAt(now time.Time) time.Duration {
 	if r.countedFrom.IsZero() {
-		return r.elapsed()
+		return r.elapsedAt(now)
 	}
-	return r.m.now().Sub(r.countedFrom)
+	return now.Sub(r.countedFrom)
 }
 
 func (r *deployRun) unhealthy(ctx context.Context) string {
@@ -224,10 +230,14 @@ func (r *deployRun) unhealthy(ctx context.Context) string {
 }
 
 func (r *deployRun) elapsed() time.Duration {
+	return r.elapsedAt(r.m.now())
+}
+
+func (r *deployRun) elapsedAt(now time.Time) time.Duration {
 	if r.flippedAt.IsZero() {
 		return 0
 	}
-	return r.m.now().Sub(r.flippedAt)
+	return now.Sub(r.flippedAt)
 }
 
 func (r *deployRun) maxErrorsText() string {

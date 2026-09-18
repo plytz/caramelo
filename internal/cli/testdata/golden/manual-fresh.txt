@@ -11,4 +11,8 @@ COMMANDS
       caramelo hub status         Report what setup installed on this machine and whether it is running
       caramelo hub uninstall      Stop caramelod and undo what setup changed on this machine (run as root)
     caramelo manual               The manual of this machine: every command that holds here, with examples
+    caramelo task                 The tasks this binary carries: what they do and running one here
+      caramelo task list          List the tasks this binary carries
+      caramelo task run           Run a task on this machine
+      caramelo task show          Print the task file that will run, byte for byte
     caramelo version              Print the caramelo version

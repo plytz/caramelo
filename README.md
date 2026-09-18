@@ -190,6 +190,25 @@ page, `--json` a tree carrying the role and the place it was rendered for. Nothi
 it: a release carries the binaries and their checksums, and the manual is whatever the binary in
 front of you prints.
 
+## Tasks
+
+A task is a list of items in one YAML file, each item a check that says whether the machine is
+already the way it should be and a command that makes it so. The runner is the binary itself and it
+types the items where the machine is: `caramelo task list` names the tasks this binary carries,
+`caramelo task show NAME` prints the file that will run byte for byte, so what a person reviews is
+exactly what the machine does, and `caramelo task run NAME` runs it here. All three hold on every
+role.
+
+An item whose check exits zero is left alone; one whose check fails runs its command and is checked
+again, and a command that ran and left the check failing is a failure rather than a change. Items
+run in the file's order, a `parallel:` block's items together, and a failure stops the run once the
+block it is in has finished, with everything after it reported `not run`. `--dry-run` stops at every
+check and says what would change, `--debug` prints every check and command with its exit code and
+its output, `--var k=v` passes a value the file's templates read, and `--json` prints the run's
+report — the run id, the counts and one result per item. `caramelo commander init` is that runner:
+it runs the embedded `commander-setup` task, which is why `caramelo task show commander-setup` is
+the honest answer to what `commander init` does to a box.
+
 ## Development
 
 Docker is required. The integration tests run caramelo inside containers that stand in for real

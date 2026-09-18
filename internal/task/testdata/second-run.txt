@@ -1,0 +1,10 @@
+commander-setup  Name this machine a commander and write the files it needs
+
+  parallel  the config, vpn and cache directories, private to the user
+    config-dir     ok
+    vpn-dir        ok
+    cache-dir      ok
+  config           ok        name laptop, role commander
+  identity         ok        /home/alex/.config/caramelo/identity.key
+
+commander-setup  ok=5  changed=0  skipped=0  failed=0   0.04s

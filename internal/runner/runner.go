@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"os/user"
 	"strings"
+	"time"
 )
 
 type Cmd struct {
@@ -35,6 +36,10 @@ type Runner interface {
 	Run(ctx context.Context, c Cmd) (Result, error)
 }
 
+const WaitDelay = 5 * time.Second
+
+const ExitAbandoned = -1
+
 type Exec struct {
 	Log io.Writer
 }
@@ -48,6 +53,7 @@ func (e Exec) Run(ctx context.Context, c Cmd) (Result, error) {
 		fmt.Fprintf(e.Log, "+ %s %s\n", name, strings.Join(args, " "))
 	}
 	cmd := exec.CommandContext(ctx, name, args...)
+	killGroup(cmd)
 	cmd.Env = append(os.Environ(), env...)
 	cmd.Dir = c.Dir
 	cmd.Stdin = c.Stdin
@@ -66,6 +72,8 @@ func (e Exec) Run(ctx context.Context, c Cmd) (Result, error) {
 	case runErr == nil:
 	case errors.As(runErr, &ee):
 		res.ExitCode = ee.ExitCode()
+	case errors.Is(runErr, exec.ErrWaitDelay):
+		res.ExitCode = ExitAbandoned
 	default:
 		return res, fmt.Errorf("run %s: %w", name, runErr)
 	}

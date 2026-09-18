@@ -1,0 +1,36 @@
+laptop, commander · fleets home (default), work ·
+  no app checkout here → fleet home (commander.default_fleet)
+
+A task is a list of items in one YAML file, each item a check that says
+whether the machine is already the way it should be and a command that makes it
+so. The runner types them where the machine is: 'caramelo task run' on the box
+it changes, never over a wire.
+
+'task show' prints the file that will run, so what a person reviews is exactly
+what the machine does.
+
+Usage:
+  caramelo task [flags]
+  caramelo task [command]
+
+Examples:
+  caramelo task list
+  caramelo task show commander-setup
+  caramelo task run commander-setup --dry-run
+
+
+Available Commands:
+  list        List the tasks this binary carries
+  run         Run a task on this machine
+  show        Print the task file that will run, byte for byte
+
+Flags:
+  -h, --help   help for task
+
+Global Flags:
+      --fleet string      fleet to talk to, by its name in the commander config (default: the app's fleet, then the default fleet)
+      --json              print machine-readable JSON on stdout
+      --machine string    raw ssh target to talk to, for a machine that is in no fleet yet: user@host[:port], or 'local'
+      --progress string   how progress is written to stderr: text (default) or json, one event per line
+
+Use "caramelo task [command] --help" for more information about a command.
