@@ -142,6 +142,9 @@ func machineTokenView(r *api.MachineTokenResult) *ui.View {
 		Blank()
 	f := ui.NewFields("")
 	f.Add("hub", "%s", strOrDash(r.Hub))
+	if r.Fleet != "" {
+		f.Add("fleet", "%s", r.Fleet)
+	}
 	if r.PublicKey != "" {
 		f.Add("public key", "%s", r.PublicKey)
 	}

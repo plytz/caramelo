@@ -153,7 +153,8 @@ caramelo hub setup --target you@box --name prod --data-dir /mnt/big
 caramelo hub setup --target you@box --peer agent-7 Nq0Xw2mS8VbZ1YtR7dK3jL5pQ9cF4hG6uI8oP0aB2wE=
 caramelo hub setup --target you@box --release v0.0.1         # ship that release, not this build
 caramelo hub setup --target you@box --dry-run                # say what would change
-sudo caramelo hub setup --yes                                # on the box itself
+sudo caramelo hub setup --yes                                # on the box itself, named after its hostname
+sudo caramelo hub setup --yes --name box --fleet home        # name the machine and the fleet it hubs
 sudo caramelo hub setup --yes --open-ports                   # let setup open udp 4021 in this box's own firewall
 sudo caramelo hub setup --yes --swap 8G                      # 8 GiB of swap instead of the default 4 GiB
 sudo caramelo hub setup --yes --swap off                     # no swap on this machine

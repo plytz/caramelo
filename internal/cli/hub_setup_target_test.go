@@ -101,12 +101,12 @@ func TestSetupTargetBootstrapsRecordsAndVerifies(t *testing.T) {
 			setupLine = l
 		}
 	}
-	for _, want := range []string{"sudo -n ", "--yes --json", "--data-dir=/mnt/big", "--force"} {
+	for _, want := range []string{"sudo -n ", "--yes --json", "--data-dir=/mnt/big", "--force", "--name=prod"} {
 		if !strings.Contains(setupLine, want) {
 			t.Errorf("setup line %q lacks %q", setupLine, want)
 		}
 	}
-	for _, unwanted := range []string{"--target", "--name", "--json --json"} {
+	for _, unwanted := range []string{"--target", "--json --json"} {
 		if strings.Contains(setupLine, unwanted) {
 			t.Errorf("setup line %q forwards %q", setupLine, unwanted)
 		}

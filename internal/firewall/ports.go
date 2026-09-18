@@ -16,7 +16,7 @@ const (
 	WhyHTTP3  = "HTTP/3"
 )
 
-func Required(cfg serverconfig.Config, wantsInbound bool) []PortSpec {
+func Required(cfg serverconfig.Config, wantsInbound, private bool) []PortSpec {
 	var want []PortSpec
 	if wantsInbound {
 		want = append(want, PortSpec{Proto: "udp", Port: VPNPort(cfg.VPNListen), Why: WhyTunnel})
@@ -24,11 +24,11 @@ func Required(cfg serverconfig.Config, wantsInbound bool) []PortSpec {
 	if cfg.APIListensPublic() {
 		want = append(want, PortSpec{Proto: "tcp", Port: cfg.SSHPort, Why: WhyAPI + " (api_listen: " + cfg.APIListen + ")"})
 	}
-	return append(want, EdgePorts(cfg)...)
+	return append(want, EdgePorts(cfg, private)...)
 }
 
-func EdgePorts(cfg serverconfig.Config) []PortSpec {
-	if !cfg.Edge || cfg.Fleet.Private {
+func EdgePorts(cfg serverconfig.Config, private bool) []PortSpec {
+	if !cfg.Edge || private {
 		return nil
 	}
 	out := []PortSpec{

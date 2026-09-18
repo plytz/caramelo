@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/plytz/caramelo/internal/firewall"
 	"github.com/plytz/caramelo/internal/fleet"
 	"github.com/plytz/caramelo/internal/serverconfig"
 	"github.com/plytz/caramelo/internal/setup/testutil"
@@ -15,6 +16,7 @@ func aTicket(t *testing.T) (fleet.Ticket, string) {
 	t.Helper()
 	tk := fleet.Ticket{
 		Hub:       "nx1",
+		Fleet:     "home",
 		Endpoint:  "hub.example.com:4021",
 		PublicKey: "Zm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9=",
 		Address:   "10.86.0.1",
@@ -53,8 +55,8 @@ func TestJoinStepRunsTheJoinAnOperatorWouldRun(t *testing.T) {
 	if done {
 		t.Fatal("a machine that has joined nobody says it is a member")
 	}
-	if !strings.Contains(detail, tk.Hub) {
-		t.Errorf("detail = %q, want it to name the hub", detail)
+	if !strings.Contains(detail, tk.Fleet) {
+		t.Errorf("detail = %q, want it to name the fleet", detail)
 	}
 
 	if err := NewJoinStep().Apply(context.Background(), env); err != nil {
@@ -90,8 +92,8 @@ func TestJoinStepRunsTheJoinAnOperatorWouldRun(t *testing.T) {
 	if fed != token {
 		t.Errorf("the join was fed %q on standard input, want the ticket", fed)
 	}
-	if !strings.Contains(log.String(), tk.Hub) {
-		t.Errorf("the log %q does not say which hub was joined", log.String())
+	if !strings.Contains(log.String(), tk.Fleet) {
+		t.Errorf("the log %q does not say which fleet was joined", log.String())
 	}
 }
 
@@ -100,7 +102,7 @@ func TestJoinStepCarriesPrivate(t *testing.T) {
 	env, _ := testEnv(t, run)
 	_, token := aTicket(t)
 	env.Opts.Join = JoinSpec{Token: token}
-	env.Config.Fleet.Private = true
+	env.Opts.Private = true
 
 	if err := NewJoinStep().Apply(context.Background(), env); err != nil {
 		t.Fatalf("Apply: %v", err)
@@ -120,10 +122,11 @@ func TestJoinStepIsDoneOnAMachineThatAlreadyJoined(t *testing.T) {
 	env, _ := testEnv(t, testutil.New())
 	tk, token := aTicket(t)
 	env.Opts.Join = JoinSpec{Token: token}
-	env.Config.Fleet = serverconfig.Fleet{
-		Role: serverconfig.RoleMember,
-		Hub: serverconfig.FleetHub{
-			Name: tk.Hub, Endpoint: tk.Endpoint, Address: tk.Address, PublicKey: tk.PublicKey,
+	env.Config.Name, env.Config.Role, env.Config.Hub = "m1", serverconfig.RoleMember, serverconfig.Hub{}
+	env.Config.Member = serverconfig.Member{
+		Fleet: tk.Fleet,
+		Hub: serverconfig.MemberHub{
+			Endpoint: tk.Endpoint, Address: tk.Address, PublicKey: tk.PublicKey,
 		},
 	}
 	done, detail, err := NewJoinStep().Check(context.Background(), env)
@@ -131,10 +134,10 @@ func TestJoinStepIsDoneOnAMachineThatAlreadyJoined(t *testing.T) {
 		t.Fatalf("Check: %v", err)
 	}
 	if !done {
-		t.Fatalf("a member of %s was asked to join it again", tk.Hub)
+		t.Fatalf("a member of %s was asked to join it again", tk.Fleet)
 	}
-	if !strings.Contains(detail, tk.Hub) {
-		t.Errorf("detail = %q, want it to name the hub", detail)
+	if !strings.Contains(detail, tk.Fleet) {
+		t.Errorf("detail = %q, want it to name the fleet", detail)
 	}
 }
 
@@ -142,16 +145,17 @@ func TestJoinStepRefusesToMoveAMachineBetweenHubs(t *testing.T) {
 	env, _ := testEnv(t, testutil.New())
 	_, token := aTicket(t)
 	env.Opts.Join = JoinSpec{Token: token}
-	env.Config.Fleet = serverconfig.Fleet{
-		Role: serverconfig.RoleMember,
-		Hub:  serverconfig.FleetHub{Name: "other", Endpoint: "o:4021", Address: "10.86.0.1", PublicKey: "k"},
+	env.Config.Name, env.Config.Role, env.Config.Hub = "m1", serverconfig.RoleMember, serverconfig.Hub{}
+	env.Config.Member = serverconfig.Member{
+		Fleet: "other",
+		Hub:   serverconfig.MemberHub{Endpoint: "o:4021", Address: "10.86.0.1", PublicKey: "k"},
 	}
 	_, _, err := NewJoinStep().Check(context.Background(), env)
 	if err == nil {
-		t.Fatal("a member of one hub was moved to another")
+		t.Fatal("a member of one fleet was moved to another")
 	}
 	if !strings.Contains(err.Error(), "other") || !strings.Contains(err.Error(), "member remove") {
-		t.Errorf("error %q, want it to name the current hub and the way out", err)
+		t.Errorf("error %q, want it to name the current fleet and the way out", err)
 	}
 }
 
@@ -178,7 +182,7 @@ func TestEdgeSocketUnitOnAPrivateMember(t *testing.T) {
 	cfg := serverconfig.Default()
 	cfg.Edge, cfg.HTTP3 = true, true
 
-	public := EdgeSocketUnitContent(cfg)
+	public := EdgeSocketUnitContent(cfg, false)
 	for _, want := range []string{"ListenStream=80", "ListenStream=443", "ListenDatagram=443"} {
 		if !strings.Contains(public, want) {
 			t.Errorf("a hub's socket unit does not carry %q:\n%s", want, public)
@@ -188,8 +192,8 @@ func TestEdgeSocketUnitOnAPrivateMember(t *testing.T) {
 		t.Errorf("a hub's socket unit binds loopback:\n%s", public)
 	}
 
-	cfg.Fleet.Private = true
-	private := EdgeSocketUnitContent(cfg)
+	cfg.Member.Private = true
+	private := EdgeSocketUnitContent(cfg, cfg.Member.Private)
 	for _, want := range []string{
 		"ListenStream=127.0.0.1:80", "ListenStream=127.0.0.1:443", "ListenDatagram=127.0.0.1:443",
 	} {
@@ -204,5 +208,19 @@ func TestEdgeSocketUnitOnAPrivateMember(t *testing.T) {
 	}
 	if !strings.Contains(private, "served through its hub") {
 		t.Errorf("a private member's socket unit does not say why it is loopback-only:\n%s", private)
+	}
+}
+
+func TestAPrivateJoinKeepsTheEdgeOffTheOutsideBeforeItJoins(t *testing.T) {
+	env, _ := testEnv(t, testutil.New())
+	env.Config.Edge, env.Config.HTTP3 = true, true
+	env.Opts.Private = true
+
+	unit := EdgeSocketUnitContent(env.Config, env.PrivateDoor())
+	if !strings.Contains(unit, "ListenStream=127.0.0.1:80") {
+		t.Errorf("a box set up with --private binds 80 publicly before it joins:\n%s", unit)
+	}
+	if ports := firewall.EdgePorts(env.Config, env.PrivateDoor()); len(ports) != 0 {
+		t.Errorf("setup asks for %v on a box that will be served through its hub", ports)
 	}
 }

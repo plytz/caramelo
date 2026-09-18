@@ -34,7 +34,8 @@ func (a *app) runMachineAdd(cmd *cobra.Command, target string, spec machineAddSp
 		name = defaultMachineName(target)
 	}
 	cfg := serverconfig.Default()
-	cfg.Edge, cfg.Fleet.Private = spec.Edge || spec.Private, spec.Private
+	cfg.Name, cfg.Hub.Fleet = name, name
+	cfg.Edge = spec.Edge || spec.Private
 	if spec.ACMEEmail != "" {
 		cfg.ACMEEmail = spec.ACMEEmail
 	}
@@ -46,7 +47,7 @@ func (a *app) runMachineAdd(cmd *cobra.Command, target string, spec machineAddSp
 	}
 	var report bootstrapResult
 	if err := a.runBootstrap(cmd, bootstrapFlags{
-		target: target, name: name, cfg: cfg, configDir: serverconfig.DefaultConfigDir,
+		target: target, name: name, cfg: cfg, configDir: serverconfig.ConfigDir(),
 		binary: spec.Binary, release: spec.Release, yes: true, member: true, args: setupArgsForJoin(ticket.Token, name, spec),
 		report: &report,
 	}); err != nil {
@@ -154,7 +155,7 @@ func defaultMachineName(target string) string {
 	if i := strings.Index(host, "."); i > 0 {
 		host = host[:i]
 	}
-	return machineNameSlug(host)
+	return strOr(machineNameSlug(host), "member")
 }
 
 func machineNameSlug(s string) string {
@@ -172,11 +173,7 @@ func machineNameSlug(s string) string {
 			}
 		}
 	}
-	out := strings.Trim(b.String(), "-")
-	if out == "" {
-		return "member"
-	}
-	return out
+	return strings.Trim(b.String(), "-")
 }
 
 func (a *app) hubReachableFrom(token string) string {

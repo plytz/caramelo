@@ -67,7 +67,21 @@ hub; the hub forwards what belongs elsewhere. A machine set up on its own is a h
 
 **member.** Every other machine of the fleet. A member joins a hub, announces what it runs, and
 keeps serving if the hub goes away: its environments, its edge and its containers do not depend on
-the hub being up. `fleet.role` in a machine's config is `hub` or `member`, and nothing else.
+the hub being up. `role` in a machine's config is `hub` or `member`, and nothing else.
+
+A machine's `/etc/caramelo/config.yaml` opens with the two things it is: `name`, its own name, and
+`role`. Everything a role owns sits under that role's key, so nothing of one role can be read as the
+other's. A hub carries `hub:` with the `fleet` it heads and the `range` it hands subnets out of; a
+member carries `member:` with the `fleet` it joined, its `subnet`, whether it is `private`, and the
+`hub:` it dials — the hub's own name, its endpoint, its address inside the tunnel, and its public key,
+which is what proves the box that answers is the one that was joined. The fleet and the hub are named
+apart on purpose: a member calls its hub by the name the hub answers to, so one machine has one name
+everywhere in the fleet. A server belongs to one fleet and the file cannot say two:
+`caramelo hub setup --name NAME --fleet FLEET` writes the hub side, `caramelo member join` copies
+the fleet's name and the hub's from the hub, and `caramelo member leave` takes the member block away
+again.
+`CARAMELO_CONFIG_DIR` moves that file and everything derived from it, and is the default of every
+`--config-dir`.
 
 **fleet.** The set of machines that behave as one: a hub and its members. Other tools call this a
 cluster; caramelo does not use that word.

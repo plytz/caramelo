@@ -8,6 +8,7 @@ import (
 func aTicket() Ticket {
 	return Ticket{
 		Hub:       "nx1",
+		Fleet:     "home",
 		Endpoint:  "hub.example.com:4021",
 		PublicKey: "Zm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9vYmFyZm9=",
 		Address:   "10.86.0.1",
@@ -72,6 +73,7 @@ func TestTicketValidate(t *testing.T) {
 		want   string
 	}{
 		"no hub":        {func(t *Ticket) { t.Hub = "" }, "name the hub"},
+		"no fleet":      {func(t *Ticket) { t.Fleet = "" }, "name the fleet"},
 		"no secret":     {func(t *Ticket) { t.Secret = "" }, "no secret"},
 		"no key":        {func(t *Ticket) { t.PublicKey = "" }, "public key"},
 		"no endpoint":   {func(t *Ticket) { t.Endpoint = "" }, "where to dial"},

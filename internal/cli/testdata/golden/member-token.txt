@@ -3,6 +3,7 @@ On the machine that is joining, as root:
   sudo caramelo member join hub.example.com:4021 --token 0f1e2d3c4b5a69788796a5b4c3d2e1f0
 
   hub         hub
+  fleet       home
   public key  aGVsbG8gaHViIGtleQ==
   expires     2026-09-10T13:00:00Z
 good for one machine, stored only as a hash: this is the only time it can be printed

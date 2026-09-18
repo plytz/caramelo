@@ -20,6 +20,7 @@ func TestRequiredFollowsTheConfiguration(t *testing.T) {
 		name         string
 		cfg          func(serverconfig.Config) serverconfig.Config
 		wantsInbound bool
+		private      bool
 		want         string
 	}{
 		{
@@ -67,16 +68,26 @@ func TestRequiredFollowsTheConfiguration(t *testing.T) {
 		{
 			name: "a private member is served through its hub and needs nothing",
 			cfg: func(c serverconfig.Config) serverconfig.Config {
-				c.Edge, c.Fleet.Private, c.Fleet.Role = true, true, serverconfig.RoleMember
+				c.Edge, c.Member.Private, c.Role = true, true, serverconfig.RoleMember
 				return c
 			},
 			wantsInbound: false,
 			want:         "",
 		},
 		{
+			name: "a box that is about to join as a private member asks for nothing either",
+			cfg: func(c serverconfig.Config) serverconfig.Config {
+				c.Edge = true
+				return c
+			},
+			wantsInbound: false,
+			private:      true,
+			want:         "",
+		},
+		{
 			name: "a member dials out and needs no inbound tunnel port",
 			cfg: func(c serverconfig.Config) serverconfig.Config {
-				c.Fleet.Role = serverconfig.RoleMember
+				c.Role = serverconfig.RoleMember
 				return c
 			},
 			wantsInbound: false,
@@ -94,7 +105,8 @@ func TestRequiredFollowsTheConfiguration(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := names(Required(tc.cfg(serverconfig.Default()), tc.wantsInbound))
+			c := tc.cfg(serverconfig.Default())
+			got := names(Required(c, tc.wantsInbound, tc.private || c.Member.Private))
 			if got != tc.want {
 				t.Errorf("Required = %q, want %q", got, tc.want)
 			}
@@ -105,7 +117,7 @@ func TestRequiredFollowsTheConfiguration(t *testing.T) {
 func TestEveryRequiredPortSaysWhyItIsWanted(t *testing.T) {
 	cfg := serverconfig.Default()
 	cfg.Edge, cfg.APIListen = true, serverconfig.APIListenBoth
-	for _, p := range Required(cfg, true) {
+	for _, p := range Required(cfg, true, false) {
 		if strings.TrimSpace(p.Why) == "" {
 			t.Errorf("%s is asked for without saying why", p)
 		}

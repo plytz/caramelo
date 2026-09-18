@@ -44,20 +44,28 @@ func (a *app) runMachineJoin(ctx context.Context, configDir, hub, token, name st
 	}
 	cfg := pre.cfg
 	if pre.loaded && cfg.IsMember() {
-		if cfg.Fleet.Hub.Name == ticket.Hub && cfg.Fleet.Hub.PublicKey == ticket.PublicKey {
+		sameHub := cfg.Member.Hub.PublicKey == ticket.PublicKey
+		switch {
+		case sameHub && cfg.FleetName() == ticket.Fleet:
 
 			return a.printJoined(&api.MachineJoinResult{
 				Machine: fleet.Machine{
-					Name: cfg.Fleet.Name, Role: fleet.RoleMember, Private: cfg.Fleet.Private,
-					Subnet: prefixOrZero(cfg.Fleet.Subnet),
+					Name: cfg.Name, Role: fleet.RoleMember, Private: cfg.Member.Private,
+					Subnet: prefixOrZero(cfg.Member.Subnet),
 				},
-				Hub:     fleet.Machine{Name: cfg.Fleet.Hub.Name, Role: fleet.RoleHub, Endpoint: cfg.Fleet.Hub.Endpoint},
+				Hub:     fleet.Machine{Name: cfg.HubName(), Role: fleet.RoleHub, Endpoint: cfg.Member.Hub.Endpoint},
 				Changed: false,
 			})
+		case sameHub:
+			return fmt.Errorf(
+				"this machine is a member of the fleet %s and that token offers the fleet %s under the same hub key: "+
+					"a machine belongs to one fleet, so run `caramelo member leave` here first",
+				cfg.FleetName(), ticket.Fleet)
 		}
 		return fmt.Errorf(
-			"this machine is already a member of %s; remove it there (`caramelo member remove %s`) before joining %s",
-			cfg.Fleet.Hub.Name, cfg.Fleet.Name, ticket.Hub)
+			"this machine is already a member of the fleet %s; remove it there "+
+				"(`caramelo member remove %s` on its hub) and `caramelo member leave` here before joining %s",
+			cfg.FleetName(), cfg.Name, ticket.Fleet)
 	}
 	if err := pre.err(); err != nil {
 		return err
@@ -75,14 +83,14 @@ func (a *app) runMachineJoin(ctx context.Context, configDir, hub, token, name st
 		host, _ := os.Hostname()
 		name = vpnclient.Slug(host)
 	}
-	if private || cfg.Fleet.Private {
+	if private || cfg.Member.Private {
 		private = true
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, joinTimeout)
 	defer cancel()
 	res, err := redeem(ctx, ticket, api.RedeemRequest{
-		Secret: ticket.Secret, Name: name, PublicKey: pub.Base64(),
+		Secret: ticket.Secret, Fleet: ticket.Fleet, Name: name, PublicKey: pub.Base64(),
 		Arch: runtime.GOARCH, OS: runtime.GOOS, Private: private,
 	}, a.tunnelLog())
 	if err != nil {
@@ -188,14 +196,24 @@ func writeMemberConfig(dir string, cfg serverconfig.Config, t fleet.Ticket, res 
 	if a := res.Hub.Address(); a.IsValid() {
 		hubAddr = a.String()
 	}
+	fleetName := strings.TrimSpace(res.Fleet)
+	if fleetName == "" {
+		fleetName = t.Fleet
+	}
+	hubName := strings.TrimSpace(res.Hub.Name)
+	if hubName == "" {
+		hubName = t.Hub
+	}
 	cfg.VPNSubnet = subnet
-	cfg.Fleet = serverconfig.Fleet{
-		Role:    serverconfig.RoleMember,
-		Name:    res.Machine.Name,
+	cfg.Name = res.Machine.Name
+	cfg.Role = serverconfig.RoleMember
+	cfg.Hub = serverconfig.Hub{}
+	cfg.Member = serverconfig.Member{
+		Fleet:   fleetName,
 		Subnet:  subnet,
 		Private: res.Machine.Private,
-		Hub: serverconfig.FleetHub{
-			Name: res.Hub.Name, Endpoint: endpoint, Address: hubAddr, PublicKey: t.PublicKey,
+		Hub: serverconfig.MemberHub{
+			Name: hubName, Endpoint: endpoint, Address: hubAddr, PublicKey: t.PublicKey,
 		},
 	}
 	return saveConfigKeepingOwner(dir, cfg)
@@ -282,14 +300,16 @@ func (a *app) runMachineLeave(ctx context.Context, configDir string, force bool)
 				return err
 			})
 	}
-	hub := cfg.Fleet.Hub.Name
+	hub := cfg.FleetName()
 	if !force {
 
 		fmt.Fprintf(a.stderr,
 			"caramelo: leaving the fleet %s. Remove it there too (`caramelo member remove %s`), "+
-				"or the hub will keep placing work here.\n", hub, cfg.Fleet.Name)
+				"or the hub will keep placing work here.\n", hub, cfg.Name)
 	}
-	cfg.Fleet = serverconfig.Fleet{}
+	cfg.Role = serverconfig.RoleHub
+	cfg.Member = serverconfig.Member{}
+	cfg.Hub = serverconfig.Hub{Fleet: cfg.Name}
 	if err := saveConfigKeepingOwner(configDir, cfg); err != nil {
 		return err
 	}

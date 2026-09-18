@@ -63,6 +63,8 @@ type ReleaseRecordRequest struct {
 type RedeemRequest struct {
 	Secret string `json:"secret"`
 
+	Fleet string `json:"fleet,omitempty"`
+
 	Name string `json:"name"`
 
 	PublicKey string `json:"public_key"`
@@ -79,6 +81,8 @@ type RedeemResult struct {
 	Machine fleet.Machine `json:"machine"`
 
 	Hub fleet.Machine `json:"hub"`
+
+	Fleet string `json:"fleet,omitempty"`
 
 	Endpoint string `json:"endpoint,omitempty"`
 
@@ -135,6 +139,7 @@ type MachineTokenResult struct {
 	Token string `json:"token"`
 
 	Hub      string `json:"hub"`
+	Fleet    string `json:"fleet,omitempty"`
 	Endpoint string `json:"endpoint,omitempty"`
 
 	PublicKey string    `json:"public_key,omitempty"`

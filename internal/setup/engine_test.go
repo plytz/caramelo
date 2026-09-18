@@ -43,6 +43,7 @@ func testEnv(t *testing.T, run *testutil.FakeRunner) (*Env, *bytes.Buffer) {
 	t.Helper()
 	log := &bytes.Buffer{}
 	cfg := serverconfig.Default()
+	cfg.Name, cfg.Hub.Fleet = "box", "box"
 	return &Env{
 		Config:     cfg,
 		ConfigDir:  serverconfig.DefaultConfigDir,

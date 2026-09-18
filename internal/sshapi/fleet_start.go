@@ -30,7 +30,7 @@ func (d *Daemon) fleetOn(ctx context.Context) bool {
 
 		return false
 	}
-	if d.Config.IsMember() || strings.TrimSpace(d.Config.Fleet.Role) != "" {
+	if d.Config.IsMember() {
 		return true
 	}
 	rows, err := d.Store.FleetMachines(ctx)
@@ -41,13 +41,13 @@ func (d *Daemon) configureFleet(ctx context.Context, logf func(string, ...any)) 
 	if !d.fleetOn(ctx) {
 		return
 	}
-	self, role := d.fleetName(), fleet.Role(d.Config.FleetRole())
+	self, role := d.machineName(), fleet.Role(d.Config.FleetRole())
 	d.setKnownMachines(storeMachines{d.Store})
 	st := storeFleetState{d.Store}
 	if d.EnvManager != nil {
 		m := d.EnvManager
 		w := m.FleetWiringOf()
-		w.Machine, w.Role, w.Private = self, role, d.Config.Fleet.Private
+		w.Machine, w.Role, w.Private = self, role, d.Config.Member.Private
 		w.Fleet = st
 		w.Arch = runtime.GOARCH
 
@@ -92,7 +92,7 @@ func (d *Daemon) configureFleet(ctx context.Context, logf func(string, ...any)) 
 	if d.Config.IsMember() {
 		d.configureMemberVault(logf)
 	}
-	logf("fleet: this machine is %s, role %s%s", self, role, privateSuffix(d.Config.Fleet.Private))
+	logf("fleet: this machine is %s, role %s%s", self, role, privateSuffix(d.Config.Member.Private))
 }
 
 func privateSuffix(private bool) string {
@@ -103,20 +103,20 @@ func privateSuffix(private bool) string {
 }
 
 func (d *Daemon) configureMemberVault(logf func(string, ...any)) {
-	hub := d.Config.Fleet.Hub.Name
-	remote := &vault.Remote{Hub: hub, Machine: d.fleetName(), Fetch: &hubFetcher{d: d}}
+	remote := &vault.Remote{Hub: d.Config.HubName(), Machine: d.machineName(), Fetch: &hubFetcher{d: d}}
 	d.Vault = remote
 	if d.EnvManager != nil {
 		d.EnvManager.Secrets = remote
 	}
-	logf("vault: this machine is a member of %s and keeps no secrets of its own", hub)
+	logf("vault: this machine is a member of the fleet %s and keeps no secrets of its own",
+		d.Config.FleetName())
 }
 
 func (d *Daemon) startFleetNetwork(ctx context.Context, logf func(string, ...any)) *fleetFeeds {
 	if !d.fleetOn(ctx) || d.dev() == nil {
 		return nil
 	}
-	d.setForwarder(&api.TunnelForwarder{Dialer: d.dev(), Machine: d.fleetName()})
+	d.setForwarder(&api.TunnelForwarder{Dialer: d.dev(), Machine: d.machineName()})
 	if d.EnvManager != nil {
 		d.EnvManager.UpdateFleetWiring(func(w *env.FleetWiring) {
 			w.RemoteWorktree = d.remoteWorktree
@@ -148,7 +148,7 @@ func (d *Daemon) startFleetNetwork(ctx context.Context, logf func(string, ...any
 	}
 	if d.EnvManager != nil {
 		if err := d.EnvManager.AnnounceAll(ctx); removedByHub(err) {
-			d.leaveFleet(ctx, d.Config.Fleet.Hub.Name, logf)
+			d.leaveFleet(ctx, d.Config.FleetName(), logf)
 			return nil
 		} else if err != nil {
 			logf("fleet: %v", err)
@@ -188,7 +188,7 @@ func (d *Daemon) heartbeat(ctx context.Context, logf func(string, ...any)) {
 		err := d.EnvManager.AnnounceAll(ctx)
 		if removedByHub(err) {
 
-			d.leaveFleet(ctx, d.Config.Fleet.Hub.Name, logf)
+			d.leaveFleet(ctx, d.Config.FleetName(), logf)
 			return
 		}
 		if err != nil {
@@ -200,8 +200,8 @@ func (d *Daemon) heartbeat(ctx context.Context, logf func(string, ...any)) {
 			continue
 		}
 		if failures > 0 {
-			logf("fleet: the hub %s is answering again (%d announcement(s) missed)",
-				d.Config.Fleet.Hub.Name, failures)
+			logf("fleet: the hub of %s is answering again (%d announcement(s) missed)",
+				d.Config.FleetName(), failures)
 			failures = 0
 		}
 	}
@@ -238,7 +238,7 @@ func (d *Daemon) memberNames(ctx context.Context) []string {
 	if err != nil {
 		return nil
 	}
-	self := d.fleetName()
+	self := d.machineName()
 	out := make([]string, 0, len(rows))
 	for _, r := range rows {
 		if r.Name != self {
@@ -291,9 +291,9 @@ func (d *Daemon) recordOwnFleet(ctx context.Context) error {
 	if err := d.Store.PutFleetMachine(ctx, machineRowOf(self)); err != nil {
 		return fmt.Errorf("record this machine's own row: %w", err)
 	}
-	h := d.Config.Fleet.Hub
+	h := d.Config.Member.Hub
 	hub := fleet.Machine{
-		Name: h.Name, Role: fleet.RoleHub, PublicKey: h.PublicKey,
+		Name: d.Config.HubName(), Role: fleet.RoleHub, PublicKey: h.PublicKey,
 		Endpoint: h.Endpoint, JoinedAt: self.JoinedAt, LastSeen: d.now(),
 	}
 	if p, err := d.Config.HubSubnetPrefix(); err == nil {
@@ -331,22 +331,22 @@ func (d *Daemon) syncMachinePeers(ctx context.Context) error {
 	}
 	want := map[string]vpn.MachinePeer{}
 	if d.Config.IsMember() {
-		h := d.Config.Fleet.Hub
+		h, hub := d.Config.Member.Hub, d.Config.HubName()
 		addr, err := d.Config.HubAddress()
 		if err != nil {
-			return fmt.Errorf("peer with the hub %s: %w", h.Name, err)
+			return fmt.Errorf("peer with the hub of %s: %w", d.Config.FleetName(), err)
 		}
 		rng, err := d.Config.FleetRangePrefix()
 		if err != nil {
-			return fmt.Errorf("peer with the hub %s: %w", h.Name, err)
+			return fmt.Errorf("peer with the hub of %s: %w", d.Config.FleetName(), err)
 		}
-		want[h.Name] = vpn.HubPeer(h.Name, h.PublicKey, h.Endpoint, addr, rng)
+		want[hub] = vpn.HubPeer(hub, h.PublicKey, h.Endpoint, addr, rng)
 	} else {
 		rows, err := d.Store.FleetMachines(ctx)
 		if err != nil {
 			return fmt.Errorf("read the fleet's machines: %w", err)
 		}
-		self := d.fleetName()
+		self := d.machineName()
 		for _, r := range rows {
 			if r.Name == self || r.Role == string(fleet.RoleHub) {
 				continue
@@ -424,7 +424,7 @@ func (d *Daemon) syncForwards(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("read the fleet's machines: %w", err)
 	}
-	self := d.fleetName()
+	self := d.machineName()
 	want := map[string]vpn.Forward{}
 	for _, m := range machines {
 		if m.Name == self || m.Role.IsHub() {
@@ -463,15 +463,15 @@ func (d *Daemon) imageSources(ctx context.Context) ([]release.Source, error) {
 	if err != nil {
 		return nil, err
 	}
-	self, now := d.fleetName(), d.now()
-	member, hub := d.Config.IsMember(), d.Config.Fleet.Hub.Name
+	self, now := d.machineName(), d.now()
+	member := d.Config.IsMember()
 	out := make([]release.Source, 0, len(machines))
 	for _, m := range machines {
 		if m.Name == self {
 			continue
 		}
 		reachable := m.Reachable(now)
-		if member && m.Name != hub {
+		if member && !m.Role.IsHub() {
 			reachable = false
 		}
 		out = append(out, release.Source{Machine: m.Name, Reachable: reachable})
@@ -485,10 +485,10 @@ func (d *Daemon) hubLocation() (api.Location, error) {
 	}
 	at, err := d.Config.HubAPIAddrPort()
 	if err != nil {
-		return api.Location{}, fmt.Errorf("find the hub %s: %w", d.Config.Fleet.Hub.Name, err)
+		return api.Location{}, fmt.Errorf("find the hub of %s: %w", d.Config.FleetName(), err)
 	}
 	return api.Location{
-		Machine: d.Config.Fleet.Hub.Name, Address: at.String(), Reachable: true,
+		Machine: d.Config.HubName(), Address: at.String(), Reachable: true,
 	}, nil
 }
 
@@ -504,7 +504,7 @@ func (d *Daemon) machineLocation(ctx context.Context, name string) (api.Location
 	if !ok {
 		return api.Location{}, fmt.Errorf("machine %q: this fleet has no such machine", name)
 	}
-	if m.Name == d.fleetName() {
+	if m.Name == d.machineName() {
 		return api.Location{Machine: m.Name, Local: true, Reachable: true}, nil
 	}
 	addr := m.Address()
@@ -675,15 +675,15 @@ func (d *Daemon) withHubAPI(ctx context.Context, fn func(addr string) error) err
 	}
 	at, err := d.Config.HubAPIAddrPort()
 	if err != nil {
-		return fmt.Errorf("find the hub %s: %w", d.Config.Fleet.Hub.Name, err)
+		return fmt.Errorf("find the hub of %s: %w", d.Config.FleetName(), err)
 	}
 	d.hubDoorMu.Lock()
 	f, err := dev.AddForward(ctx, vpn.Forward{
-		Name: hubAPIForwardName, Machine: d.Config.Fleet.Hub.Name, To: at,
+		Name: hubAPIForwardName, Machine: d.Config.HubName(), To: at,
 	})
 	if err != nil {
 		d.hubDoorMu.Unlock()
-		return fmt.Errorf("open the door to the hub %s: %w", d.Config.Fleet.Hub.Name, err)
+		return fmt.Errorf("open the door to the hub of %s: %w", d.Config.FleetName(), err)
 	}
 	d.hubDoorUsers++
 	d.hubDoorMu.Unlock()
@@ -696,7 +696,7 @@ func (d *Daemon) withHubAPI(ctx context.Context, fn func(addr string) error) err
 		}
 
 		if err := dev.RemoveForward(context.WithoutCancel(ctx), hubAPIForwardName); err != nil {
-			d.logf("close the door to the hub %s: %v", d.Config.Fleet.Hub.Name, err)
+			d.logf("close the door to the hub of %s: %v", d.Config.FleetName(), err)
 		}
 	}()
 	return fn(f.Addr())
@@ -738,16 +738,17 @@ func (d *Daemon) mirror(ctx context.Context, app, branch string) error {
 
 const leftFleetSetting = "fleet.left"
 
-func (d *Daemon) leaveFleet(ctx context.Context, hub string, logf func(string, ...any)) {
-	d.leaveFleetIn(ctx, hub, 0, logf)
+func (d *Daemon) leaveFleet(ctx context.Context, fleetName string, logf func(string, ...any)) {
+	d.leaveFleetIn(ctx, fleetName, 0, logf)
 }
 
-func (d *Daemon) leaveFleetIn(ctx context.Context, hub string, after time.Duration, logf func(string, ...any)) {
-	if err := d.Store.SetSetting(ctx, leftFleetSetting, hub); err != nil {
-		logf("fleet: record that %s removed this machine: %v", hub, err)
+func (d *Daemon) leaveFleetIn(ctx context.Context, fleetName string, after time.Duration, logf func(string, ...any)) {
+	if err := d.Store.SetSetting(ctx, leftFleetSetting, fleetName); err != nil {
+		logf("fleet: record that the hub of %s removed this machine: %v", fleetName, err)
 	}
 
 	d.forgetFleetMachines(ctx, logf)
+	hub := d.Config.HubName()
 	drop := func() {
 		dev := d.dev()
 		if dev == nil {
@@ -770,9 +771,9 @@ func (d *Daemon) leaveFleetIn(ctx context.Context, hub string, after time.Durati
 			w.Role = fleet.RoleHub
 		})
 	}
-	logf("fleet: %s has removed this machine; it is a machine of one again. "+
-		"Run `sudo caramelo member leave` on it to take the fleet block out of %s",
-		hub, serverconfig.Path(d.ConfigDir))
+	logf("fleet: the hub of %s has removed this machine; it is a machine of one again. "+
+		"Run `sudo caramelo member leave` on it to take the member block out of %s",
+		fleetName, serverconfig.Path(d.ConfigDir))
 }
 
 func (d *Daemon) forgetFleetMachines(ctx context.Context, logf func(string, ...any)) {
@@ -801,7 +802,7 @@ func (d *Daemon) leftFleet(ctx context.Context) bool {
 		return false
 	}
 	got, err := d.Store.Setting(ctx, leftFleetSetting)
-	return err == nil && got == d.Config.Fleet.Hub.Name
+	return err == nil && got == d.Config.FleetName()
 }
 
 func (d *Daemon) forgetLeftFleet(ctx context.Context) {
@@ -810,7 +811,7 @@ func (d *Daemon) forgetLeftFleet(ctx context.Context) {
 		return
 	}
 	if err := d.Store.SetSetting(ctx, leftFleetSetting, ""); err != nil {
-		d.logf("fleet: forget that %s had removed this machine: %v", got, err)
+		d.logf("fleet: forget that the hub of %s had removed this machine: %v", got, err)
 		return
 	}
 	d.logf("fleet: this machine no longer names a hub; forgot that %s had removed it", got)
@@ -872,7 +873,7 @@ func (d *Daemon) syncFleetNames(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("read the directory for the fleet's names: %w", err)
 	}
-	self := d.fleetName()
+	self := d.machineName()
 	out := make([]vpn.Address, 0, len(rows))
 	for _, r := range rows {
 		if r.Machine == "" || r.Machine == self || r.Address == "" {

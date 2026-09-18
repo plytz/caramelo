@@ -101,10 +101,10 @@ To                         Action      From
 func TestFirewallStepNeverFailsOnAMachineThatDialsOut(t *testing.T) {
 	asRoot(t)
 	cases := map[string]func(env *Env){
-		"a member config": func(env *Env) { env.Config.Fleet.Role = serverconfig.RoleMember },
+		"a member config": func(env *Env) { env.Config.Role = serverconfig.RoleMember },
 		"--join-token":    func(env *Env) { env.Opts.Join = JoinSpec{Token: "a-ticket"} },
 		"--private": func(env *Env) {
-			env.Config.Fleet.Role, env.Config.Fleet.Private = serverconfig.RoleMember, true
+			env.Config.Role, env.Config.Member.Private = serverconfig.RoleMember, true
 			env.Config.Edge = true
 		},
 	}

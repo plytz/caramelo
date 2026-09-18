@@ -21,6 +21,8 @@ import (
 )
 
 const (
+	ConfigDirEnv = "CARAMELO_CONFIG_DIR"
+
 	DefaultConfigDir = "/etc/caramelo"
 	DefaultStateDir  = "/var/lib/caramelo"
 	DefaultDataDir   = "/mnt/caramelo"
@@ -79,6 +81,10 @@ const (
 var SwapBackends = []string{SwapFile, SwapZram, SwapOff}
 
 type Config struct {
+	Name string `yaml:"name,omitempty"`
+
+	Role string `yaml:"role"`
+
 	User     string `yaml:"user"`
 	Group    string `yaml:"group"`
 	StateDir string `yaml:"state_dir"`
@@ -109,7 +115,9 @@ type Config struct {
 
 	Swap Swap `yaml:"swap"`
 
-	Fleet Fleet `yaml:"fleet,omitempty"`
+	Hub Hub `yaml:"hub,omitempty"`
+
+	Member Member `yaml:"member,omitempty"`
 }
 
 type Reserve struct {
@@ -125,6 +133,7 @@ type Swap struct {
 
 func Default() Config {
 	return Config{
+		Role: RoleHub,
 		User: DefaultUser, Group: DefaultGroup,
 		StateDir: DefaultStateDir, DataDir: DefaultDataDir, RunDir: DefaultRunDir,
 		SSHPort: DefaultSSHPort, Bind: DefaultBind,
@@ -301,6 +310,13 @@ func validateSwap(c Config) []error {
 
 const MaxVPNSubnetBits = 22
 
+func ConfigDir() string {
+	if dir := strings.TrimSpace(os.Getenv(ConfigDirEnv)); dir != "" {
+		return dir
+	}
+	return DefaultConfigDir
+}
+
 func Path(dir string) string { return filepath.Join(dir, ConfigFile) }
 
 func Load(dir string) (Config, error) {
@@ -310,6 +326,9 @@ func Load(dir string) (Config, error) {
 	}
 	c := Default()
 	if err := yaml.Unmarshal(b, &c); err != nil {
+		return Config{}, fmt.Errorf("parse %s: %w", Path(dir), err)
+	}
+	if err := refuseRetiredKeys(b); err != nil {
 		return Config{}, fmt.Errorf("parse %s: %w", Path(dir), err)
 	}
 	return c, c.Validate()
@@ -359,7 +378,7 @@ func (c Config) Validate() error {
 	errs = append(errs, validateVPN(c)...)
 	errs = append(errs, validateEdge(c)...)
 	errs = append(errs, validateSwap(c)...)
-	errs = append(errs, validateFleet(c)...)
+	errs = append(errs, validateRoles(c)...)
 	return errors.Join(errs...)
 }
 

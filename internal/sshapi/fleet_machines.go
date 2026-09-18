@@ -77,7 +77,7 @@ func (d *Daemon) withHandshakes(ctx context.Context, rows []fleet.Machine) []fle
 	}
 	out := fleet.Seen(rows, seen)
 	for i, m := range out {
-		if m.Name == d.fleetName() || m.PublicKey == "" {
+		if m.Name == d.machineName() || m.PublicKey == "" {
 			continue
 		}
 		hs, ok := seen[m.PublicKey]
@@ -100,10 +100,10 @@ func (d *Daemon) withHandshakes(ctx context.Context, rows []fleet.Machine) []fle
 
 func (d *Daemon) selfMachine(ctx context.Context) (fleet.Machine, error) {
 	m := fleet.Machine{
-		Name: d.fleetName(),
+		Name: d.machineName(),
 		Role: fleet.Role(d.Config.FleetRole()),
 		Arch: runtime.GOARCH, OS: runtime.GOOS,
-		Private: d.Config.Fleet.Private,
+		Private: d.Config.Member.Private,
 	}
 
 	if d.leftFleet(ctx) {
@@ -136,8 +136,8 @@ func (d *Daemon) selfMachine(ctx context.Context) (fleet.Machine, error) {
 	return m, nil
 }
 
-func (d *Daemon) fleetName() string {
-	if n := strings.TrimSpace(d.Config.Fleet.Name); n != "" {
+func (d *Daemon) machineName() string {
+	if n := strings.TrimSpace(d.Config.Name); n != "" {
 		return n
 	}
 	host := d.Hostname
@@ -188,7 +188,7 @@ func (d *Daemon) MachineInfo(ctx context.Context, name string) (*api.MachineDeta
 			det.Envs = append(det.Envs, directoryEntryOf(r))
 		}
 	}
-	if len(det.Envs) == 0 && m.Name == d.fleetName() {
+	if len(det.Envs) == 0 && m.Name == d.machineName() {
 
 		if envs, err := d.Store.Envs(ctx, ""); err == nil {
 			for i := range envs {
@@ -206,8 +206,8 @@ func (d *Daemon) MachineInfo(ctx context.Context, name string) (*api.MachineDeta
 
 func (d *Daemon) MachineToken(ctx context.Context, req api.MachineTokenRequest) (*api.MachineTokenResult, error) {
 	if d.Config.IsMember() {
-		return nil, fmt.Errorf("member token: this machine is a member of %s; ask for a token there",
-			d.Config.Fleet.Hub.Name)
+		return nil, fmt.Errorf("member token: this machine is a member of the fleet %s; ask its hub for a token",
+			d.Config.FleetName())
 	}
 	dev := d.dev()
 	if dev == nil {
@@ -253,7 +253,7 @@ func (d *Daemon) MachineToken(ctx context.Context, req api.MachineTokenRequest) 
 	}
 	d.holdJoinPeer(name, tok.ExpiresAt.Add(joinExpiryGrace))
 	ticket := fleet.Ticket{
-		Hub: hub.Name, Endpoint: d.hubEndpoint(), PublicKey: hub.PublicKey,
+		Hub: hub.Name, Fleet: d.Config.FleetName(), Endpoint: d.hubEndpoint(), PublicKey: hub.PublicKey,
 		Address: hub.Address().String(), Peer: peerAddr.String(),
 		Range: fleet.FleetRange, Secret: secret,
 	}
@@ -262,7 +262,7 @@ func (d *Daemon) MachineToken(ctx context.Context, req api.MachineTokenRequest) 
 		return nil, err
 	}
 	return &api.MachineTokenResult{
-		Token: blob, Hub: hub.Name, Endpoint: ticket.Endpoint,
+		Token: blob, Hub: hub.Name, Fleet: ticket.Fleet, Endpoint: ticket.Endpoint,
 		PublicKey: hub.PublicKey, ExpiresAt: tok.ExpiresAt,
 	}, nil
 }
@@ -345,7 +345,11 @@ func (d *Daemon) ensureHubRow(ctx context.Context) (fleet.Machine, error) {
 
 func (d *Daemon) MachineRedeem(ctx context.Context, req api.RedeemRequest) (*api.RedeemResult, error) {
 	if d.Config.IsMember() {
-		return nil, fmt.Errorf("a join: this machine is a member of %s and not a hub", d.Config.Fleet.Hub.Name)
+		return nil, fmt.Errorf("a join: this machine is a member of the fleet %s and not a hub", d.Config.FleetName())
+	}
+	if claimed := strings.TrimSpace(req.Fleet); claimed != "" && claimed != d.Config.FleetName() {
+		return nil, fmt.Errorf("a join: this hub is the fleet %s, and that token was taken for %s",
+			d.Config.FleetName(), claimed)
 	}
 	dev := d.dev()
 	if dev == nil {
@@ -398,7 +402,10 @@ func (d *Daemon) MachineRedeem(ctx context.Context, req api.RedeemRequest) (*api
 
 	d.retireJoinPeer(member.Name, joinPeerName(hash))
 	d.fleetChanged(ctx)
-	return &api.RedeemResult{Machine: member, Hub: hub, Endpoint: d.hubEndpoint(), Changed: changed}, nil
+	return &api.RedeemResult{
+		Machine: member, Hub: hub, Fleet: d.Config.FleetName(),
+		Endpoint: d.hubEndpoint(), Changed: changed,
+	}, nil
 }
 
 func (d *Daemon) admitMember(ctx context.Context, machines []fleet.Machine, name string, req api.RedeemRequest) (fleet.Machine, bool, error) {
@@ -437,12 +444,11 @@ func (d *Daemon) MachineRemoved(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	hub := d.Config.Fleet.Hub.Name
-	if !d.Config.IsMember() || peer.Name != hub {
+	if !d.Config.IsMember() || peer.Name != d.Config.HubName() {
 		return fmt.Errorf("member removed: %q is not this machine's hub", peer.Name)
 	}
 
-	d.leaveFleetIn(ctx, hub, leaveReplyGrace, d.logf)
+	d.leaveFleetIn(ctx, d.Config.FleetName(), leaveReplyGrace, d.logf)
 	return nil
 }
 
@@ -475,7 +481,7 @@ func (d *Daemon) MachineRemove(ctx context.Context, req api.MachineRemoveRequest
 	if name == "" {
 		return errors.New("member remove: which machine")
 	}
-	if name == d.fleetName() {
+	if name == d.machineName() {
 		return fmt.Errorf("member remove %s: that is this machine, and a hub cannot remove itself", name)
 	}
 	if _, err := d.Store.FleetMachine(ctx, name); errors.Is(err, state.ErrNotFound) {
@@ -583,7 +589,7 @@ func (d *Daemon) VaultBundle(ctx context.Context, req api.BundleRequest) (*vault
 		return nil, errors.New("a secrets bundle: this machine has no vault")
 	}
 	h := &vault.Hub{
-		Store: d.Vault, Machine: d.fleetName(), Now: d.now,
+		Store: d.Vault, Machine: d.machineName(), Now: d.now,
 		Asker: func(context.Context) string { return peer.Name },
 		Audit: d.auditFetch,
 	}
@@ -640,7 +646,7 @@ func (d *Daemon) transfer() *release.Transfer {
 	}
 	return &release.Transfer{
 		Mover: mover, Store: releaseImages{d.Store},
-		Machine: d.fleetName(), Arch: runtime.GOARCH, Now: d.now,
+		Machine: d.machineName(), Arch: runtime.GOARCH, Now: d.now,
 	}
 }
 

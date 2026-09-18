@@ -74,6 +74,14 @@ func apiListensPublicly(ctx context.Context, m *Machine) (bool, error) {
 	return got == serverconfig.APIListenPublic || got == serverconfig.APIListenBoth, nil
 }
 
+func ServerFleet(ctx context.Context, m *Machine) (string, error) {
+	res, err := m.Run(ctx, "sudo -n sed -n 's/^ *fleet: *//p' /etc/caramelo/config.yaml 2>/dev/null || true")
+	if err != nil {
+		return "", fmt.Errorf("read the fleet of %s: %w", m.Alias, err)
+	}
+	return strings.Trim(strings.TrimSpace(res.Stdout), `"'`), nil
+}
+
 func FleetRole(ctx context.Context, m *Machine) (string, error) {
 	res, err := m.Run(ctx, "sudo -n sed -n 's/^ *role: *//p' /etc/caramelo/config.yaml 2>/dev/null || true")
 	if err != nil {

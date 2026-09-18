@@ -226,7 +226,7 @@ func newEnvManager(cfg serverconfig.Config, store state.Store, run runner.Runner
 		Version:  version,
 		Identity: env.IdentityFrom,
 
-		Machine: fleetNameOf(cfg),
+		Machine: machineNameOf(cfg),
 		Arch:    runtime.GOARCH,
 		Images:  releaseImages{store},
 	})
@@ -235,8 +235,8 @@ func newEnvManager(cfg serverconfig.Config, store state.Store, run runner.Runner
 	return m
 }
 
-func fleetNameOf(cfg serverconfig.Config) string {
-	if n := strings.TrimSpace(cfg.Fleet.Name); n != "" {
+func machineNameOf(cfg serverconfig.Config) string {
+	if n := strings.TrimSpace(cfg.Name); n != "" {
 		return n
 	}
 	host, _ := os.Hostname()

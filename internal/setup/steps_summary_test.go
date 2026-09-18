@@ -177,7 +177,7 @@ func TestSummaryOmitsTheAPIPortWhenItIsNotPublic(t *testing.T) {
 func TestSummaryOfAMemberAsksForNoInboundPort(t *testing.T) {
 	run := testutil.New()
 	env, log := testEnv(t, run)
-	env.Config.Fleet.Role, env.Config.Fleet.Private = serverconfig.RoleMember, true
+	env.Config.Role, env.Config.Member.Private = serverconfig.RoleMember, true
 	env.Config.Edge = true
 	checkedFirewall(t, env, run)
 

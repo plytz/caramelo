@@ -22,8 +22,6 @@ import (
 
 func init() { forward = forwardImpl }
 
-var systemConfigDir = serverconfig.DefaultConfigDir
-
 const dialTimeout = 10 * time.Second
 
 type transport struct {
@@ -104,7 +102,7 @@ func resolveTransport(ctx context.Context, a *app) (transport, error) {
 
 func daemonSocket() (path, user string) {
 	def := serverconfig.Default()
-	cfg, err := serverconfig.Load(systemConfigDir)
+	cfg, err := serverconfig.Load(serverconfig.ConfigDir())
 	if err != nil {
 		return def.SocketPath(), def.User
 	}
