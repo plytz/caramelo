@@ -227,7 +227,7 @@ func (b *box) answer(query []byte) ([]byte, error) {
 
 func (b *box) record(machine string, peerIP netip.Addr) Record {
 	return Record{
-		Machine:     machine,
+		Fleet:       machine,
 		MachineName: machine,
 		Endpoint:    b.endpoint,
 		MachineKey:  b.key.Public,

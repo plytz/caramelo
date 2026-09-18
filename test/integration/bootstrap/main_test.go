@@ -118,13 +118,13 @@ type result struct {
 		Arch      string `json:"arch"`
 		Privilege string `json:"privilege"`
 	} `json:"probe"`
-	Setup   setuppkg.Report `json:"setup"`
-	Machine *struct {
+	Setup setuppkg.Report `json:"setup"`
+	Fleet *struct {
 		Name    string `json:"name"`
-		Address string `json:"address"`
+		Hub     string `json:"hub"`
 		Default bool   `json:"default"`
 		Config  string `json:"config"`
-	} `json:"machine"`
+	} `json:"fleet"`
 	Verified bool            `json:"verified"`
 	Status   json.RawMessage `json:"status"`
 }

@@ -272,11 +272,12 @@ func (s *suite) sudoCommanderCaramelo(t *testing.T, args string) itest.Result {
 	return s.runOnCommander(t, "sudo -n "+itest.CarameloBinary+" "+args, itest.Scale(3*time.Minute))
 }
 
-func (s *suite) writeCommanderConfig(t *testing.T, machine string) {
+func (s *suite) writeCommanderConfig(t *testing.T, hub string) {
 	t.Helper()
 	home := itest.HomeOf(s.commander)
 	cmd := fmt.Sprintf("mkdir -p %s/.config/caramelo && "+
-		"printf 'default_machine: %s\\n' > %s/.config/caramelo/config.yaml", home, machine, home)
+		"printf 'name: commander\\nrole: commander\\ncommander:\\n  default_fleet: lab\\n  fleets:\\n    lab:\\n      hub: %s\\n' "+
+		"> %s/.config/caramelo/config.yaml", home, hub, home)
 	if res := s.runOnCommander(t, cmd, itest.Scale(time.Minute)); res.ExitCode != 0 {
 		t.Fatalf("writing the commander config on %s: exit %d: %s", s.commander.Alias, res.ExitCode, res.Stderr)
 	}

@@ -96,20 +96,20 @@ func serviceCall(ctx context.Context, req serviceRequest) (*serviceResponse, err
 }
 
 func serviceRunning(ctx context.Context, rec Record) (bool, error) {
-	resp, err := serviceCall(ctx, serviceRequest{Op: "status", Machine: rec.Machine})
+	resp, err := serviceCall(ctx, serviceRequest{Op: "status", Machine: rec.Fleet})
 	if err != nil {
 		return false, err
 	}
-	return resp.Running && (resp.Machine == "" || resp.Machine == rec.Machine), nil
+	return resp.Running && (resp.Machine == "" || resp.Machine == rec.Fleet), nil
 }
 
 func serviceUp(ctx context.Context, rec Record) error {
-	_, err := serviceCall(ctx, serviceRequest{Op: "up", Machine: rec.Machine})
+	_, err := serviceCall(ctx, serviceRequest{Op: "up", Machine: rec.Fleet})
 	return err
 }
 
 func serviceDown(ctx context.Context, rec Record) error {
-	_, err := serviceCall(ctx, serviceRequest{Op: "down", Machine: rec.Machine})
+	_, err := serviceCall(ctx, serviceRequest{Op: "down", Machine: rec.Fleet})
 	return err
 }
 
@@ -206,7 +206,7 @@ func (s *service) run(ctx context.Context) error {
 		return err
 	}
 	defer func() { _ = ln.Close() }()
-	s.logf("tunnel to %s is up on %s; control socket %s", s.rec.Machine, s.opts.Interface, s.opts.Socket)
+	s.logf("tunnel to %s is up on %s; control socket %s", s.rec.Fleet, s.opts.Interface, s.opts.Socket)
 
 	go func() {
 		<-ctx.Done()
@@ -260,11 +260,11 @@ func (s *service) serve(ctx context.Context, conn net.Conn) (stop bool) {
 		writeResponse(conn, serviceResponse{Error: "unreadable request"})
 		return false
 	}
-	if req.Machine != "" && req.Machine != s.rec.Machine {
+	if req.Machine != "" && req.Machine != s.rec.Fleet {
 		writeResponse(conn, serviceResponse{
-			Machine: s.rec.Machine,
+			Machine: s.rec.Fleet,
 			Error: fmt.Sprintf("this service carries the network of %s, not %s",
-				s.rec.Machine, req.Machine),
+				s.rec.Fleet, req.Machine),
 		})
 		return false
 	}
@@ -273,7 +273,7 @@ func (s *service) serve(ctx context.Context, conn net.Conn) (stop bool) {
 		writeResponse(conn, s.status())
 	case "up":
 		if err := s.start(ctx); err != nil {
-			writeResponse(conn, serviceResponse{Machine: s.rec.Machine, Error: err.Error()})
+			writeResponse(conn, serviceResponse{Machine: s.rec.Fleet, Error: err.Error()})
 			return false
 		}
 		writeResponse(conn, s.status())
@@ -303,7 +303,7 @@ func (s *service) status() serviceResponse {
 	defer s.mu.Unlock()
 	resp := serviceResponse{
 		OK:        true,
-		Machine:   s.rec.Machine,
+		Machine:   s.rec.Fleet,
 		Interface: s.opts.Interface,
 		Running:   s.up,
 	}
@@ -339,11 +339,11 @@ func (s *service) start(ctx context.Context) error {
 	dev := device.NewDevice(tdev, conn.NewDefaultBind(), newLogger(device.LogLevelError, s.opts.Log))
 	if err := dev.IpcSet(cfg); err != nil {
 		dev.Close()
-		return fmt.Errorf("configure the tunnel to %s: %w", s.rec.Machine, err)
+		return fmt.Errorf("configure the tunnel to %s: %w", s.rec.Fleet, err)
 	}
 	if err := dev.Up(); err != nil {
 		dev.Close()
-		return fmt.Errorf("bring the tunnel to %s up: %w", s.rec.Machine, err)
+		return fmt.Errorf("bring the tunnel to %s up: %w", s.rec.Fleet, err)
 	}
 	if err := s.opts.Host.Configure(ctx, s.opts.Interface, s.rec); err != nil {
 		dev.Close()
@@ -364,7 +364,7 @@ func (s *service) stop(ctx context.Context) {
 	}
 	s.dev.Close()
 	s.dev, s.up = nil, false
-	s.logf("tunnel to %s is down", s.rec.Machine)
+	s.logf("tunnel to %s is down", s.rec.Fleet)
 }
 
 func NewHostNet(log io.Writer) HostNet {

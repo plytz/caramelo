@@ -580,8 +580,12 @@ func TestEnvCreatePushesBeforeForwarding(t *testing.T) {
 	noCommanderConfig(t)
 	useSystemConfigDir(t, t.TempDir())
 	useCommanderConfig(t, remote.CommanderConfig{
-		DefaultMachine: "box",
-		Machines:       map[string]string{"box": "caramelo@box:4022"},
+		Name: "laptop",
+		Role: remote.RoleCommander,
+		Commander: remote.Commander{
+			DefaultFleet: "home",
+			Fleets:       map[string]remote.Fleet{"home": {Hub: "caramelo@box:4022"}},
+		},
 	})
 	fakeGit(t, map[string]string{
 		"rev-parse --git-dir":         ".git",
@@ -626,8 +630,12 @@ func TestEnvCreateReportsAFailedPushAndDoesNotForward(t *testing.T) {
 	noCommanderConfig(t)
 	useSystemConfigDir(t, t.TempDir())
 	useCommanderConfig(t, remote.CommanderConfig{
-		DefaultMachine: "box",
-		Machines:       map[string]string{"box": "caramelo@box:4022"},
+		Name: "laptop",
+		Role: remote.RoleCommander,
+		Commander: remote.Commander{
+			DefaultFleet: "home",
+			Fleets:       map[string]remote.Fleet{"home": {Hub: "caramelo@box:4022"}},
+		},
 	})
 	fakeGit(t, map[string]string{
 		"rev-parse --git-dir":         ".git",

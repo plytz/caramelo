@@ -22,7 +22,7 @@ import (
 
 func init() {
 
-	vpnclient.InstallTunnelDialer(vpnclient.TunnelOptions{})
+	vpnclient.InstallTunnelDialer(vpnclient.TunnelOptions{Records: pinnedRecords{}})
 
 	register(func(a *app) *cobra.Command {
 		cmd := &cobra.Command{
@@ -53,35 +53,120 @@ mode, where names like db.feat-x.shop.internal work in every program.`,
 
 func (a *app) vpnClient() (vpnclient.Client, error) {
 	return vpnclient.NewWith(vpnclient.Options{
-		Control: machineControl{a: a},
+		Control: fleetControl{a: a},
+		Records: pinnedRecords{},
 		Log:     a.stderr,
 	})
 }
 
-type machineControl struct{ a *app }
+type fleetControl struct{ a *app }
 
-var _ vpnclient.Control = machineControl{}
+var _ vpnclient.Control = fleetControl{}
 
-func (m machineControl) Run(ctx context.Context, machine string, argv []string, stdout, stderr io.Writer) (int, error) {
-	sub := &app{stdout: stdout, stderr: stderr, args: argv, machine: machine}
+func (c fleetControl) Run(ctx context.Context, fleet string, argv []string, stdout, stderr io.Writer) (int, error) {
+	sub := &app{stdout: stdout, stderr: stderr, args: argv, fleet: fleet}
+	if m := strings.TrimSpace(c.a.machine); m != "" && m != remote.MachineLocal {
+		sub.fleet, sub.machine = "", m
+	}
 	return forward(ctx, sub)
 }
 
-func (a *app) vpnMachine() (string, error) {
-	if m := strings.TrimSpace(a.machine); m != "" && m != "local" {
-		return m, nil
+type pinnedRecords struct{ store vpnclient.FileRecordStore }
+
+var _ vpnclient.RecordStore = pinnedRecords{}
+
+func (p pinnedRecords) Path(fleet string) string { return p.store.Path(fleet) }
+
+func (p pinnedRecords) List() ([]vpnclient.Record, error) { return p.store.List() }
+
+func (p pinnedRecords) Remove(fleet string) error { return p.store.Remove(fleet) }
+
+func (p pinnedRecords) Load(fleet string) (vpnclient.Record, error) {
+	rec, err := p.store.Load(fleet)
+	if err != nil {
+		return rec, err
+	}
+	cfg, err := remote.LoadCommanderConfig()
+	if err != nil {
+		return vpnclient.Record{}, err
+	}
+	if !isKnownFleet(cfg, rec.Fleet) {
+		return rec, nil
+	}
+	if _, err := cfg.Pin(rec.Fleet, rec.MachineKey); err != nil {
+		return vpnclient.Record{}, err
+	}
+	return rec, nil
+}
+
+func (p pinnedRecords) Save(rec vpnclient.Record) error {
+	path, err := remote.CommanderConfigPath()
+	if err != nil {
+		return err
+	}
+	cfg, err := remote.LoadCommanderConfigFrom(path)
+	if err != nil {
+		return err
+	}
+	if isKnownFleet(cfg, rec.Fleet) {
+		pinned, err := cfg.Pin(rec.Fleet, rec.MachineKey)
+		if err != nil {
+			return err
+		}
+		if pinned {
+			if err := remote.SaveCommanderConfigTo(path, cfg); err != nil {
+				return err
+			}
+		}
+	}
+	return p.store.Save(rec)
+}
+
+func isKnownFleet(cfg remote.CommanderConfig, name string) bool {
+	_, ok := cfg.Commander.Fleets[name]
+	return ok
+}
+
+func commanderPeerName(flag string) string {
+	if n := strings.TrimSpace(flag); n != "" {
+		return n
+	}
+	cfg, err := remote.LoadCommanderConfig()
+	if err != nil {
+		return ""
+	}
+	return cfg.MachineName()
+}
+
+func (a *app) vpnFleet() (string, error) {
+	machine := strings.TrimSpace(a.machine)
+	fleet := strings.TrimSpace(a.fleet)
+	if machine != "" && fleet != "" {
+		return "", &usageError{fmt.Errorf(
+			"--machine %s and --fleet %s ask for two different things: --fleet names a fleet of the "+
+				"commander config and --machine a raw ssh target that is in no fleet yet", machine, fleet)}
+	}
+	if machine != "" && machine != remote.MachineLocal {
+		return machine, nil
+	}
+	if fleet != "" {
+		return fleet, nil
 	}
 	cfg, err := remote.LoadCommanderConfig()
 	if err != nil {
 		return "", err
 	}
-	if cfg.DefaultMachine != "" {
-		return cfg.DefaultMachine, nil
+	if d := strings.TrimSpace(cfg.Commander.DefaultFleet); d != "" {
+		return d, nil
+	}
+	if names := cfg.FleetNames(); len(names) == 1 {
+		return names[0], nil
 	}
 	path, _ := remote.CommanderConfigPath()
 	return "", &usageError{fmt.Errorf(
-		"no machine to join: pass --machine <name|user@host> (or CARAMELO_MACHINE, "+
-			"or default_machine in %s)", path)}
+		"no fleet to join: this commander knows %s in %s; pass --fleet NAME (or CARAMELO_FLEET), "+
+			"make one the default with 'caramelo fleet default NAME', or point at a box that is in "+
+			"no fleet yet with --machine <user@host>", cfg.FleetList(), path)}
 }
 
 func (a *app) vpnUpCmd() *cobra.Command {
@@ -95,7 +180,7 @@ machine as a peer, and verifies a session through the tunnel. Idempotent: a
 machine already joined is simply re-verified.`,
 		Args: exactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			machine, err := a.vpnMachine()
+			machine, err := a.vpnFleet()
 			if err != nil {
 				return err
 			}
@@ -105,7 +190,7 @@ machine already joined is simply re-verified.`,
 			}
 			st, err := client.Up(cmd.Context(), vpnclient.UpRequest{
 				Machine:     machine,
-				PeerName:    peerName,
+				PeerName:    commanderPeerName(peerName),
 				Transparent: transparent,
 			})
 			if err != nil {
@@ -124,7 +209,7 @@ machine already joined is simply re-verified.`,
 		},
 	}
 	cmd.Flags().StringVar(&peerName, "name", "",
-		"identity to register the commander under (default: <user>-<hostname>)")
+		"identity to register the commander under (default: the commander's own name)")
 	cmd.Flags().BoolVar(&transparent, "transparent", false,
 		"bring the installed background service's interface up instead of using the in-process tunnel")
 	return cmd
@@ -138,7 +223,7 @@ func (a *app) vpnDownCmd() *cobra.Command {
 default userspace mode there is nothing to tear down and this succeeds.`,
 		Args: exactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			machine, err := a.vpnMachine()
+			machine, err := a.vpnFleet()
 			if err != nil {
 				return err
 			}
@@ -167,7 +252,7 @@ func (a *app) vpnStatusCmd() *cobra.Command {
 		Short: "Show the mode, address, last handshake and resolver",
 		Args:  exactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			machine, err := a.vpnMachine()
+			machine, err := a.vpnFleet()
 			if err != nil {
 				return err
 			}
@@ -258,7 +343,7 @@ Everything works without it; transparent mode is what makes names and addresses
 work in browsers, psql and everything else.`,
 		Args: exactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			machine, err := a.vpnMachine()
+			machine, err := a.vpnFleet()
 			if err != nil {
 				return err
 			}
@@ -328,7 +413,7 @@ Caramelo needs it — it is the escape hatch for anyone who would rather use the
 WireGuard client they already have. It contains the commander's private key.`,
 		Args: exactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			machine, err := a.vpnMachine()
+			machine, err := a.vpnFleet()
 			if err != nil {
 				return err
 			}
@@ -363,7 +448,7 @@ socket. It is started by the unit 'caramelo vpn install' wrote; running it by
 hand is only useful for debugging transparent mode.`,
 		Args: exactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			machine, err := a.vpnMachine()
+			machine, err := a.vpnFleet()
 			if err != nil {
 				return err
 			}

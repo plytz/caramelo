@@ -20,6 +20,7 @@ func isolate(t *testing.T) string {
 	t.Setenv("XDG_CACHE_HOME", filepath.Join(dir, "cache"))
 	t.Setenv("HOME", dir)
 	t.Setenv("CARAMELO_MACHINE", "")
+	t.Setenv("CARAMELO_FLEET", "")
 	return dir
 }
 
@@ -90,22 +91,74 @@ func TestVPNConfigWithoutAKey(t *testing.T) {
 	}
 }
 
-func TestVPNUsesTheDefaultMachine(t *testing.T) {
-	dir := isolate(t)
+func writeCommanderFile(t *testing.T, dir, body string) {
+	t.Helper()
 	cfgDir := filepath.Join(dir, "config", "caramelo")
 	if err := os.MkdirAll(cfgDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	cfg := "default_machine: worker1\nmachines:\n  worker1: caramelo@192.168.56.11:4022\n"
-	if err := os.WriteFile(filepath.Join(cfgDir, "config.yaml"), []byte(cfg), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(cfgDir, "config.yaml"), []byte(body), 0o600); err != nil {
 		t.Fatal(err)
 	}
+}
+
+const twoFleetsFile = `name: laptop
+role: commander
+commander:
+  default_fleet: home
+  fleets:
+    home:
+      hub: caramelo@192.168.56.11:4022
+    work:
+      hub: ops@hub.work.example:4022
+`
+
+func TestVPNUsesTheDefaultFleet(t *testing.T) {
+	dir := isolate(t)
+	writeCommanderFile(t, dir, twoFleetsFile)
+
 	var stdout, stderr bytes.Buffer
 	if code := Run([]string{"vpn", "status"}, &stdout, &stderr); code != ExitOK {
 		t.Fatalf("exit %d: %s", code, stderr.String())
 	}
-	if !strings.Contains(stdout.String(), "worker1") {
-		t.Errorf("stdout = %q, want the default machine", stdout.String())
+	if !strings.Contains(stdout.String(), "home") {
+		t.Errorf("stdout = %q, want the default fleet", stdout.String())
+	}
+}
+
+func TestVPNFleetFlagPicksAnotherFleet(t *testing.T) {
+	dir := isolate(t)
+	writeCommanderFile(t, dir, twoFleetsFile)
+
+	var stdout, stderr bytes.Buffer
+	if code := Run([]string{"vpn", "status", "--fleet", "work"}, &stdout, &stderr); code != ExitOK {
+		t.Fatalf("exit %d: %s", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "work") {
+		t.Errorf("stdout = %q, want the fleet --fleet named", stdout.String())
+	}
+}
+
+func TestVPNRefusesToGuessBetweenFleets(t *testing.T) {
+	dir := isolate(t)
+	writeCommanderFile(t, dir, `name: laptop
+role: commander
+commander:
+  fleets:
+    home:
+      hub: caramelo@192.168.56.11:4022
+    work:
+      hub: ops@hub.work.example:4022
+`)
+
+	var stdout, stderr bytes.Buffer
+	if code := Run([]string{"vpn", "status"}, &stdout, &stderr); code != ExitUsage {
+		t.Fatalf("exit %d, want %d: %s", code, ExitUsage, stderr.String())
+	}
+	for _, want := range []string{"home, work", "--fleet"} {
+		if !strings.Contains(stderr.String(), want) {
+			t.Errorf("stderr = %q, want it to say %q", stderr.String(), want)
+		}
 	}
 }
 

@@ -18,6 +18,7 @@ import (
 	"github.com/plytz/caramelo/internal/edge"
 	"github.com/plytz/caramelo/internal/edge/certs"
 	"github.com/plytz/caramelo/internal/env"
+	"github.com/plytz/caramelo/internal/remote"
 	"github.com/plytz/caramelo/internal/state"
 	"github.com/plytz/caramelo/internal/vpnclient"
 )
@@ -58,6 +59,8 @@ func TestGoldenPlainOutput(t *testing.T) {
 		{"status-none", func(w io.Writer) error { return writeStatus(w, nil) }},
 		{"member-show", func(w io.Writer) error { return writeMachine(w, machineFixture()) }},
 		{"app-list", func(w io.Writer) error { return writeApps(w, appsFixture()) }},
+		{"fleet-list", func(w io.Writer) error { return fleetsView(fleetsFixture()).Write(w) }},
+		{"fleet-list-empty", func(w io.Writer) error { return fleetsView(nil).Write(w) }},
 		{"app-list-empty", func(w io.Writer) error { return writeApps(w, nil) }},
 		{"env-list", func(w io.Writer) error { return writeEnvs(w, []env.Env{sampleEnv(), releaseEnvFixture()}) }},
 		{"env-list-empty", func(w io.Writer) error { return writeEnvs(w, nil) }},
@@ -505,4 +508,22 @@ func peersFixture() []state.Peer {
 		{Name: "ci", PublicKey: "zyxwvutsrqponmlkjihgfedcba9876543210ZYXWVUT=", IP: "10.86.255.3",
 			CreatedAt: time.Date(2026, 9, 9, 9, 30, 0, 0, time.UTC)},
 	}
+}
+
+func fleetsFixture() []fleetView {
+	return fleetViews(remote.CommanderConfig{
+		Name: "eric-laptop",
+		Role: remote.RoleCommander,
+		Commander: remote.Commander{
+			DefaultFleet: "home",
+			Fleets: map[string]remote.Fleet{
+				"home": {
+					Hub:       "eric@box.example.com:4022",
+					PublicKey: "Nq0Xw2mS8VbZ1YtR7dK3jL5pQ9cF4hG6uI8oP0aB2wE=",
+					Apps:      []string{"shop", "blog"},
+				},
+				"work": {Hub: "ops@hub.work.example:4022"},
+			},
+		},
+	})
 }

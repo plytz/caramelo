@@ -32,7 +32,7 @@ The port map is printed on stdout, and with --json as one document, so an agent
 can read the ports it was given.`,
 			Args: minArgs(1),
 			RunE: func(cmd *cobra.Command, args []string) error {
-				machine, err := a.vpnMachine()
+				machine, err := a.vpnFleet()
 				if err != nil {
 					return err
 				}
@@ -65,7 +65,7 @@ can read the ports it was given.`,
 
 				connector, err := vpnclient.NewConnector(vpnclient.ConnectorOptions{
 					Dialer: dialer,
-					Lookup: &vpnclient.ControlLookup{Control: machineControl{a: a}},
+					Lookup: &vpnclient.ControlLookup{Control: fleetControl{a: a}},
 					Log:    a.stderr,
 				})
 				if err != nil {

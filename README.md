@@ -80,13 +80,29 @@ the fleet's name from the hub, and `caramelo member leave` takes the member bloc
 `CARAMELO_CONFIG_DIR` moves that file and everything derived from it, and is the default of every
 `--config-dir`.
 
+The commander's own file, `~/.config/caramelo/config.yaml`, opens the same way — `name` and
+`role: commander` — and keeps under `commander:` the fleets it knows: `default_fleet` and, per
+fleet, the ssh address of its `hub`, the `public_key` pinned for it and the `apps` it holds. The
+config directory is `$XDG_CONFIG_HOME/caramelo`, else `~/.config/caramelo`, and the cache
+`$XDG_CACHE_HOME/caramelo`, else `~/.cache/caramelo`, on every platform. The fleet a command talks
+to is decided in this order: `--fleet` (or `CARAMELO_FLEET`), a local caramelod socket, the fleet
+recorded for the app of the checkout you are standing in, `commander.default_fleet`, and the only
+fleet when there is exactly one; with several fleets and none of those, the command refuses and
+names them. `--machine user@host` is the raw ssh target for a box that is in no fleet yet.
+`caramelo fleet list|add|remove|default` manage the map.
+
+A fleet's real identity is its hub's public key. It is pinned the first time this commander reaches
+the fleet, and a hub answering at the same address with another key is refused rather than adopted;
+the tunnel to a fleet is one record, `vpn/<fleet>.json`, under the commander's config directory.
+
 **fleet.** The set of machines that behave as one: a hub and its members. Other tools call this a
 cluster; caramelo does not use that word.
 
 The CLI is named after them. `caramelo hub setup|status|uninstall|probe` is what a machine runs
 about itself, and every machine starts as a hub of one, so a member types them too.
 `caramelo member add|token|join|leave|list|show|remove` is the fleet's group: how a box becomes a
-member and what the fleet says about itself.
+member and what the fleet says about itself. `caramelo fleet list|add|remove|default` is the
+commander's own: which fleets it knows and which one it talks to.
 
 Four words that appear all over the code and are **not** roles. **client** keeps its ordinary
 protocol and library meaning — an ssh client, an HTTP client, a TLS client config, a browser, curl,

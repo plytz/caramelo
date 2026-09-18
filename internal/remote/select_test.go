@@ -21,13 +21,27 @@ func selection() Selection {
 		SocketPath:   "/run/caramelo/caramelod.sock",
 		SocketUser:   "caramelo",
 		SocketExists: func(string) bool { return false },
-		Tunnel:       func(context.Context, Target) (Dialer, error) { return nil, ErrNoTunnel },
+		Tunnel:       func(context.Context, string, Target) (Dialer, error) { return nil, ErrNoTunnel },
+	}
+}
+
+func twoFleets() CommanderConfig {
+	return CommanderConfig{
+		Name: "laptop",
+		Role: RoleCommander,
+		Commander: Commander{
+			Fleets: map[string]Fleet{
+				"home": {Hub: "caramelo@box:4022", Apps: []string{"shop"}},
+				"work": {Hub: "ops@hub.work.example:4023", Apps: []string{"blog"}},
+			},
+		},
 	}
 }
 
 func TestSelectOrder(t *testing.T) {
 	ctx := context.Background()
-	box := Target{User: "caramelo", Host: "box", Port: 4022}
+	home := Target{User: "caramelo", Host: "box", Port: 4022}
+	work := Target{User: "ops", Host: "hub.work.example", Port: 4023}
 
 	t.Run("machine local is the socket", func(t *testing.T) {
 		s := selection()
@@ -42,23 +56,74 @@ func TestSelectOrder(t *testing.T) {
 		}
 	})
 
-	t.Run("an explicit machine beats the local socket", func(t *testing.T) {
+	t.Run("a raw machine beats the local socket and is in no fleet", func(t *testing.T) {
 		s := selection()
-		s.Machine = "box"
+		s.Machine = "alex@box"
+		s.Config = twoFleets()
 		s.SocketExists = func(string) bool { return true }
 		got, err := Select(ctx, s)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got.Kind != KindSSH || got.Target != box {
-			t.Fatalf("got %+v, want ssh to %v", got, box)
+		want := Target{User: "alex", Host: "box", Port: 4022}
+		if got.Kind != KindSSH || got.Target != want {
+			t.Fatalf("got %+v, want ssh to %v", got, want)
+		}
+		if got.Fleet != "" {
+			t.Errorf("fleet = %q, want none: --machine names a box that is in no fleet yet", got.Fleet)
 		}
 	})
 
-	t.Run("a local socket beats default_machine", func(t *testing.T) {
+	t.Run("--fleet beats the local socket", func(t *testing.T) {
+		s := selection()
+		s.Fleet = "work"
+		s.Config = twoFleets()
+		s.SocketExists = func(string) bool { return true }
+		got, err := Select(ctx, s)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.Kind != KindSSH || got.Target != work || got.Fleet != "work" {
+			t.Fatalf("got %+v, want ssh to the hub of work", got)
+		}
+		if !strings.Contains(got.Why, "--fleet") {
+			t.Errorf("why = %q, want it to name the rule", got.Why)
+		}
+	})
+
+	t.Run("--machine and --fleet together are refused", func(t *testing.T) {
+		s := selection()
+		s.Machine, s.Fleet, s.Config = "alex@box", "home", twoFleets()
+		_, err := Select(ctx, s)
+		if err == nil {
+			t.Fatal("Select accepted both --machine and --fleet")
+		}
+		for _, want := range []string{"--machine", "--fleet"} {
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("error = %v, want it to name %s", err, want)
+			}
+		}
+	})
+
+	t.Run("a fleet that is not configured is refused, naming the ones that are", func(t *testing.T) {
+		s := selection()
+		s.Fleet = "nowhere"
+		s.Config = twoFleets()
+		_, err := Select(ctx, s)
+		if err == nil {
+			t.Fatal("Select accepted a fleet that is in no config")
+		}
+		if !strings.Contains(err.Error(), "home, work") {
+			t.Errorf("error = %v, want it to name the configured fleets", err)
+		}
+	})
+
+	t.Run("a local socket beats the app and the default", func(t *testing.T) {
 		s := selection()
 		s.SocketExists = func(string) bool { return true }
-		s.Config.DefaultMachine = "box"
+		s.Config = twoFleets()
+		s.Config.Commander.DefaultFleet = "home"
+		s.App = func() string { return "blog" }
 		got, err := Select(ctx, s)
 		if err != nil {
 			t.Fatal(err)
@@ -68,25 +133,88 @@ func TestSelectOrder(t *testing.T) {
 		}
 	})
 
-	t.Run("default_machine when there is no socket", func(t *testing.T) {
+	t.Run("the fleet recorded for the app beats the default", func(t *testing.T) {
 		s := selection()
-		s.Config = CommanderConfig{DefaultMachine: "box", Machines: map[string]string{"box": "alex@10.0.0.5:4023"}}
+		s.Config = twoFleets()
+		s.Config.Commander.DefaultFleet = "home"
+		s.App = func() string { return "blog" }
 		got, err := Select(ctx, s)
 		if err != nil {
 			t.Fatal(err)
 		}
-		want := Target{User: "alex", Host: "10.0.0.5", Port: 4023}
-		if got.Kind != KindSSH || got.Target != want {
-			t.Fatalf("got %+v, want ssh to %v", got, want)
+		if got.Target != work || got.Fleet != "work" {
+			t.Fatalf("got %+v, want the fleet recorded for blog", got)
 		}
-		if !strings.Contains(got.Why, "default_machine") {
+		if !strings.Contains(got.Why, "blog") {
+			t.Errorf("why = %q, want it to name the app", got.Why)
+		}
+	})
+
+	t.Run("an app recorded on two fleets does not decide", func(t *testing.T) {
+		s := selection()
+		s.Config = twoFleets()
+		s.Config.Commander.Fleets["work"] = Fleet{Hub: "ops@hub.work.example:4023", Apps: []string{"blog", "shop"}}
+		s.Config.Commander.DefaultFleet = "home"
+		s.App = func() string { return "shop" }
+		got, err := Select(ctx, s)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.Fleet != "home" {
+			t.Fatalf("fleet = %q, want the default: an app seen on two fleets picks neither", got.Fleet)
+		}
+	})
+
+	t.Run("default_fleet when nothing else says", func(t *testing.T) {
+		s := selection()
+		s.Config = twoFleets()
+		s.Config.Commander.DefaultFleet = "home"
+		got, err := Select(ctx, s)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.Kind != KindSSH || got.Target != home || got.Fleet != "home" {
+			t.Fatalf("got %+v, want ssh to %v", got, home)
+		}
+		if !strings.Contains(got.Why, "commander.default_fleet") {
 			t.Errorf("why = %q, want it to name the rule", got.Why)
 		}
 	})
 
+	t.Run("the only fleet needs no default", func(t *testing.T) {
+		s := selection()
+		s.Config = CommanderConfig{Commander: Commander{
+			Fleets: map[string]Fleet{"home": {Hub: "caramelo@box:4022"}},
+		}}
+		got, err := Select(ctx, s)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.Target != home || got.Fleet != "home" {
+			t.Fatalf("got %+v, want ssh to the only fleet", got)
+		}
+		if !strings.Contains(got.Why, "only fleet") {
+			t.Errorf("why = %q, want it to name the rule", got.Why)
+		}
+	})
+
+	t.Run("several fleets and nothing to pick one is a refusal naming them", func(t *testing.T) {
+		s := selection()
+		s.Config = twoFleets()
+		_, err := Select(ctx, s)
+		if err == nil {
+			t.Fatal("Select guessed between two fleets")
+		}
+		for _, want := range []string{"home, work", "--fleet", "fleet default"} {
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("error = %v, want it to say %q", err, want)
+			}
+		}
+	})
+
 	t.Run("nothing configured", func(t *testing.T) {
-		if _, err := Select(ctx, selection()); !errors.Is(err, ErrNoMachine) {
-			t.Fatalf("err = %v, want ErrNoMachine", err)
+		if _, err := Select(ctx, selection()); !errors.Is(err, ErrNoFleet) {
+			t.Fatalf("err = %v, want ErrNoFleet", err)
 		}
 	})
 
@@ -108,12 +236,17 @@ func TestSelectPrefersTheTunnel(t *testing.T) {
 		mut  func(*Selection)
 	}{
 		{"--machine", func(s *Selection) { s.Machine = "box" }},
-		{"default_machine", func(s *Selection) { s.Config.DefaultMachine = "box" }},
+		{"default_fleet", func(s *Selection) {
+			s.Config = CommanderConfig{Commander: Commander{
+				DefaultFleet: "home",
+				Fleets:       map[string]Fleet{"home": {Hub: "caramelo@box:4022"}},
+			}}
+		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			s := selection()
 			var asked Target
-			s.Tunnel = func(_ context.Context, target Target) (Dialer, error) {
+			s.Tunnel = func(_ context.Context, _ string, target Target) (Dialer, error) {
 				asked = target
 				return dialer, nil
 			}
@@ -140,7 +273,7 @@ func TestSelectPrefersTheTunnel(t *testing.T) {
 	t.Run("the socket never asks for a tunnel", func(t *testing.T) {
 		s := selection()
 		s.SocketExists = func(string) bool { return true }
-		s.Tunnel = func(context.Context, Target) (Dialer, error) {
+		s.Tunnel = func(context.Context, string, Target) (Dialer, error) {
 			t.Error("the local socket asked for a tunnel")
 			return nil, ErrNoTunnel
 		}
@@ -154,7 +287,7 @@ func TestSelectPrefersTheTunnel(t *testing.T) {
 		s := selection()
 		s.Machine = "box"
 
-		s.Tunnel = func(context.Context, Target) (Dialer, error) { return nil, nil }
+		s.Tunnel = func(context.Context, string, Target) (Dialer, error) { return nil, nil }
 		got, err := Select(ctx, s)
 		if err != nil || got.Kind != KindSSH {
 			t.Fatalf("got %+v, %v; want ssh", got, err)
@@ -165,7 +298,7 @@ func TestSelectPrefersTheTunnel(t *testing.T) {
 		boom := errors.New("no handshake with box after 10s")
 		s := selection()
 		s.Machine = "box"
-		s.Tunnel = func(context.Context, Target) (Dialer, error) { return nil, boom }
+		s.Tunnel = func(context.Context, string, Target) (Dialer, error) { return nil, boom }
 		_, err := Select(ctx, s)
 		if !errors.Is(err, boom) {
 			t.Fatalf("err = %v, want the tunnel's own error", err)

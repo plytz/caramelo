@@ -49,7 +49,7 @@ silence means the packet was dropped; anything else is reported as unproven.`,
 			if len(args) == 1 {
 				target = args[0]
 			} else {
-				m, err := a.vpnMachine()
+				m, err := a.vpnFleet()
 				if err != nil {
 					return err
 				}

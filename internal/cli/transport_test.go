@@ -43,6 +43,31 @@ func useCommanderConfig(t *testing.T, c remote.CommanderConfig) {
 func noCommanderConfig(t *testing.T) {
 	t.Helper()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("CARAMELO_FLEET", "")
+}
+
+func oneFleet() remote.CommanderConfig {
+	return remote.CommanderConfig{
+		Name: "laptop",
+		Role: remote.RoleCommander,
+		Commander: remote.Commander{
+			DefaultFleet: "home",
+			Fleets:       map[string]remote.Fleet{"home": {Hub: "alex@10.0.0.5"}},
+		},
+	}
+}
+
+func twoFleets() remote.CommanderConfig {
+	return remote.CommanderConfig{
+		Name: "laptop",
+		Role: remote.RoleCommander,
+		Commander: remote.Commander{
+			Fleets: map[string]remote.Fleet{
+				"home": {Hub: "alex@10.0.0.5", Apps: []string{"shop"}},
+				"work": {Hub: "ops@hub.work.example:4023", Apps: []string{"blog"}},
+			},
+		},
+	}
 }
 
 func makeSocket(t *testing.T, dir string, keep bool) string {
@@ -98,7 +123,7 @@ func TestResolveTransportUsesTheLocalSocket(t *testing.T) {
 
 func TestResolveTransportMachineLocalForcesTheSocket(t *testing.T) {
 
-	useCommanderConfig(t, remote.CommanderConfig{DefaultMachine: "box"})
+	useCommanderConfig(t, oneFleet())
 	useSystemConfigDir(t, t.TempDir())
 
 	got, err := resolveTransport(context.Background(), &app{machine: "local"})
@@ -131,24 +156,24 @@ func TestResolveTransportMachineFlagBeatsTheSocket(t *testing.T) {
 	}
 }
 
-func TestResolveTransportMachineName(t *testing.T) {
-	useCommanderConfig(t, remote.CommanderConfig{Machines: map[string]string{"box": "alex@10.0.0.5:4023"}})
+func TestResolveTransportFleetFlag(t *testing.T) {
+	useCommanderConfig(t, twoFleets())
 	useSystemConfigDir(t, t.TempDir())
 
-	got, err := resolveTransport(context.Background(), &app{machine: "box"})
+	got, err := resolveTransport(context.Background(), &app{fleet: "work"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := (remote.Target{User: "alex", Host: "10.0.0.5", Port: 4023}); got.kind != kindSSH || got.target != want {
-		t.Errorf("got %+v, want ssh to %+v", got, want)
+	want := remote.Target{User: "ops", Host: "hub.work.example", Port: 4023}
+	if got.kind != kindSSH || got.target != want || got.fleet != "work" {
+		t.Errorf("got %+v, want ssh to %+v for fleet work", got, want)
 	}
 }
 
-func TestResolveTransportDefaultMachine(t *testing.T) {
-	useCommanderConfig(t, remote.CommanderConfig{
-		DefaultMachine: "box",
-		Machines:       map[string]string{"box": "alex@10.0.0.5"},
-	})
+func TestResolveTransportDefaultFleet(t *testing.T) {
+	cfg := twoFleets()
+	cfg.Commander.DefaultFleet = "home"
+	useCommanderConfig(t, cfg)
 	useSystemConfigDir(t, t.TempDir())
 
 	got, err := resolveTransport(context.Background(), &app{})
@@ -156,8 +181,39 @@ func TestResolveTransportDefaultMachine(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := remote.Target{User: "alex", Host: "10.0.0.5", Port: serverconfig.DefaultSSHPort}
-	if got.kind != kindSSH || got.target != want {
-		t.Errorf("got %+v, want ssh to %+v", got, want)
+	if got.kind != kindSSH || got.target != want || got.fleet != "home" {
+		t.Errorf("got %+v, want ssh to %+v for fleet home", got, want)
+	}
+}
+
+func TestResolveTransportAppFleet(t *testing.T) {
+	cfg := twoFleets()
+	cfg.Commander.DefaultFleet = "home"
+	useCommanderConfig(t, cfg)
+	useSystemConfigDir(t, t.TempDir())
+
+	got, err := resolveTransport(context.Background(),
+		&app{appHint: func() string { return "blog" }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.fleet != "work" {
+		t.Errorf("fleet = %q, want the fleet recorded for blog", got.fleet)
+	}
+}
+
+func TestResolveTransportRefusesToGuessBetweenFleets(t *testing.T) {
+	useCommanderConfig(t, twoFleets())
+	useSystemConfigDir(t, t.TempDir())
+
+	_, err := resolveTransport(context.Background(), &app{})
+	if err == nil {
+		t.Fatal("want a refusal when two fleets are configured and nothing picks one")
+	}
+	for _, want := range []string{"home, work", "--fleet"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error %q does not mention %q", err, want)
+		}
 	}
 }
 
@@ -170,7 +226,7 @@ func TestResolveTransportWithNothingConfigured(t *testing.T) {
 		t.Fatal("want an error when there is no socket and no machine")
 	}
 	msg := err.Error()
-	for _, want := range []string{"hub setup", "--machine", "default_machine"} {
+	for _, want := range []string{"hub setup", "--machine", "fleet add"} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("error %q does not mention %q; it must name both fixes", msg, want)
 		}

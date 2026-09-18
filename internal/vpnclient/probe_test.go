@@ -24,7 +24,7 @@ func probeClient(t *testing.T) (*client, *FileRecordStore) {
 func admit(t *testing.T, records *FileRecordStore, machine string) {
 	t.Helper()
 	rec := Record{
-		Machine:    machine,
+		Fleet:      machine,
 		Endpoint:   "203.0.113.9:4021",
 		MachineKey: probeMachineKey,
 		Subnet:     netip.MustParsePrefix("10.86.0.0/16"),
@@ -180,7 +180,7 @@ func TestProbeNeedsSomethingToProbe(t *testing.T) {
 }
 
 func TestNoHandshakeNamesTheFirewallAndTheProbe(t *testing.T) {
-	rec := Record{Machine: "box", Endpoint: "192.168.56.11:4021"}
+	rec := Record{Fleet: "box", Endpoint: "192.168.56.11:4021"}
 	msg := noHandshake(rec, 10*time.Second).Error()
 	for _, want := range []string{"no handshake with box", "192.168.56.11:4021", "peer list",
 		"firewall", "security group", "caramelo hub probe box"} {

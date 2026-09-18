@@ -18,7 +18,7 @@ import (
 func installTunnel(t *testing.T, addr string, err error) *tunnelProbe {
 	t.Helper()
 	p := &tunnelProbe{addr: addr, err: err}
-	remote.TunnelDialer = func(_ context.Context, target remote.Target) (remote.Dialer, error) {
+	remote.TunnelDialer = func(_ context.Context, _ string, target remote.Target) (remote.Dialer, error) {
 		p.mu.Lock()
 		p.asked = append(p.asked, target)
 		p.mu.Unlock()

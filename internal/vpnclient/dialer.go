@@ -28,7 +28,7 @@ func (d *userspaceDialer) DialContext(ctx context.Context, network, address stri
 func (d *userspaceDialer) Resolve(ctx context.Context, name string) ([]netip.Addr, error) {
 	resolver, err := netip.ParseAddrPort(d.dev.rec.Resolver())
 	if err != nil {
-		return nil, fmt.Errorf("the resolver address of %s: %w", d.dev.rec.Machine, err)
+		return nil, fmt.Errorf("the resolver address of %s: %w", d.dev.rec.Fleet, err)
 	}
 	return lookupA(ctx, func(ctx context.Context) (net.Conn, error) {
 		return d.dev.dial(ctx, "udp", resolver)
@@ -69,12 +69,12 @@ func (d *hostDialer) DialContext(ctx context.Context, network, address string) (
 
 func (d *hostDialer) dialError(ctx context.Context, ap netip.AddrPort, err error) error {
 	if !errors.Is(err, context.DeadlineExceeded) && !os.IsTimeout(err) {
-		return fmt.Errorf("connect to %s through the tunnel to %s: %w", ap, d.rec.Machine, err)
+		return fmt.Errorf("connect to %s through the tunnel to %s: %w", ap, d.rec.Fleet, err)
 	}
 
 	askCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), serviceTimeout)
 	defer cancel()
-	resp, serr := serviceCall(askCtx, serviceRequest{Op: "status", Machine: d.rec.Machine})
+	resp, serr := serviceCall(askCtx, serviceRequest{Op: "status", Machine: d.rec.Fleet})
 	if serr != nil || resp == nil {
 		return silenceError(d.rec, ap, time.Time{}, false)
 	}
@@ -85,28 +85,28 @@ func silenceError(rec Record, ap netip.AddrPort, last time.Time, known bool) err
 	switch {
 	case !known:
 		return fmt.Errorf("connect to %s through the tunnel to %s: nothing answered within %s; %s",
-			ap, rec.Machine, dialTimeout, firewallHint(rec))
+			ap, rec.Fleet, dialTimeout, firewallHint(rec))
 	case last.IsZero():
 		return fmt.Errorf("no handshake with %s after %s; is UDP %s reachable, and is this peer still admitted? "+
 			"(check 'caramelo peer list' on the machine). %s",
-			rec.Machine, dialTimeout, rec.Endpoint, firewallHint(rec))
+			rec.Fleet, dialTimeout, rec.Endpoint, firewallHint(rec))
 	default:
 		return fmt.Errorf("no answer from %s within %s; the last handshake was %s ago, so this peer "+
 			"may no longer be admitted — check 'caramelo peer list' on the machine, and that UDP %s is reachable. %s",
-			rec.Machine, dialTimeout, time.Since(last).Round(time.Second), rec.Endpoint, firewallHint(rec))
+			rec.Fleet, dialTimeout, time.Since(last).Round(time.Second), rec.Endpoint, firewallHint(rec))
 	}
 }
 
 func firewallHint(rec Record) string {
 	return fmt.Sprintf("a firewall on the machine or a security group in front of it dropping UDP %s "+
 		"looks exactly like this, and 'caramelo hub probe %s' from here says which",
-		rec.Endpoint, rec.Machine)
+		rec.Endpoint, rec.Fleet)
 }
 
 func (d *hostDialer) Resolve(ctx context.Context, name string) ([]netip.Addr, error) {
 	resolver := d.rec.Resolver()
 	if resolver == "" {
-		return nil, fmt.Errorf("no resolver known for %s; run 'caramelo vpn up'", d.rec.Machine)
+		return nil, fmt.Errorf("no resolver known for %s; run 'caramelo vpn up'", d.rec.Fleet)
 	}
 	return lookupA(ctx, func(ctx context.Context) (net.Conn, error) {
 		var dl net.Dialer
@@ -193,5 +193,5 @@ func noHandshake(rec Record, timeout time.Duration) error {
 	return fmt.Errorf("no handshake with %s after %s: nothing came back. "+
 		"Check that UDP %s is reachable from here and that this peer is still admitted "+
 		"('caramelo peer list' on the machine); a revoked or unknown key gets no reply at all, and %s",
-		rec.Machine, timeout, rec.Endpoint, firewallHint(rec))
+		rec.Fleet, timeout, rec.Endpoint, firewallHint(rec))
 }
