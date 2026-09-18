@@ -44,7 +44,7 @@ func TestServerProbeExitsZeroOnlyWhenAPacketCameBack(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.result, func(t *testing.T) {
-			isolate(t)
+			isolateOnACommander(t)
 			scriptedProbe(t, func(req vpnclient.ProbeRequest) (*vpnclient.Probe, error) {
 				p, _ := reachedProbe(req)
 				p.Result, p.Detail = tc.result, "what it saw"
@@ -65,7 +65,7 @@ func TestServerProbeExitsZeroOnlyWhenAPacketCameBack(t *testing.T) {
 }
 
 func TestServerProbeCarriesTheMachineEndpointAndKey(t *testing.T) {
-	isolate(t)
+	isolateOnACommander(t)
 	seen := scriptedProbe(t, reachedProbe)
 
 	code, _, stderr := run(t, "hub", "probe", "box",
@@ -81,7 +81,7 @@ func TestServerProbeCarriesTheMachineEndpointAndKey(t *testing.T) {
 }
 
 func TestServerProbeJSONCarriesTheWholeAnswer(t *testing.T) {
-	isolate(t)
+	isolateOnACommander(t)
 	scriptedProbe(t, reachedProbe)
 
 	code, stdout, stderr := run(t, "hub", "probe", "box", "--json")
@@ -101,7 +101,7 @@ func TestServerProbeJSONCarriesTheWholeAnswer(t *testing.T) {
 }
 
 func TestServerProbeFallsBackToTheDefaultMachine(t *testing.T) {
-	isolate(t)
+	isolateOnACommander(t)
 	seen := scriptedProbe(t, reachedProbe)
 	t.Setenv("CARAMELO_MACHINE", "other")
 
@@ -114,7 +114,7 @@ func TestServerProbeFallsBackToTheDefaultMachine(t *testing.T) {
 }
 
 func TestServerProbeWithNoMachineSaysHowToNameOne(t *testing.T) {
-	isolate(t)
+	isolateOnACommander(t)
 	code, stdout, stderr := run(t, "hub", "probe")
 	if code != ExitUsage {
 		t.Fatalf("exit %d, want %d\n%s", code, ExitUsage, stderr)
@@ -128,7 +128,7 @@ func TestServerProbeWithNoMachineSaysHowToNameOne(t *testing.T) {
 }
 
 func TestServerProbeReportsAnErrorRatherThanGuessing(t *testing.T) {
-	isolate(t)
+	isolateOnACommander(t)
 	scriptedProbe(t, func(vpnclient.ProbeRequest) (*vpnclient.Probe, error) {
 		return nil, errors.New("no public key for box")
 	})

@@ -108,7 +108,7 @@ can read the ports it was given.`,
 			"local address to bind the ports on")
 		cmd.Flags().StringVar(&appName, "app", os.Getenv("CARAMELO_APP"),
 			"application the environment belongs to (default: the checkout you are in)")
-		return cmd
+		return available(cmd, onCommander.or(onHub))
 	})
 }
 

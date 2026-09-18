@@ -29,6 +29,10 @@ results but the human experience will be tuned to work through a coding agent.
   drive a deploy and see exactly which step failed.
 - **Nothing waits on a terminal.** Anything a person is asked can be answered with a flag, and a
   command with a non-terminal standard input never blocks on a prompt.
+- **Every command says where it holds.** Each one carries, in code, the condition under which it
+  makes sense — a commander, a hub, a member, a box with no config at all, as root — and typing it
+  somewhere else is refused before anything happens, exit 2, in one line naming where it belongs.
+  `caramelo context` says where you are.
 - **The manual is part of the tool.** `caramelo manual` is generated from the same definitions the
   commands run on, so it cannot drift, and every example in it is checked against the real flags.
 - **Humans get the same commands.** No separate mode, no behaviour that changes because a terminal

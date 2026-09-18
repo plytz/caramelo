@@ -110,7 +110,7 @@ machine first, so the code is there before the environment is built.`,
 		"machine of the fleet to create it on, or `hub` (default: wherever it fits best)")
 	f.StringVar(&e.create.secretsFrom, "secrets-from", "",
 		"KEY=value file whose contents become this environment's secrets, before its dependencies start")
-	return cmd
+	return available(cmd, onCommander.or(onHub))
 }
 
 func createSecrets(ctx context.Context, path string) (map[string]string, error) {

@@ -16,7 +16,7 @@ import (
 
 func init() {
 	register(func(a *app) *cobra.Command {
-		return commanderCmd(&cobra.Command{
+		cmd := commanderCmd(&cobra.Command{
 			Use:   "status",
 			Short: "Show whether caramelod and Docker are up, and how we reached them",
 			Long: `status answers the first question anyone asks: is the machine working, and
@@ -35,6 +35,7 @@ daemon, the SSH listener and host key, and where everything lives on disk.`,
 				})
 			},
 		})
+		return available(cmd, onCommander.or(onServer))
 	})
 }
 

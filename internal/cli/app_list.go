@@ -27,7 +27,7 @@ environments are worktrees of it.`,
 }
 
 func (a *app) appListCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:     "list",
 		Aliases: []string{"ls"},
 		Short:   "List the applications, their default branch and their size",
@@ -45,6 +45,7 @@ func (a *app) appListCmd() *cobra.Command {
 			})
 		},
 	}
+	return available(cmd, onCommander.or(onServer))
 }
 
 func writeApps(w io.Writer, apps []api.AppInfo) error { return appsView(apps).Write(w) }

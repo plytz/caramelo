@@ -324,6 +324,9 @@ func TestSocketTransportOnTheBox(t *testing.T) {
 
 func TestCommanderWithoutMachine(t *testing.T) {
 	home := t.TempDir()
+	if err := itest.WriteCommanderConfig(home, itest.CommanderName); err != nil {
+		t.Fatalf("name %s a commander: %v", home, err)
+	}
 	res := itest.MustRunCommander(t, itest.CommanderOptions{Env: itest.CommanderEnv(home)}, "status", "--json")
 	if res.ExitCode != 1 {
 		t.Errorf("exit = %d, want 1\nstdout:%s\nstderr:%s", res.ExitCode, res.Stdout, res.Stderr)

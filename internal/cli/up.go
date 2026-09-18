@@ -79,7 +79,7 @@ work someone is doing in the environment is never overwritten. Commit it there
 		cmd.Flags().BoolVar(&force, "force", false, "force-push the branch")
 		cmd.Flags().BoolVar(&noWait, "no-wait", false, "start the services without waiting for health")
 		cmd.Flags().DurationVar(&timeout, "timeout", 0, "how long to wait for every service to become healthy (default 2m)")
-		return cmd
+		return available(cmd, onCommander.or(onHub))
 	})
 }
 

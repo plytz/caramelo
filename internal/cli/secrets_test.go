@@ -232,6 +232,7 @@ func TestSecretsScopeRefusesAnEnvironmentItCannotUse(t *testing.T) {
 }
 
 func TestSecretsScopeFlagsDoNotShadowTheMachineFlag(t *testing.T) {
+	initializedCommander(t)
 	t.Setenv("CARAMELO_APP", "shop")
 	t.Setenv("CARAMELO_ENV", "production")
 	t.Setenv("CARAMELO_MACHINE", "")
@@ -259,6 +260,7 @@ func TestSecretsScopeFlagsDoNotShadowTheMachineFlag(t *testing.T) {
 }
 
 func TestSecretsSetWithNoValueAsksForOne(t *testing.T) {
+	initializedCommander(t)
 	t.Setenv("CARAMELO_APP", "shop")
 	t.Setenv("CARAMELO_ENV", "production")
 	fakeGit(t, nil)
@@ -340,6 +342,7 @@ func TestAppScopeSendsTheAppAndNoEnvironment(t *testing.T) {
 }
 
 func TestEnvCreateWritesTheSecretsFileOnce(t *testing.T) {
+	initializedCommander(t)
 	t.Setenv("CARAMELO_APP", "shop")
 	t.Setenv("CARAMELO_ENV", "")
 	fakeGit(t, nil)

@@ -56,7 +56,7 @@ a lifecycle command. --delete-branch removes it too.`,
 	cmd.Flags().BoolVar(&e.destroy.deleteBranch, "delete-branch", false, "delete the env's branch as well as its worktree")
 	cmd.Flags().BoolVarP(&e.destroy.yes, "yes", "y", false, "do not ask for confirmation")
 	cmd.Flags().BoolVar(&e.destroy.force, "force", false, "destroy a protected environment (--production, --protected)")
-	return cmd
+	return available(cmd, onCommander.or(onHub))
 }
 
 type destroyed struct {

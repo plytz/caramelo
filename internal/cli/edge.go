@@ -132,7 +132,7 @@ func applyEdgeTestKnobs(opts *edge.Options, getenv func(string) string, warn io.
 }
 
 func (a *app) edgeStatusCmd() *cobra.Command {
-	return commanderCmd(&cobra.Command{
+	cmd := commanderCmd(&cobra.Command{
 		Use:   "status",
 		Short: "Show the machine's routes, targets and certificates",
 		Long: `Reports what the edge is serving right now: every route with the environment
@@ -158,6 +158,7 @@ On a machine whose edge is switched off this says so and exits 0.`,
 			})
 		},
 	})
+	return available(cmd, onCommander.or(onServer))
 }
 
 func writeEdgeStatus(w io.Writer, st *edge.Status, now time.Time) error {
@@ -357,7 +358,7 @@ firewall and says so instead.`,
 	f.StringVar(&acmeCA, "acme-ca", "", "ACME directory URL (default: Let's Encrypt production)")
 	f.StringVar(&tls, "tls", "", "where certificates come from: "+tlsValuesHelp())
 	f.BoolVar(&noHTTP3, "no-http3", false, "do not serve QUIC on UDP 443")
-	return cmd
+	return available(cmd, onServer.and(asRoot))
 }
 
 func (a *app) edgeDisableCmd() *cobra.Command {
@@ -380,7 +381,7 @@ Certificates, the route table and every environment stay exactly as they are:
 	}
 	cmd.Flags().StringVar(&configDir, "config-dir", serverconfig.ConfigDir(),
 		"directory holding config.yaml")
-	return cmd
+	return available(cmd, onServer.and(asRoot))
 }
 
 func loadEdgeConfig(configDir string) (serverconfig.Config, error) {
@@ -416,7 +417,7 @@ func (a *app) runEdgeSetup(ctx context.Context, cfg serverconfig.Config, configD
 }
 
 func (a *app) edgeCACmd() *cobra.Command {
-	return commanderCmd(&cobra.Command{
+	cmd := commanderCmd(&cobra.Command{
 		Use:   "ca",
 		Short: "Print the machine's internal CA root, to trust it",
 		Long: `On a machine running 'tls: internal' — one whose hostnames have no public
@@ -443,6 +444,7 @@ A machine issuing from a public CA has nothing to trust by hand and says so.`,
 			})
 		},
 	})
+	return available(cmd, onCommander.or(onServer))
 }
 
 func (a *app) edgePruneCmd() *cobra.Command {
@@ -490,7 +492,7 @@ the internal CA's root, the ACME account, the challenge tokens and the staples.
 		"keep a stale certificate this long after it was last written (default: the machine's "+
 			"certs_keep); 0 removes every stale certificate, expired or not")
 	f.BoolVar(&dryRun, "dry-run", false, "say what would be removed and remove nothing")
-	return cmd
+	return available(cmd, onCommander.or(onServer))
 }
 
 func writeEdgePrune(w io.Writer, r *certs.PruneResult) error { return edgePruneView(r).Write(w) }
@@ -633,7 +635,7 @@ made counts as one: from the client's side there is no difference.`,
 		},
 	})
 	cmd.Flags().DurationVar(&since, "since", 0, "only what was served this recently (default: since the edge started)")
-	return cmd
+	return available(cmd, onCommander.or(onServer))
 }
 
 func writeEdgeCounts(w io.Writer, c *edge.Counts) error {

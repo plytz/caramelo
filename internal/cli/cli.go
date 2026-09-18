@@ -32,8 +32,9 @@ type app struct {
 
 	stdin io.Reader
 
-	machine string
-	fleet   string
+	machine   string
+	fleet     string
+	configDir string
 
 	chosenFleet string
 	appHint     func() string
@@ -211,7 +212,7 @@ types the same commands. 'caramelo manual' is the complete reference.`,
 	root.PersistentFlags().StringVar(&a.progressFlag, "progress", "",
 		"how progress is written to stderr: text (default) or json, one event per line")
 	root.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
-		if err := a.setProgress(); err != nil {
+		if err := a.beforeRun(cmd); err != nil {
 			return err
 		}
 		return a.forwardIfCommander(cmd)
@@ -251,6 +252,12 @@ func RunWith(ctx context.Context, args []string, stdout, stderr io.Writer, opts 
 	var fe *api.ForwardedError
 	if errors.As(err, &fe) {
 		return fe.Code
+	}
+
+	var nh *notHereError
+	if errors.As(err, &nh) {
+		fmt.Fprintf(stderr, "caramelo: %v\n", err)
+		return ExitUsage
 	}
 	fmt.Fprintf(stderr, "caramelo: %v\n", err)
 	var ue *usageError

@@ -40,7 +40,7 @@ able to help each other.`,
 		},
 	}
 	cmd.Flags().StringVar(&e.handoffTo, "to", "", "the peer that will own it")
-	return cmd
+	return available(cmd, onCommander.or(onHub))
 }
 
 func writeHandoff(w io.Writer, e *env.Env) error { return handoffView(e).Write(w) }

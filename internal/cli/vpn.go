@@ -222,11 +222,11 @@ because the key it holds is registered there under that name.`,
 		"identity to register the commander under (default: the name it joined this fleet under, else the commander's own name)")
 	cmd.Flags().BoolVar(&transparent, "transparent", false,
 		"bring the installed background service's interface up instead of using the in-process tunnel")
-	return cmd
+	return available(cmd, onCommander)
 }
 
 func (a *app) vpnDownCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "down",
 		Short: "Leave the machine's network (transparent mode only)",
 		Long: `Stops the tunnel interface owned by the background service. In the
@@ -254,10 +254,11 @@ default userspace mode there is nothing to tear down and this succeeds.`,
 			})
 		},
 	}
+	return available(cmd, onCommander)
 }
 
 func (a *app) vpnStatusCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "Show the mode, address, last handshake and resolver",
 		Args:  exactArgs(0),
@@ -285,6 +286,7 @@ func (a *app) vpnStatusCmd() *cobra.Command {
 			})
 		},
 	}
+	return available(cmd, onCommander)
 }
 
 func renderVPNState(w io.Writer, st *vpnclient.State) error {
@@ -377,7 +379,7 @@ work in browsers, psql and everything else.`,
 		},
 	}
 	cmd.Flags().StringVar(&iface, "interface", "", "tunnel interface name (default: caramelo0)")
-	return cmd
+	return available(cmd, onCommander)
 }
 
 func installError(err error) error {
@@ -391,7 +393,7 @@ func installError(err error) error {
 }
 
 func (a *app) vpnUninstallCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "uninstall",
 		Short: "Remove transparent mode's service and DNS entry (needs root)",
 		Long: `Stops and removes the background service and the split-DNS entry. Keys and
@@ -412,10 +414,11 @@ working.`,
 			})
 		},
 	}
+	return available(cmd, onCommander)
 }
 
 func (a *app) vpnConfigCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "config",
 		Short: "Print a wg-quick configuration for a third-party WireGuard client",
 		Long: `Renders a standard wg-quick file for the commander's peer. Nothing in
@@ -445,6 +448,7 @@ WireGuard client they already have. It contains the commander's private key.`,
 			})
 		},
 	}
+	return available(cmd, onCommander)
 }
 
 func (a *app) vpnServiceCmd() *cobra.Command {
@@ -472,5 +476,5 @@ hand is only useful for debugging transparent mode.`,
 		},
 	}
 	cmd.Flags().StringVar(&iface, "interface", "", "tunnel interface name (default: caramelo0)")
-	return cmd
+	return available(cmd, onCommander)
 }

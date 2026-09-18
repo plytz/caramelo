@@ -27,7 +27,7 @@ var inAnEnvWorktree = map[string]string{
 func TestUpInjectsTheAppAndTheEnvironment(t *testing.T) {
 	t.Setenv("CARAMELO_APP", "")
 	t.Setenv("CARAMELO_ENV", "feat-y")
-	noCommanderConfig(t)
+	initializedCommander(t)
 	useSystemConfigDir(t, t.TempDir())
 	fakeGit(t, inACheckout)
 	fwd := &fakeForward{}
@@ -49,7 +49,7 @@ func TestUpInjectsTheAppAndTheEnvironment(t *testing.T) {
 func TestAPositionalEnvironmentIsNotInjectedAgain(t *testing.T) {
 	t.Setenv("CARAMELO_APP", "shop")
 	t.Setenv("CARAMELO_ENV", "feat-y")
-	noCommanderConfig(t)
+	initializedCommander(t)
 	useSystemConfigDir(t, t.TempDir())
 	fakeGit(t, inACheckout)
 	fwd := &fakeForward{}
@@ -66,7 +66,7 @@ func TestAPositionalEnvironmentIsNotInjectedAgain(t *testing.T) {
 func TestTheWorktreeNamesTheEnvironment(t *testing.T) {
 	t.Setenv("CARAMELO_APP", "")
 	t.Setenv("CARAMELO_ENV", "")
-	noCommanderConfig(t)
+	initializedCommander(t)
 	useSystemConfigDir(t, t.TempDir())
 	fakeGit(t, inAnEnvWorktree)
 	fwd := &fakeForward{}
@@ -84,7 +84,7 @@ func TestTheWorktreeNamesTheEnvironment(t *testing.T) {
 func TestNothingNamesTheEnvironment(t *testing.T) {
 	t.Setenv("CARAMELO_APP", "shop")
 	t.Setenv("CARAMELO_ENV", "")
-	noCommanderConfig(t)
+	initializedCommander(t)
 	useSystemConfigDir(t, t.TempDir())
 	fakeGit(t, inACheckout)
 	fwd := &fakeForward{}
@@ -107,7 +107,7 @@ func TestNothingNamesTheEnvironment(t *testing.T) {
 func TestLogsInsideAnEnvironmentTakesServices(t *testing.T) {
 	t.Setenv("CARAMELO_APP", "shop")
 	t.Setenv("CARAMELO_ENV", "feat-x")
-	noCommanderConfig(t)
+	initializedCommander(t)
 	useSystemConfigDir(t, t.TempDir())
 	fakeGit(t, inAnEnvWorktree)
 	fwd := &fakeForward{}
@@ -128,7 +128,7 @@ func TestLogsInsideAnEnvironmentTakesServices(t *testing.T) {
 func TestTheInjectedFlagsStayOnCaramelosSideOfTheDash(t *testing.T) {
 	t.Setenv("CARAMELO_APP", "")
 	t.Setenv("CARAMELO_ENV", "feat-x")
-	noCommanderConfig(t)
+	initializedCommander(t)
 	useSystemConfigDir(t, t.TempDir())
 	fakeGit(t, inAnEnvWorktree)
 	fwd := &fakeForward{}
@@ -245,7 +245,7 @@ func TestUpDoesNotPushWhenItShouldNot(t *testing.T) {
 			if tc.machine {
 				withSSHMachine(t)
 			} else {
-				noCommanderConfig(t)
+				initializedCommander(t)
 				useSystemConfigDir(t, t.TempDir())
 			}
 			fakeGit(t, tc.answers)

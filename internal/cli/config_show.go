@@ -58,9 +58,12 @@ and the machine records an event naming you.`,
 		show.Flags().BoolVar(&reveal, "reveal", false,
 			"print the real values of variables that came from the vault (recorded as an event)")
 		asGroup(group)
-		group.AddCommand(show)
+		group.AddCommand(available(show, onCommander.or(onHub)))
 
 		group.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+			if err := a.beforeRun(cmd); err != nil {
+				return err
+			}
 			if a.service != nil {
 				return nil
 			}

@@ -77,7 +77,7 @@ silence means the packet was dropped; anything else is reported as unproven.`,
 	f.StringVar(&endpoint, "endpoint", "", "the machine's UDP endpoint, host[:port] (default: the one this commander recorded)")
 	f.StringVar(&key, "key", "", "the machine's WireGuard public key, for a computer that has never joined it")
 	f.DurationVar(&timeout, "timeout", 0, "how long to wait for an answer (default: 10s)")
-	return cmd
+	return available(cmd, onCommander.or(onServer))
 }
 
 func probeLine(p *vpnclient.Probe) string {

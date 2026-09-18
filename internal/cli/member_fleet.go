@@ -77,7 +77,7 @@ Adding a box that is already a member re-runs setup and changes nothing else.`,
 	f.StringVar(&acmeEmail, "acme-email", "", "address to register with the certificate authority")
 	f.StringVar(&acmeCA, "acme-ca", "", "ACME directory URL (default: Let's Encrypt production)")
 	f.StringVar(&tls, "tls", "", "where the member's certificates come from: "+strings.Join(serverconfig.TLSValues, ", "))
-	return cmd
+	return available(cmd, onCommander.or(onHub))
 }
 
 type machineAddSpec struct {
@@ -121,7 +121,7 @@ Use it when the commander cannot ssh to the box that is joining. On the box:
 		},
 	}
 	cmd.Flags().DurationVar(&ttl, "ttl", 0, "how long the token is good for (default 1h, at most 24h)")
-	return cmd
+	return available(cmd, onCommander.or(onHub))
 }
 
 func (a *app) memberJoinCmd() *cobra.Command {
@@ -163,7 +163,7 @@ because the secrets for it live there.`,
 	f.StringVar(&name, "name", "", "what to call this machine in the fleet (default: its hostname)")
 	f.BoolVar(&private, "private", false, "join with no public listener: the hub is this machine's only door")
 	f.StringVar(&configDir, "config-dir", serverconfig.ConfigDir(), "directory holding config.yaml")
-	return cmd
+	return available(cmd, not(onCommander))
 }
 
 func (a *app) memberLeaveCmd() *cobra.Command {
@@ -191,11 +191,11 @@ The subnet stays: this machine's environments hold addresses in it.`,
 	f := cmd.Flags()
 	f.StringVar(&configDir, "config-dir", serverconfig.ConfigDir(), "directory holding config.yaml")
 	f.BoolVar(&force, "force", false, "do not warn that the hub may still hold this machine")
-	return cmd
+	return available(cmd, onMember)
 }
 
 func (a *app) memberListCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:     "list",
 		Aliases: []string{"ls"},
 		Short:   "List the machines of the fleet",
@@ -219,6 +219,7 @@ A machine that has not been heard from within the keepalive window reads
 			})
 		},
 	}
+	return available(cmd, onCommander.or(onServer))
 }
 
 func (a *app) memberRemoveCmd() *cobra.Command {
@@ -255,7 +256,7 @@ one.`,
 	}
 
 	cmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
-		if err := a.setProgress(); err != nil {
+		if err := a.beforeRun(cmd); err != nil {
 			return err
 		}
 		if a.service == nil {
@@ -268,7 +269,7 @@ one.`,
 	f := cmd.Flags()
 	f.BoolVar(&force, "force", false, "destroy the environments the machine holds instead of refusing")
 	f.BoolVar(&yes, "yes", false, "do not ask for confirmation")
-	return cmd
+	return available(cmd, onCommander.or(onHub))
 }
 
 func (a *app) confirmMachineRemove(cmd *cobra.Command, args []string, force bool, yes *bool) error {

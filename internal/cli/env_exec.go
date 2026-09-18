@@ -53,5 +53,5 @@ exit code is the machine-readable result.`,
 			return nil
 		},
 	}
-	return cmd
+	return available(cmd, onCommander.or(onHub))
 }

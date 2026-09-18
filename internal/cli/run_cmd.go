@@ -40,7 +40,7 @@ func (t *envTargets) addTargetFlags(cmd *cobra.Command) {
 
 func (t *envTargets) preRun(cmd *cobra.Command, args []string) error {
 
-	if err := t.a.setProgress(); err != nil {
+	if err := t.a.beforeRun(cmd); err != nil {
 		return err
 	}
 	if t.a.service != nil {

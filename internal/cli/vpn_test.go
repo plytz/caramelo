@@ -9,8 +9,28 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/plytz/caramelo/internal/remote"
 	"github.com/plytz/caramelo/internal/vpnclient"
 )
+
+func isolateOnACommander(t *testing.T) string {
+	t.Helper()
+	dir := isolate(t)
+	nameThisBoxACommander(t)
+	return dir
+}
+
+func nameThisBoxACommander(t *testing.T) {
+	t.Helper()
+	path, err := remote.CommanderConfigPath()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := remote.CommanderConfig{Name: "laptop", Role: remote.RoleCommander}
+	if err := remote.SaveCommanderConfigTo(path, cfg); err != nil {
+		t.Fatal(err)
+	}
+}
 
 func isolate(t *testing.T) string {
 	t.Helper()
@@ -25,7 +45,7 @@ func isolate(t *testing.T) string {
 }
 
 func TestVPNStatusOfAMachineNeverJoined(t *testing.T) {
-	isolate(t)
+	isolateOnACommander(t)
 	var stdout, stderr bytes.Buffer
 	code := Run([]string{"vpn", "status", "--machine", "worker1"}, &stdout, &stderr)
 	if code != ExitOK {
@@ -37,7 +57,7 @@ func TestVPNStatusOfAMachineNeverJoined(t *testing.T) {
 }
 
 func TestVPNStatusJSONIsOneDocument(t *testing.T) {
-	isolate(t)
+	isolateOnACommander(t)
 	var stdout, stderr bytes.Buffer
 	if code := Run([]string{"vpn", "status", "--machine", "worker1", "--json"}, &stdout, &stderr); code != ExitOK {
 		t.Fatalf("exit %d: %s", code, stderr.String())
@@ -56,7 +76,7 @@ func TestVPNStatusJSONIsOneDocument(t *testing.T) {
 }
 
 func TestVPNNeedsAMachine(t *testing.T) {
-	isolate(t)
+	isolateOnACommander(t)
 	for _, args := range [][]string{
 		{"vpn", "up"}, {"vpn", "status"}, {"vpn", "config"}, {"connect", "feat-x"},
 	} {
@@ -77,7 +97,7 @@ func TestVPNNeedsAMachine(t *testing.T) {
 }
 
 func TestVPNConfigWithoutAKey(t *testing.T) {
-	isolate(t)
+	isolateOnACommander(t)
 	var stdout, stderr bytes.Buffer
 	code := Run([]string{"vpn", "config", "--machine", "worker1"}, &stdout, &stderr)
 	if code != ExitError {
@@ -114,7 +134,7 @@ commander:
 `
 
 func TestVPNUsesTheDefaultFleet(t *testing.T) {
-	dir := isolate(t)
+	dir := isolateOnACommander(t)
 	writeCommanderFile(t, dir, twoFleetsFile)
 
 	var stdout, stderr bytes.Buffer
@@ -127,7 +147,7 @@ func TestVPNUsesTheDefaultFleet(t *testing.T) {
 }
 
 func TestVPNFleetFlagPicksAnotherFleet(t *testing.T) {
-	dir := isolate(t)
+	dir := isolateOnACommander(t)
 	writeCommanderFile(t, dir, twoFleetsFile)
 
 	var stdout, stderr bytes.Buffer
@@ -140,7 +160,7 @@ func TestVPNFleetFlagPicksAnotherFleet(t *testing.T) {
 }
 
 func TestVPNRefusesToGuessBetweenFleets(t *testing.T) {
-	dir := isolate(t)
+	dir := isolateOnACommander(t)
 	writeCommanderFile(t, dir, `name: laptop
 role: commander
 commander:
@@ -163,7 +183,7 @@ commander:
 }
 
 func TestConnectNeedsAnApp(t *testing.T) {
-	dir := isolate(t)
+	dir := isolateOnACommander(t)
 	t.Setenv("CARAMELO_MACHINE", "worker1")
 	t.Setenv("CARAMELO_APP", "")
 
@@ -179,7 +199,7 @@ func TestConnectNeedsAnApp(t *testing.T) {
 }
 
 func TestConnectWithoutAKey(t *testing.T) {
-	isolate(t)
+	isolateOnACommander(t)
 	var stdout, stderr bytes.Buffer
 	code := Run([]string{"connect", "feat-x", "--app", "shop", "--machine", "worker1"}, &stdout, &stderr)
 	if code != ExitError {
@@ -191,7 +211,7 @@ func TestConnectWithoutAKey(t *testing.T) {
 }
 
 func TestKeyPathsStayInsideTheConfigDir(t *testing.T) {
-	dir := isolate(t)
+	dir := isolateOnACommander(t)
 	path, err := vpnclient.KeyPath("caramelo@192.168.56.11:4022")
 	if err != nil {
 		t.Fatal(err)

@@ -45,6 +45,7 @@ func TestSecretValueWithNoTerminalIsAUsageError(t *testing.T) {
 }
 
 func TestDestroyOfAProtectedEnvAsksForTheName(t *testing.T) {
+	initializedCommander(t)
 	fwd := &fakeForward{}
 	fwd.install(t)
 	code, _, stderr := run(t, "env", "destroy", "production", "--app", "shop", "--force")

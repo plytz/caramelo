@@ -42,5 +42,5 @@ for as long as deploy.keep keeps its images.`,
 	}
 	cmd.Flags().IntVar(&limit, "limit", 0, "at most this many deploys (default: all of them)")
 	t.addTargetFlags(cmd)
-	return cmd
+	return available(cmd, onCommander.or(onServer))
 }

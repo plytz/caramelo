@@ -32,7 +32,7 @@ the others.`,
 }
 
 func (a *app) peerAddCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "add NAME PUBLIC_KEY",
 		Short: "Admit an identity by its WireGuard public key",
 		Long: `Allocates an address for the peer, records it and installs it on the
@@ -49,10 +49,11 @@ adding it with a different key rotates that peer's key and keeps its address.`,
 			})
 		},
 	}
+	return available(cmd, onCommander.or(onServer))
 }
 
 func (a *app) peerListCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List the identities on the machine's network",
 		Args:  exactArgs(0),
@@ -69,6 +70,7 @@ func (a *app) peerListCmd() *cobra.Command {
 			})
 		},
 	}
+	return available(cmd, onCommander.or(onServer))
 }
 
 func renderPeers(w io.Writer, peers []state.Peer) error { return peersView(peers).Write(w) }
@@ -131,7 +133,7 @@ or on the machine itself, where the local socket is the way in.`,
 	}
 	cmd.Flags().BoolVar(&force, "force", false,
 		"revoke it even when it is this session's own identity (the answer may never arrive)")
-	return cmd
+	return available(cmd, onCommander.or(onServer))
 }
 
 func peerAddedView(p *state.Peer) *ui.View {

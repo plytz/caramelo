@@ -31,5 +31,5 @@ becomes a deploy of the previous release, which is the same walk.`,
 		},
 	}
 	t.addTargetFlags(cmd)
-	return cmd
+	return available(cmd, onCommander.or(onHub))
 }

@@ -58,7 +58,7 @@ It is refused on a development environment: use caramelo up there.`,
 	cmd.Flags().BoolVar(&f.noPush, "no-push", false, "do not push the code to the machine first")
 	t.addTargetFlags(cmd)
 	t.beforeForward = func(cmd *cobra.Command) error { return t.pushBeforeRelease(cmd, f) }
-	return cmd
+	return available(cmd, onCommander.or(onHub))
 }
 
 func finishDeploy(a *app, res *api.DeployResult, walkErr error) error {

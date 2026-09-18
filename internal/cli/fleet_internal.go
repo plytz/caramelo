@@ -23,7 +23,7 @@ func init() {
 }
 
 func (a *app) memberAnnounceCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:    "announce",
 		Short:  "Tell the hub what this machine is and what it holds (machines only)",
 		Hidden: true,
@@ -40,10 +40,11 @@ func (a *app) memberAnnounceCmd() *cobra.Command {
 			return json.NewEncoder(a.stdout).Encode(res)
 		},
 	}
+	return available(cmd, onServer)
 }
 
 func (a *app) memberRedeemCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:    "redeem",
 		Short:  "Redeem a join ticket (the hub's half of a join)",
 		Hidden: true,
@@ -60,10 +61,11 @@ func (a *app) memberRedeemCmd() *cobra.Command {
 			return json.NewEncoder(a.stdout).Encode(res)
 		},
 	}
+	return available(cmd, onServer)
 }
 
 func (a *app) memberRemovedCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:    "removed",
 		Short:  "Stop obeying the hub that has removed this machine (machines only)",
 		Hidden: true,
@@ -78,6 +80,7 @@ func (a *app) memberRemovedCmd() *cobra.Command {
 			})
 		},
 	}
+	return available(cmd, onServer)
 }
 
 func (a *app) secretsBundleCmd() *cobra.Command {
@@ -101,7 +104,7 @@ func (a *app) secretsBundleCmd() *cobra.Command {
 	f.StringVar(&app, "app", "", "the application")
 	f.StringVar(&envName, "env", "", "the environment")
 	f.StringVar(&reason, "reason", "", "what the secrets are for, for the hub's audit row")
-	return cmd
+	return available(cmd, onServer)
 }
 
 func (a *app) imagesCmd() *cobra.Command {
@@ -137,11 +140,11 @@ func (a *app) imagesOfCmd() *cobra.Command {
 	f := cmd.Flags()
 	f.StringVar(&app, "app", "", "the application")
 	f.StringVar(&tree, "tree", "", "the release's tree hash, which is its name")
-	return cmd
+	return available(cmd, onServer)
 }
 
 func (a *app) imagesRecordCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:    "record",
 		Short:  "Tell the hub what this machine holds (machines only)",
 		Hidden: true,
@@ -154,6 +157,7 @@ func (a *app) imagesRecordCmd() *cobra.Command {
 			return a.service.ReleaseRecord(cmd.Context(), req)
 		},
 	}
+	return available(cmd, onServer)
 }
 
 func (a *app) imagesTransferCmd(verb string, send bool) *cobra.Command {
@@ -187,11 +191,11 @@ func (a *app) imagesTransferCmd(verb string, send bool) *cobra.Command {
 	f.Int64Var(&release, "release", 0, "the release the images belong to")
 	f.StringArrayVar(&refs, "ref", nil, "an image reference to move (repeatable)")
 	f.StringVar(&arch, "arch", "", "the architecture both ends must agree on")
-	return cmd
+	return available(cmd, onServer)
 }
 
 func (e *envCmd) worktreeStatusCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:    "worktree-status NAME",
 		Short:  "Say whether an environment's checkout has uncommitted work",
 		Hidden: true,
@@ -204,10 +208,11 @@ func (e *envCmd) worktreeStatusCmd() *cobra.Command {
 			return json.NewEncoder(e.a.stdout).Encode(st)
 		},
 	}
+	return available(cmd, onServer)
 }
 
 func (e *envCmd) syncCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:    "sync NAME",
 		Short:  "Fetch this environment's branch from the hub and check it out",
 		Hidden: true,
@@ -220,6 +225,7 @@ func (e *envCmd) syncCmd() *cobra.Command {
 			return json.NewEncoder(e.a.stdout).Encode(ev)
 		},
 	}
+	return available(cmd, onServer)
 }
 
 func (a *app) pushCheckCmd() *cobra.Command {
@@ -258,7 +264,7 @@ func (a *app) pushCheckCmd() *cobra.Command {
 		},
 	})
 	cmd.Flags().StringVar(&repo, "repo", "", "the bare repository the push is landing in")
-	return cmd
+	return available(cmd, onServer)
 }
 
 func branchesOfRefs(r io.Reader) ([]string, error) {

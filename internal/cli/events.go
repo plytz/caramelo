@@ -56,7 +56,7 @@ follow a deploy it did not start.`,
 	cmd.Flags().DurationVar(&since, "since", 0, "only events this recent (default: the last 100)")
 	cmd.Flags().IntVar(&limit, "limit", 0, "at most this many events before following (default 100)")
 	t.addTargetFlags(cmd)
-	return cmd
+	return available(cmd, onCommander.or(onServer))
 }
 
 func eventsWriter(a *app) (io.Writer, func() error) {

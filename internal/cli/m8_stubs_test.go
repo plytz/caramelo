@@ -91,17 +91,18 @@ func TestM8StubFlags(t *testing.T) {
 }
 
 func TestTheTwoLocalFleetCommandsRefuseBeforeTheyTouchAnything(t *testing.T) {
-	initializedCommander(t)
 	for _, tc := range []struct {
-		args []string
-		code int
-		want string
+		where func(t *testing.T)
+		args  []string
+		code  int
+		want  string
 	}{
-		{[]string{"member", "join", "hub.example.com", "--token", "t"}, ExitUsage, "caramelo-join-v1."},
-		{[]string{"member", "join", "hub.example.com"}, ExitUsage, "needs a token"},
-		{[]string{"member", "add", "admin@nx2.local"}, ExitError, "take a join token from the hub"},
-		{[]string{"member", "add", "admin@nx2.local", "--edge", "--private"}, ExitUsage, "opposites"},
+		{freshPlace, []string{"member", "join", "hub.example.com", "--token", "t"}, ExitUsage, "caramelo-join-v1."},
+		{freshPlace, []string{"member", "join", "hub.example.com"}, ExitUsage, "needs a token"},
+		{commanderPlace, []string{"member", "add", "admin@nx2.local"}, ExitError, "take a join token from the hub"},
+		{commanderPlace, []string{"member", "add", "admin@nx2.local", "--edge", "--private"}, ExitUsage, "opposites"},
 	} {
+		tc.where(t)
 		var stdout, stderr bytes.Buffer
 		code := Run(tc.args, &stdout, &stderr)
 		if code != tc.code {
@@ -115,6 +116,7 @@ func TestTheTwoLocalFleetCommandsRefuseBeforeTheyTouchAnything(t *testing.T) {
 }
 
 func TestHandoffNeedsAPeer(t *testing.T) {
+	initializedCommander(t)
 	var stdout, stderr bytes.Buffer
 	if code := Run([]string{"env", "handoff", "feat-x", "--app", "shop"}, &stdout, &stderr); code != ExitUsage {
 		t.Errorf("exit = %d, want %d (usage)", code, ExitUsage)
@@ -125,6 +127,7 @@ func TestHandoffNeedsAPeer(t *testing.T) {
 }
 
 func TestExposeViaIsValidatedHere(t *testing.T) {
+	initializedCommander(t)
 	var stdout, stderr bytes.Buffer
 	if code := Run([]string{"env", "expose", "feat-x", "--via", "sideways", "--app", "shop"},
 		&stdout, &stderr); code != ExitUsage {
