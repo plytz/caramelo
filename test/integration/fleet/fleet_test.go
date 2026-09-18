@@ -101,6 +101,33 @@ func TestAMemberJoins(t *testing.T) {
 		t.Errorf("/etc/caramelo/config.yaml on %s says role %q, want %q", box.Alias, role, cfleet.RoleMember)
 	}
 
+	hubFleet, err := itest.ServerFleet(joined, hub)
+	if err != nil {
+		t.Fatalf("read the fleet %s heads: %v", hub.Alias, err)
+	}
+	memberFleet, err := itest.ServerFleet(joined, box)
+	if err != nil {
+		t.Fatalf("read the fleet %s joined: %v", box.Alias, err)
+	}
+	if hubFleet == "" || memberFleet != hubFleet {
+		t.Errorf("/etc/caramelo/config.yaml on %s says the fleet is %q, want the hub's %q",
+			box.Alias, memberFleet, hubFleet)
+	}
+	if own := machineListOn(t, box); len(own) == 0 {
+		t.Errorf("member list on %s answered with no machine at all", box.Alias)
+	} else {
+		var hubRow cfleet.Machine
+		for _, m := range own {
+			if m.Role.IsHub() {
+				hubRow = m
+			}
+		}
+		if hubRow.Name != list[0].Name {
+			t.Errorf("%s calls its hub %q, want %q, the name the hub answers to",
+				box.Alias, hubRow.Name, list[0].Name)
+		}
+	}
+
 	itest.RunGoss(t, hub, itest.MustGossSpec(t, "fleet.yaml"))
 	itest.RunGoss(t, box, itest.MustGossSpec(t, "member.yaml"))
 
