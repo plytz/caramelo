@@ -53,7 +53,7 @@ func (a *app) runMachineJoin(ctx context.Context, configDir, hub, token, name st
 					Name: cfg.Name, Role: fleet.RoleMember, Private: cfg.Member.Private,
 					Subnet: prefixOrZero(cfg.Member.Subnet),
 				},
-				Hub:     fleet.Machine{Name: ticket.Hub, Role: fleet.RoleHub, Endpoint: cfg.Member.Hub.Endpoint},
+				Hub:     fleet.Machine{Name: cfg.HubName(), Role: fleet.RoleHub, Endpoint: cfg.Member.Hub.Endpoint},
 				Changed: false,
 			})
 		case sameHub:
@@ -200,6 +200,10 @@ func writeMemberConfig(dir string, cfg serverconfig.Config, t fleet.Ticket, res 
 	if fleetName == "" {
 		fleetName = t.Fleet
 	}
+	hubName := strings.TrimSpace(res.Hub.Name)
+	if hubName == "" {
+		hubName = t.Hub
+	}
 	cfg.VPNSubnet = subnet
 	cfg.Name = res.Machine.Name
 	cfg.Role = serverconfig.RoleMember
@@ -209,7 +213,7 @@ func writeMemberConfig(dir string, cfg serverconfig.Config, t fleet.Ticket, res 
 		Subnet:  subnet,
 		Private: res.Machine.Private,
 		Hub: serverconfig.MemberHub{
-			Endpoint: endpoint, Address: hubAddr, PublicKey: t.PublicKey,
+			Name: hubName, Endpoint: endpoint, Address: hubAddr, PublicKey: t.PublicKey,
 		},
 	}
 	return saveConfigKeepingOwner(dir, cfg)

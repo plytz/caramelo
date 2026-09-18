@@ -50,6 +50,8 @@ func (m Member) Empty() bool {
 }
 
 type MemberHub struct {
+	Name string `yaml:"name,omitempty"`
+
 	Endpoint string `yaml:"endpoint,omitempty"`
 
 	Address string `yaml:"address,omitempty"`
@@ -58,7 +60,7 @@ type MemberHub struct {
 }
 
 func (h MemberHub) Empty() bool {
-	return h.Endpoint == "" && h.Address == "" && h.PublicKey == ""
+	return h.Name == "" && h.Endpoint == "" && h.Address == "" && h.PublicKey == ""
 }
 
 func (c Config) IsMember() bool { return c.FleetRole() == RoleMember }
@@ -80,6 +82,13 @@ func (c Config) FleetName() string {
 		return f
 	}
 	return strings.TrimSpace(c.Name)
+}
+
+func (c Config) HubName() string {
+	if n := strings.TrimSpace(c.Member.Hub.Name); n != "" {
+		return n
+	}
+	return c.FleetName()
 }
 
 func (c Config) FleetRangePrefix() (netip.Prefix, error) {
@@ -273,6 +282,14 @@ func validateMemberSubnet(c Config) []error {
 
 func validateMemberHub(h MemberHub) []error {
 	var errs []error
+	switch n := strings.TrimSpace(h.Name); {
+	case n == "":
+		errs = append(errs, fmt.Errorf(
+			"member.hub.name must name the machine this one joined: `caramelo member join` copies it from the hub"))
+	case !isSlug(n):
+		errs = append(errs, fmt.Errorf(
+			"member.hub.name %q: a machine's name is a slug — lowercase letters, digits and dashes", n))
+	}
 	if e := strings.TrimSpace(h.Endpoint); e == "" {
 		errs = append(errs, fmt.Errorf("member.hub.endpoint must not be empty: a member dials, so it needs somewhere to dial"))
 	} else if host, port, err := net.SplitHostPort(e); err != nil {

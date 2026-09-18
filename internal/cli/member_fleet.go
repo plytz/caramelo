@@ -131,7 +131,7 @@ func (a *app) memberJoinCmd() *cobra.Command {
 		Use:   "join HUB",
 		Short: "Join this machine to a hub (run on the machine, as root)",
 		Long: `join makes this box a member of a fleet: it writes the fleet's name and
-the hub's endpoint, address and key under member: in /etc/caramelo/config.yaml,
+the hub's name, endpoint, address and key under member: in /etc/caramelo/config.yaml,
 peers with it, announces what this machine is and what it holds, and from then on
 dials out and keeps the tunnel alive.
 

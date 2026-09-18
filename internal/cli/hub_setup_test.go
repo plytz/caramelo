@@ -453,7 +453,7 @@ func aMemberConfig(t *testing.T, dir string) serverconfig.Config {
 	c.Member = serverconfig.Member{
 		Fleet: "home", Subnet: "10.87.0.0/16",
 		Hub: serverconfig.MemberHub{
-			Endpoint: "hub.example.com:4021", Address: "10.86.0.1",
+			Name: "box", Endpoint: "hub.example.com:4021", Address: "10.86.0.1",
 			PublicKey: "0000000000000000000000000000000000000000000=",
 		},
 	}
