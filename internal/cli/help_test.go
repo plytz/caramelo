@@ -121,7 +121,7 @@ func TestHelpListsOnlyTheCommandsThatHoldHere(t *testing.T) {
 	}{
 		{name: "fresh", where: freshPlace,
 			shown:  []string{"commander", "context", "hub", "manual", "version"},
-			hidden: []string{"env", "up", "deploy", "fleet", "vpn", "secrets", "key", "peer", "status"}},
+			hidden: []string{"env", "up", "deploy", "fleet", "vpn", "member", "secrets", "key", "peer", "status"}},
 		{name: "commander", where: commanderPlace,
 			shown: []string{"commander", "env", "up", "deploy", "fleet", "vpn", "hub", "member",
 				"secrets", "key", "peer", "edge"}},

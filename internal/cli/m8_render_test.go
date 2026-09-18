@@ -431,7 +431,7 @@ func TestMachineAddRefusesAnEdgeOnAPrivateMachine(t *testing.T) {
 }
 
 func TestMachineJoinNeedsAToken(t *testing.T) {
-	freshPlace(t)
+	hubPlace(t)
 	var stdout, stderr bytes.Buffer
 	code := Run([]string{"member", "join", "hub.example.com"}, &stdout, &stderr)
 	if code != ExitUsage {

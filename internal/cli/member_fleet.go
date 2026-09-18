@@ -163,7 +163,7 @@ because the secrets for it live there.`,
 	f.StringVar(&name, "name", "", "what to call this machine in the fleet (default: its hostname)")
 	f.BoolVar(&private, "private", false, "join with no public listener: the hub is this machine's only door")
 	f.StringVar(&configDir, "config-dir", serverconfig.ConfigDir(), "directory holding config.yaml")
-	return available(cmd, not(onCommander))
+	return available(cmd, onServer)
 }
 
 func (a *app) memberLeaveCmd() *cobra.Command {
