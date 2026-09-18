@@ -226,6 +226,7 @@ types the same commands. 'caramelo manual' is the complete reference.`,
 		root.AddCommand(f(a))
 	}
 	attachExamples(root)
+	a.installHelp(root)
 	return root
 }
 

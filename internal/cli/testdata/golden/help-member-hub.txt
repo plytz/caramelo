@@ -1,0 +1,36 @@
+worker, member of fleet home (hub box at box.example.com:4021) ·
+  /etc/caramelo/config.yaml · caramelod socket /run/caramelo/caramelod.sock · edge off
+
+The hub namespace acts on this machine directly. It is never
+forwarded to a daemon and caramelod refuses it over the SSH API.
+
+Every machine starts as a hub of one, so these are also what a member types
+about itself: 'hub status' and 'hub uninstall' answer for the box you are on.
+
+Usage:
+  caramelo hub [flags]
+  caramelo hub [command]
+
+Examples:
+  caramelo hub setup --target you@box
+  caramelo hub status
+  caramelo hub probe box
+  sudo caramelo hub uninstall --yes
+
+
+Available Commands:
+  probe       Ask whether a machine's tunnel port answers from here
+  setup       Turn this machine into a Caramelo host (run as root)
+  status      Report what setup installed on this machine and whether it is running
+  uninstall   Stop caramelod and undo what setup changed on this machine (run as root)
+
+Flags:
+  -h, --help   help for hub
+
+Global Flags:
+      --fleet string      fleet to talk to, by its name in the commander config (default: the app's fleet, then the default fleet)
+      --json              print machine-readable JSON on stdout
+      --machine string    raw ssh target to talk to, for a machine that is in no fleet yet: user@host[:port], or 'local'
+      --progress string   how progress is written to stderr: text (default) or json, one event per line
+
+Use "caramelo hub [command] --help" for more information about a command.

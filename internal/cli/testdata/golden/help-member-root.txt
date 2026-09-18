@@ -1,0 +1,42 @@
+worker, member of fleet home (hub box at box.example.com:4021) ·
+  /etc/caramelo/config.yaml · caramelod socket /run/caramelo/caramelod.sock · edge off
+
+caramelo builds, tests, runs, deploys and operates applications from a single
+caramelo.yaml, on machines it sets up itself: isolated environments for every
+branch, previews on real hostnames, production with gated deploys and one-command
+rollback, and a fleet of machines behaving as one.
+
+It is built for agents first. Every command has --json output, stable exit codes
+and never waits on a terminal, so an agent can drive it from a shell; a person
+types the same commands. 'caramelo manual' is the complete reference.
+
+Usage:
+  caramelo [flags]
+  caramelo [command]
+
+Available Commands:
+  app         Inspect the applications on the machine
+  context     Say where this CLI is running and what a command typed here would act on
+  edge        The machine's public edge: routes, certificates, targets
+  events      Everything the machine does, whoever started it
+  help        Help about any command
+  hub         Commands the machine itself runs: setup, uninstall, status, run
+  logs        Show an environment's service logs, merged and prefixed
+  manual      The complete manual: every command, every flag, with examples
+  member      Inspect this machine, and the fleet it is part of
+  peer        Manage the identities allowed on the machine's network
+  releases    An environment's deploy history, or the app's releases
+  secrets     The machine's vault: scoped secrets, encrypted at rest
+  status      Show whether caramelod and Docker are up, and how we reached them
+  version     Print the caramelo version
+
+Flags:
+      --fleet string      fleet to talk to, by its name in the commander config (default: the app's fleet, then the default fleet)
+  -h, --help              help for caramelo
+      --json              print machine-readable JSON on stdout
+      --machine string    raw ssh target to talk to, for a machine that is in no fleet yet: user@host[:port], or 'local'
+      --progress string   how progress is written to stderr: text (default) or json, one event per line
+
+Use "caramelo [command] --help" for more information about a command.
+
+37 commands are hidden here; 'caramelo manual --role all' lists every command of every role.

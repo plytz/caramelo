@@ -103,6 +103,7 @@ func TestExtraArgsIsUsageError(t *testing.T) {
 }
 
 func TestRootPrintsHelp(t *testing.T) {
+	commanderPlace(t)
 	code, stdout, _ := run(t)
 	if code != ExitOK {
 		t.Fatalf("exit code = %d, want %d", code, ExitOK)
@@ -112,6 +113,9 @@ func TestRootPrintsHelp(t *testing.T) {
 	}
 	if strings.Contains(stdout, "completion") {
 		t.Errorf("help output lists the completion command; it should be disabled:\n%s", stdout)
+	}
+	if !strings.HasPrefix(stdout, "laptop, commander · ") {
+		t.Errorf("bare caramelo does not open with the header of this place:\n%s", stdout)
 	}
 }
 

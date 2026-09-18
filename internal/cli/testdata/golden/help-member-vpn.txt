@@ -1,0 +1,31 @@
+worker, member of fleet home (hub box at box.example.com:4021) ·
+  /etc/caramelo/config.yaml · caramelod socket /run/caramelo/caramelod.sock · edge off
+
+Every Caramelo machine is a private network: the box, each of its
+environments and each authorized peer has an address on it, and nothing else on
+the internet gets an answer.
+
+By default nothing is installed and nothing needs root: the CLI carries the
+tunnel in process, and 'caramelo connect' lends it to other programs as local
+ports. 'caramelo vpn install' is the one-time sudo that turns on transparent
+mode, where names like db.feat-x.shop.internal work in every program.
+
+Usage:
+  caramelo vpn [flags]
+
+Examples:
+  caramelo vpn up
+  caramelo vpn status
+  caramelo vpn down
+
+
+Flags:
+  -h, --help   help for vpn
+
+Global Flags:
+      --fleet string      fleet to talk to, by its name in the commander config (default: the app's fleet, then the default fleet)
+      --json              print machine-readable JSON on stdout
+      --machine string    raw ssh target to talk to, for a machine that is in no fleet yet: user@host[:port], or 'local'
+      --progress string   how progress is written to stderr: text (default) or json, one event per line
+
+6 commands are hidden here; 'caramelo manual --role all' lists every command of every role.

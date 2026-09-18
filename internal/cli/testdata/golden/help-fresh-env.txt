@@ -1,0 +1,31 @@
+fresh box: no config · run 'caramelo commander init' to name this machine
+
+An environment is an isolated, disposable copy of an app on the machine:
+a git worktree on its own branch, its own block of ports, a container and a
+named volume per dependency, and the variables that tie them together. Many
+of them can exist at once without sharing anything.
+
+The app is the repository you are standing in; --app (or CARAMELO_APP) names
+it explicitly when you are not.
+
+Usage:
+  caramelo env [flags]
+
+Examples:
+  caramelo env create feat-x --from main
+  caramelo env list
+  caramelo env show feat-x
+  caramelo env destroy feat-x --yes
+
+
+Flags:
+      --app string   application these environments belong to (default: the checkout you are in)
+  -h, --help         help for env
+
+Global Flags:
+      --fleet string      fleet to talk to, by its name in the commander config (default: the app's fleet, then the default fleet)
+      --json              print machine-readable JSON on stdout
+      --machine string    raw ssh target to talk to, for a machine that is in no fleet yet: user@host[:port], or 'local'
+      --progress string   how progress is written to stderr: text (default) or json, one event per line
+
+10 commands are hidden here; 'caramelo manual --role all' lists every command of every role.

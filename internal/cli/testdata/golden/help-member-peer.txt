@@ -1,0 +1,36 @@
+worker, member of fleet home (hub box at box.example.com:4021) ·
+  /etc/caramelo/config.yaml · caramelod socket /run/caramelo/caramelod.sock · edge off
+
+A peer is an identity — a laptop, an agent, a CI runner — admitted to
+the machine's private network by its WireGuard public key. The machine never
+answers a packet from a key it does not know, and every command that arrives
+through the tunnel is logged under the peer's name.
+
+'caramelo vpn up' adds the commander as a peer; these commands are for adding
+the others.
+
+Usage:
+  caramelo peer [flags]
+  caramelo peer [command]
+
+Examples:
+  caramelo peer add agent-7 <public key>
+  caramelo peer list
+  caramelo peer remove agent-7
+
+
+Available Commands:
+  add         Admit an identity by its WireGuard public key
+  list        List the identities on the machine's network
+  remove      Revoke an identity by name
+
+Flags:
+  -h, --help   help for peer
+
+Global Flags:
+      --fleet string      fleet to talk to, by its name in the commander config (default: the app's fleet, then the default fleet)
+      --json              print machine-readable JSON on stdout
+      --machine string    raw ssh target to talk to, for a machine that is in no fleet yet: user@host[:port], or 'local'
+      --progress string   how progress is written to stderr: text (default) or json, one event per line
+
+Use "caramelo peer [command] --help" for more information about a command.

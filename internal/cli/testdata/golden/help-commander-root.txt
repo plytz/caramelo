@@ -1,0 +1,57 @@
+laptop, commander · fleets home (default), work ·
+  no app checkout here → fleet home (commander.default_fleet)
+
+caramelo builds, tests, runs, deploys and operates applications from a single
+caramelo.yaml, on machines it sets up itself: isolated environments for every
+branch, previews on real hostnames, production with gated deploys and one-command
+rollback, and a fleet of machines behaving as one.
+
+It is built for agents first. Every command has --json output, stable exit codes
+and never waits on a terminal, so an agent can drive it from a shell; a person
+types the same commands. 'caramelo manual' is the complete reference.
+
+Usage:
+  caramelo [flags]
+  caramelo [command]
+
+Available Commands:
+  app         Inspect the applications on the machine
+  build       Build a release: one image per service, from a commit
+  commander   The machine you type on: name it and write the files it needs
+  config      Inspect the effective caramelo.yaml of an app
+  connect     Open local ports for an environment's services and dependencies
+  context     Say where this CLI is running and what a command typed here would act on
+  deploy      Deploy a release to an environment, with gates and a way back
+  down        Stop an environment's services, keeping its dependencies and data
+  edge        The machine's public edge: routes, certificates, targets
+  env         Create, inspect and destroy isolated environments of an app
+  events      Everything the machine does, whoever started it
+  fleet       Manage the fleets this commander talks to
+  help        Help about any command
+  hub         Commands the machine itself runs: setup, uninstall, status, run
+  key         Manage the SSH keys allowed to use the API
+  logs        Show an environment's service logs, merged and prefixed
+  manual      The complete manual: every command, every flag, with examples
+  member      Inspect this machine, and the fleet it is part of
+  peer        Manage the identities allowed on the machine's network
+  promote     End a deploy's watch: stop the old replicas and prune
+  releases    An environment's deploy history, or the app's releases
+  rollback    Put the previous release back
+  run         Run a command in the app's toolchain inside an environment
+  secrets     The machine's vault: scoped secrets, encrypted at rest
+  status      Show whether caramelod and Docker are up, and how we reached them
+  test        Run the app's tests inside an environment
+  up          Start an environment's services and wait for them to be healthy
+  version     Print the caramelo version
+  vpn         Join a machine's private network
+
+Flags:
+      --fleet string      fleet to talk to, by its name in the commander config (default: the app's fleet, then the default fleet)
+  -h, --help              help for caramelo
+      --json              print machine-readable JSON on stdout
+      --machine string    raw ssh target to talk to, for a machine that is in no fleet yet: user@host[:port], or 'local'
+      --progress string   how progress is written to stderr: text (default) or json, one event per line
+
+Use "caramelo [command] --help" for more information about a command.
+
+6 commands are hidden here; 'caramelo manual --role all' lists every command of every role.
