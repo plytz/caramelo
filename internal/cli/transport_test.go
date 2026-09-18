@@ -71,6 +71,11 @@ func twoFleets() remote.CommanderConfig {
 	}
 }
 
+func initializedCommander(t *testing.T) {
+	t.Helper()
+	useCommanderConfig(t, remote.CommanderConfig{Name: "laptop", Role: remote.RoleCommander})
+}
+
 func makeSocket(t *testing.T, dir string, keep bool) string {
 	t.Helper()
 	path := filepath.Join(dir, "caramelod.sock")

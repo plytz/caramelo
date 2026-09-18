@@ -56,6 +56,18 @@ func TestGoldenPlainOutput(t *testing.T) {
 		write func(w io.Writer) error
 	}{
 		{"status", func(w io.Writer) error { return writeStatus(w, statusFixture()) }},
+		{"commander-init", func(w io.Writer) error { return commanderInitView(commanderInitFixture()).Write(w) }},
+		{"commander-init-again", func(w io.Writer) error {
+			r := commanderInitFixture()
+			r.Created, r.Changed = nil, false
+			return commanderInitView(r).Write(w)
+		}},
+		{"commander-init-renamed", func(w io.Writer) error {
+			r := commanderInitFixture()
+			r.Name, r.RenamedFrom = "desk", "laptop"
+			r.Created = []string{"/home/alex/.config/caramelo/config.yaml"}
+			return commanderInitView(r).Write(w)
+		}},
 		{"status-none", func(w io.Writer) error { return writeStatus(w, nil) }},
 		{"member-show", func(w io.Writer) error { return writeMachine(w, machineFixture()) }},
 		{"app-list", func(w io.Writer) error { return writeApps(w, appsFixture()) }},
@@ -526,4 +538,22 @@ func fleetsFixture() []fleetView {
 			},
 		},
 	})
+}
+
+func commanderInitFixture() commanderInitResult {
+	dir := "/home/alex/.config/caramelo"
+	return commanderInitResult{
+		Name:      "laptop",
+		Role:      "commander",
+		PublicKey: "u2Xq0M3zUqQ2m1Qk4ZbJk3wR2sYqfQ0h8x9mA5bJ2n8=",
+		Paths: commanderPaths{
+			Dir:         dir,
+			Config:      dir + "/config.yaml",
+			IdentityKey: dir + "/identity.key",
+			VPNDir:      dir + "/vpn",
+			CacheDir:    "/home/alex/.cache/caramelo",
+		},
+		Created: []string{dir, dir + "/vpn", "/home/alex/.cache/caramelo", dir + "/config.yaml", dir + "/identity.key"},
+		Changed: true,
+	}
 }

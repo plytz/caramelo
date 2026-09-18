@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/plytz/caramelo/internal/userdir"
 	"io/fs"
 	"net/netip"
 	"os"
@@ -12,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/plytz/caramelo/internal/remote"
 	"github.com/plytz/caramelo/internal/vpn"
 )
 
@@ -125,11 +125,11 @@ func (s *FileRecordStore) Path(fleet string) string {
 	if s.Dir != "" {
 		return filepath.Join(s.Dir, name)
 	}
-	dir, err := userdir.Config()
+	dir, err := KeyDirPath()
 	if err != nil {
-		return filepath.Join("caramelo", KeyDir, name)
+		return filepath.Join(remote.CommanderDirName, KeyDir, name)
 	}
-	return filepath.Join(dir, "caramelo", KeyDir, name)
+	return filepath.Join(dir, name)
 }
 
 func (s *FileRecordStore) Load(fleet string) (Record, error) {

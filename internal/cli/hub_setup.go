@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/plytz/caramelo/internal/config"
+	"github.com/plytz/caramelo/internal/remote"
 	"github.com/plytz/caramelo/internal/runner"
 	"github.com/plytz/caramelo/internal/serverconfig"
 	"github.com/plytz/caramelo/internal/setup"
@@ -109,7 +110,11 @@ the machine is recorded in the commander config and the API is checked from here
 					peer: spec, binary: targetBinary, release: targetRelease,
 				})
 			}
-			cfg.Name = thisMachineName(name)
+			machineName, err := commanderMachineName(name)
+			if err != nil {
+				return err
+			}
+			cfg.Name = machineName
 			resolved, err := resolveSetupConfig(cmd, configDir, cfg, fleetName)
 			if err != nil {
 				return err
@@ -173,7 +178,7 @@ the machine is recorded in the commander config and the API is checked from here
 	f.BoolVar(&dryRun, "dry-run", false, "report what would change, change nothing")
 	f.BoolVar(&noPkgs, "no-packages", false, "assume Docker is already installed")
 	f.StringVar(&target, "target", "", "set up another machine from here: [user@]host[:port] for ssh (default user: yours, port 22)")
-	f.StringVar(&name, "name", "", "what to call this machine (default: its hostname); with --target, what to call that one")
+	f.StringVar(&name, "name", "", "what to call this machine (default: this commander's name, else its hostname); with --target, what to call that one")
 	f.StringVar(&fleetName, "fleet", "", "name of the fleet this machine hubs (default: the machine's name)")
 	f.StringVar(&targetBinary, "binary", "", "the caramelo binary to ship to --target (default: this one; caramelo-<os>-<arch> beside it; or, when this binary is itself a release, that release downloaded for the target)")
 	f.StringVar(&targetRelease, "release", "",
@@ -393,6 +398,14 @@ func setRole(cmd *cobra.Command, cfg *serverconfig.Config, name, fleetName strin
 }
 
 const unnamedMachine = "caramelo"
+
+func commanderMachineName(flag string) (string, error) {
+	cfg, err := remote.LoadCommanderConfig()
+	if err != nil {
+		return "", err
+	}
+	return thisMachineName(strOr(flag, cfg.Name)), nil
+}
 
 func thisMachineName(flag string) string {
 	host, _ := os.Hostname()

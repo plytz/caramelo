@@ -66,6 +66,7 @@ var manualEnvironment = []manualFlag{
 	{Name: "XDG_CONFIG_HOME", Type: "path", Usage: "absolute path under which the commander config, its keys and its tunnel records live, in caramelo/ (default: ~/.config on every platform)"},
 	{Name: "XDG_CACHE_HOME", Type: "path", Usage: "absolute path under which ssh control sockets live, in caramelo/ (default: ~/.cache on every platform)"},
 	{Name: "XDG_RUNTIME_DIR", Type: "path", Usage: "where the transparent-mode service's control socket lives, in caramelo/ (default: the cache dir)"},
+	{Name: "SUDO_USER", Type: "string", Usage: "set by sudo: on a machine that has no config.yaml of its own, the commander config and cache read are that user's, not root's"},
 }
 
 func (a *app) manualCmd() *cobra.Command {

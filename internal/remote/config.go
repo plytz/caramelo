@@ -63,6 +63,22 @@ func CommanderConfigPath() (string, error) {
 	return filepath.Join(dir, CommanderConfigFile), nil
 }
 
+func CommanderInitialized() (bool, string, error) {
+	path, err := CommanderConfigPath()
+	if err != nil {
+		return false, "", err
+	}
+	_, err = os.Stat(path)
+	switch {
+	case err == nil:
+		return true, path, nil
+	case errors.Is(err, fs.ErrNotExist):
+		return false, path, nil
+	default:
+		return false, path, fmt.Errorf("stat %s: %w", path, err)
+	}
+}
+
 func LoadCommanderConfig() (CommanderConfig, error) {
 	path, err := CommanderConfigPath()
 	if err != nil {
@@ -114,6 +130,9 @@ func SaveCommanderConfigTo(path string, c CommanderConfig) error {
 	tmp := path + ".tmp"
 	if err := os.WriteFile(tmp, b, 0o600); err != nil {
 		return fmt.Errorf("write %s: %w", tmp, err)
+	}
+	if err := os.Chmod(tmp, 0o600); err != nil {
+		return fmt.Errorf("chmod %s: %w", tmp, err)
 	}
 	if err := os.Rename(tmp, path); err != nil {
 		return fmt.Errorf("rename %s: %w", tmp, err)

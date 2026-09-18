@@ -3,12 +3,12 @@ package vpnclient
 import (
 	"context"
 	"errors"
-	"github.com/plytz/caramelo/internal/userdir"
 	"net"
 	"net/netip"
 	"path/filepath"
 	"time"
 
+	"github.com/plytz/caramelo/internal/remote"
 	"github.com/plytz/caramelo/internal/vpn"
 )
 
@@ -147,12 +147,20 @@ var (
 	ErrNotImplemented = errors.New("not implemented")
 )
 
-func KeyPath(machine string) (string, error) {
-	dir, err := userdir.Config()
+func KeyDirPath() (string, error) {
+	dir, err := remote.CommanderDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(dir, "caramelo", KeyDir, KeyFileName(machine)), nil
+	return filepath.Join(dir, KeyDir), nil
+}
+
+func KeyPath(machine string) (string, error) {
+	dir, err := KeyDirPath()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, KeyFileName(machine)), nil
 }
 
 func KeyFileName(machine string) string {

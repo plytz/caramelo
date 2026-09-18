@@ -55,7 +55,7 @@ type Cmd = bootstrap.Cmd
 
 func useScriptedTarget(t *testing.T, report setup.Report, verify func(address string) (json.RawMessage, error)) *scriptedShell {
 	t.Helper()
-	noCommanderConfig(t)
+	initializedCommander(t)
 	placeholderLinuxSibling(t)
 	sh := &scriptedShell{report: report}
 	prevShell, prevVerify, prevJoin := newBootstrapShell, verifyMachine, joinMachine

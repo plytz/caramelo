@@ -60,6 +60,19 @@ over ssh or through the tunnel, and it can also run environments of its own with
 The commander is never a machine of the fleet: it holds no fleet state, serves no traffic, and is
 admitted to a machine as a peer like any other identity.
 
+A commander names itself, and that is the first command on a new machine. A box with no config at
+all can run exactly one thing, `caramelo commander init`: it writes `~/.config/caramelo` (mode 0700,
+`$XDG_CONFIG_HOME` when set) with `config.yaml` — `name`, `role: commander`, and the `commander:`
+block that holds the machines it talks to — the identity key every fleet is joined under, an empty
+`vpn/` for the per-fleet records, and the cache directory. The name defaults to the machine's
+hostname. It asks nothing and needs no terminal, `--json` reports what it wrote and the values it
+chose, running it again changes nothing and says so, and `--name` alone renames. The config is the
+user's and not root's: under `sudo`, on a machine that is not a server yet, caramelo reads the
+invoking user's config, so `sudo caramelo hub setup` on an initialized commander is the normal way
+to turn it into a hub. The two commands that set up another machine from this one, `caramelo hub
+setup --target` and `caramelo member add`, refuse to run from a box that is not a commander yet and
+name `caramelo commander init`.
+
 **hub.** The one machine that keeps the fleet's state — the machine list, the environment directory,
 the vault, the releases and the event feed — and acts as the fleet's head. A commander talks to the
 hub; the hub forwards what belongs elsewhere. A machine set up on its own is a hub of one, so

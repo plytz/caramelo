@@ -128,6 +128,9 @@ type fleetEntry struct {
 
 func (a *app) runBootstrap(cmd *cobra.Command, f bootstrapFlags) error {
 	ctx := cmd.Context()
+	if err := requireCommander(cmd); err != nil {
+		return err
+	}
 	target, err := remote.ParseTargetWith(f.target, localUser(), bootstrapSSHPort)
 	if err != nil {
 		return &usageError{fmt.Errorf("--target: %w", err)}

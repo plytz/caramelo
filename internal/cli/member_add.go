@@ -24,6 +24,9 @@ import (
 
 func (a *app) runMachineAdd(cmd *cobra.Command, target string, spec machineAddSpec) error {
 	ctx := cmd.Context()
+	if err := requireCommander(cmd); err != nil {
+		return err
+	}
 	name := spec.Name
 	ticket, err := a.takeTicket(ctx)
 	if err != nil {
