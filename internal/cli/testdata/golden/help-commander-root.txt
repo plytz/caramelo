@@ -8,7 +8,8 @@ rollback, and a fleet of machines behaving as one.
 
 It is built for agents first. Every command has --json output, stable exit codes
 and never waits on a terminal, so an agent can drive it from a shell; a person
-types the same commands. 'caramelo manual' is the complete reference.
+types the same commands. 'caramelo manual' is the reference for this machine,
+and 'caramelo manual --role all' for every role there is.
 
 Usage:
   caramelo [flags]
@@ -31,7 +32,7 @@ Available Commands:
   hub         Commands the machine itself runs: setup, uninstall, status, run
   key         Manage the SSH keys allowed to use the API
   logs        Show an environment's service logs, merged and prefixed
-  manual      The complete manual: every command, every flag, with examples
+  manual      The manual of this machine: every command that holds here, with examples
   member      Inspect this machine, and the fleet it is part of
   peer        Manage the identities allowed on the machine's network
   promote     End a deploy's watch: stop the old replicas and prune

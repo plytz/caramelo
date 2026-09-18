@@ -17,7 +17,7 @@ INTEGRATION_PKGS = ./test/integration/$(SUITE)/...
 E2E_PKGS         = ./test/integration/$(SUITE)/...
 endif
 
-.PHONY: all build check integration integration-clean e2e manual clean
+.PHONY: all build check integration integration-clean e2e clean
 
 all: check build
 
@@ -47,9 +47,6 @@ e2e:
 	@test -n "$(INVENTORY)" || { echo 'usage: make e2e INVENTORY=<inventory.json> [SUITE=<name>] [ARGS=...]; a clean machine between suites is the caller job unless CARAMELO_E2E_RESET names a command'; exit 1; }
 	CARAMELO_E2E_INVENTORY=$(abspath $(INVENTORY)) CARAMELO_ITEST_FACTOR=$(CARAMELO_ITEST_FACTOR) go test -tags integration,e2e -count=1 -p 1 -v -timeout 180m $(ARGS) ./test/e2e/preflight/... ./test/e2e/sshrun/...
 	CARAMELO_E2E_INVENTORY=$(abspath $(INVENTORY)) CARAMELO_ITEST_FACTOR=$(CARAMELO_ITEST_FACTOR) go test -tags integration,e2e -count=1 -p 1 -v -timeout 180m $(ARGS) $(E2E_PKGS)
-
-manual:
-	go run ./cmd/caramelo manual --markdown > MANUAL.md
 
 clean:
 	rm -rf bin

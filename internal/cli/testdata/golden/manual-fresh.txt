@@ -1,0 +1,16 @@
+fresh box: no config · run 'caramelo commander init' to name this machine
+58 commands are hidden here; 'caramelo manual --role all' lists every command
+of every role.
+
+COMMANDS
+    caramelo commander            The machine you type on: name it and write the files it needs
+      caramelo commander init     Name this machine a commander and write the files it needs
+    caramelo context              Say where this CLI is running and what a command typed here would act on
+    caramelo hub                  Commands the machine itself runs: setup, uninstall, status, run
+      caramelo hub setup          Turn this machine into a Caramelo host (run as root)
+      caramelo hub status         Report what setup installed on this machine and whether it is running
+      caramelo hub uninstall      Stop caramelod and undo what setup changed on this machine (run as root)
+    caramelo manual               The manual of this machine: every command that holds here, with examples
+    caramelo member               Inspect this machine, and the fleet it is part of
+      caramelo member join        Join this machine to a hub (run on the machine, as root)
+    caramelo version              Print the caramelo version

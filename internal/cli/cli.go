@@ -195,7 +195,8 @@ rollback, and a fleet of machines behaving as one.
 
 It is built for agents first. Every command has --json output, stable exit codes
 and never waits on a terminal, so an agent can drive it from a shell; a person
-types the same commands. 'caramelo manual' is the complete reference.`,
+types the same commands. 'caramelo manual' is the reference for this machine,
+and 'caramelo manual --role all' for every role there is.`,
 
 		SilenceErrors: true,
 		SilenceUsage:  true,
