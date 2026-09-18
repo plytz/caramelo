@@ -22,6 +22,7 @@ member:
   fleet: home
   subnet: 10.81.0.0/16
   hub:
+    name: box
     endpoint: box.example.com:4021
     address: 10.80.0.1
     public_key: Nq0Xw2mS8VbZ1YtR7dK3jL5pQ9cF4hG6uI8oP0aB2wE=
@@ -164,6 +165,26 @@ func TestAServerConfigSaysWhatThisMachineIs(t *testing.T) {
 				t.Errorf("no commander config on this box, so no fleets: %+v", c.Commander)
 			}
 		})
+	}
+}
+
+func TestAMemberNamesTheHubItJoined(t *testing.T) {
+	serverDir(t, memberConfig)
+	commanderHome(t)
+	c := detect(t, Options{})
+
+	if c.Problem != "" {
+		t.Fatalf("problem = %q, want a member config that validates", c.Problem)
+	}
+	if c.Server.Hub == nil || c.Server.Hub.Name != "box" {
+		t.Fatalf("hub = %+v, want the name the member calls it by", c.Server.Hub)
+	}
+	want := "box at box.example.com:4021"
+	if c.Server.Hub.Label() != want {
+		t.Errorf("hub label = %q, want %q", c.Server.Hub.Label(), want)
+	}
+	if got := c.Header(); !strings.Contains(got, want) {
+		t.Errorf("header = %q, want it to name the hub as %q", got, want)
 	}
 }
 

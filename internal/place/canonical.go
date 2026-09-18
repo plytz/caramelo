@@ -141,6 +141,7 @@ func canonicalMember() Context {
 		Fleet:  "home",
 		Subnet: "10.81.0.0/16",
 		Hub: serverconfig.MemberHub{
+			Name:      "box",
 			Endpoint:  "box.example.com:4021",
 			Address:   "10.80.0.1",
 			PublicKey: "Nq0Xw2mS8VbZ1YtR7dK3jL5pQ9cF4hG6uI8oP0aB2wE=",

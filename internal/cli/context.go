@@ -104,7 +104,7 @@ func serverFields(f *ui.Fields, c place.Context) {
 }
 
 func memberHubLine(h *place.MemberHub) string {
-	parts := []string{h.Endpoint}
+	parts := []string{h.Label()}
 	if h.Address != "" {
 		parts = append(parts, h.Address+" inside the tunnel")
 	}

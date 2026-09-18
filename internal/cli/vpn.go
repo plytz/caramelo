@@ -131,6 +131,10 @@ func commanderPeerName(flag string) string {
 	if n := strings.TrimSpace(flag); n != "" {
 		return n
 	}
+	return commanderName()
+}
+
+func commanderName() string {
 	cfg, err := remote.LoadCommanderConfig()
 	if err != nil {
 		return ""
@@ -177,7 +181,12 @@ func (a *app) vpnUpCmd() *cobra.Command {
 		Short: "Join the machine's network from the commander",
 		Long: `Generates a key for the commander if it has none, registers it with the
 machine as a peer, and verifies a session through the tunnel. Idempotent: a
-machine already joined is simply re-verified.`,
+machine already joined is simply re-verified.
+
+The peer is the identity this commander already joined the fleet under; on a
+first join it is the commander's own name, and --name says it explicitly. A
+commander renamed in its config keeps the peer it is on a fleet it has joined,
+because the key it holds is registered there under that name.`,
 		Args: exactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			machine, err := a.vpnFleet()
@@ -190,7 +199,8 @@ machine already joined is simply re-verified.`,
 			}
 			st, err := client.Up(cmd.Context(), vpnclient.UpRequest{
 				Machine:     machine,
-				PeerName:    commanderPeerName(peerName),
+				PeerName:    strings.TrimSpace(peerName),
+				Identity:    commanderName(),
 				Transparent: transparent,
 			})
 			if err != nil {
@@ -209,7 +219,7 @@ machine already joined is simply re-verified.`,
 		},
 	}
 	cmd.Flags().StringVar(&peerName, "name", "",
-		"identity to register the commander under (default: the commander's own name)")
+		"identity to register the commander under (default: the name it joined this fleet under, else the commander's own name)")
 	cmd.Flags().BoolVar(&transparent, "transparent", false,
 		"bring the installed background service's interface up instead of using the in-process tunnel")
 	return cmd

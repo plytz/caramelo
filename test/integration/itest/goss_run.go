@@ -16,6 +16,11 @@ const gossTimeout = 5 * time.Minute
 
 func RunGoss(t testing.TB, m *Machine, specPath string) {
 	t.Helper()
+	RunGossWith(t, m, specPath, nil)
+}
+
+func RunGossWith(t testing.TB, m *Machine, specPath string, extra map[string]string) {
+	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), m.Budget().For(gossTimeout))
 	defer cancel()
 
@@ -27,7 +32,7 @@ func RunGoss(t testing.TB, m *Machine, specPath string) {
 		t.Fatalf("goss: copy spec %s: %v", specPath, err)
 	}
 
-	vars, err := gossVars(ctx, m)
+	vars, err := gossVars(ctx, m, extra)
 	if err != nil {
 		t.Fatalf("goss: %v", err)
 	}
@@ -97,7 +102,7 @@ func ensureGossOn(ctx context.Context, m *Machine) error {
 	return nil
 }
 
-func gossVars(ctx context.Context, m *Machine) (string, error) {
+func gossVars(ctx context.Context, m *Machine, extra map[string]string) (string, error) {
 	user := UserOf(m)
 	res, err := m.Run(ctx, "id -u "+ShellQuote(user))
 	if err != nil {
@@ -115,6 +120,9 @@ func gossVars(ctx context.Context, m *Machine) (string, error) {
 		"home": HomeOf(m),
 		"uid":  strings.TrimSpace(res.Stdout),
 		"arch": arch,
+	}
+	for k, v := range extra {
+		vars[k] = v
 	}
 	b, err := json.Marshal(vars)
 	if err != nil {

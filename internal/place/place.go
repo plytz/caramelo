@@ -127,11 +127,24 @@ type Server struct {
 }
 
 type MemberHub struct {
+	Name string `json:"name,omitempty"`
+
 	Endpoint string `json:"endpoint,omitempty"`
 
 	Address string `json:"address,omitempty"`
 
 	PublicKey string `json:"public_key,omitempty"`
+}
+
+func (h MemberHub) Label() string {
+	switch {
+	case h.Name != "" && h.Endpoint != "":
+		return h.Name + " at " + h.Endpoint
+	case h.Name != "":
+		return h.Name
+	default:
+		return h.Endpoint
+	}
 }
 
 type Paths struct {
@@ -321,7 +334,7 @@ func serverOf(cfg serverconfig.Config, dir string, exists func(string) bool) *Se
 	}
 	if cfg.IsMember() {
 		h := cfg.Member.Hub
-		s.Hub = &MemberHub{Endpoint: h.Endpoint, Address: h.Address, PublicKey: h.PublicKey}
+		s.Hub = &MemberHub{Name: h.Name, Endpoint: h.Endpoint, Address: h.Address, PublicKey: h.PublicKey}
 	}
 	return s
 }
@@ -502,8 +515,8 @@ func (c Context) serverHeader() []string {
 	if s.Fleet != "" {
 		what += " of fleet " + s.Fleet
 	}
-	if c.Role == RoleMember && s.Hub != nil && s.Hub.Endpoint != "" {
-		what += " (hub " + s.Hub.Endpoint + ")"
+	if c.Role == RoleMember && s.Hub != nil && s.Hub.Label() != "" {
+		what += " (hub " + s.Hub.Label() + ")"
 	}
 	name := c.Name
 	if name == "" {
