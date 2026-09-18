@@ -17,6 +17,8 @@ const headerIndent = "  "
 
 const headerSeparator = " · "
 
+const headerMaxLines = 3
+
 func (a *app) installHelp(root *cobra.Command) {
 	help, usage := root.HelpFunc(), root.UsageFunc()
 	root.SetHelpFunc(func(cmd *cobra.Command, args []string) {
@@ -127,7 +129,8 @@ func headerLines(parts []string) []string {
 		switch {
 		case line == "":
 			line = part
-		case utf8.RuneCountInString(line+headerSeparator+part) <= headerWidth:
+		case len(lines) == headerMaxLines-1,
+			utf8.RuneCountInString(line+headerSeparator+part) <= headerWidth:
 			line += headerSeparator + part
 		default:
 			lines = append(lines, line+" ·")

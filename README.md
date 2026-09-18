@@ -34,8 +34,8 @@ results but the human experience will be tuned to work through a coding agent.
   somewhere else is refused before anything happens, exit 2, in one line naming where it belongs.
   `caramelo context` says where you are.
 - **`--help` is the commands of this machine.** It opens with the line that says where you are and
-  lists only what holds there, so a laptop is not offered `hub run` and a member box is not offered
-  a fleet's machines.
+  lists only what holds there, so `caramelo --help` on a member has no `env`, `vpn` or `fleet` in it
+  and its `member` group offers neither `add` nor `remove` nor `token`.
 - **The manual is part of the tool.** `caramelo manual` is generated from the same definitions the
   commands run on, so it cannot drift, and every example in it is checked against the real flags.
 - **Humans get the same commands.** No separate mode, no behaviour that changes because a terminal
