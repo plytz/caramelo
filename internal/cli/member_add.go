@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/netip"
 	"sort"
 	"strings"
 	"time"
@@ -152,8 +153,10 @@ func defaultMachineName(target string) string {
 	if i := strings.Index(host, ":"); i >= 0 {
 		host = host[:i]
 	}
-	if i := strings.Index(host, "."); i > 0 {
-		host = host[:i]
+	if _, err := netip.ParseAddr(host); err != nil {
+		if i := strings.Index(host, "."); i > 0 {
+			host = host[:i]
+		}
 	}
 	return strOr(machineNameSlug(host), "member")
 }

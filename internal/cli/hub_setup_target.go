@@ -205,7 +205,7 @@ func (a *app) runBootstrap(cmd *cobra.Command, f bootstrapFlags) error {
 			*f.report = r
 			return nil
 		}
-		return a.printBootstrap(r, name, verified)
+		return a.printBootstrap(r, fleetName, verified)
 	}
 	if !peer.Empty() {
 		res.Peer = &peer
@@ -240,9 +240,10 @@ func (a *app) runBootstrap(cmd *cobra.Command, f bootstrapFlags) error {
 	if err != nil {
 		res.Reachability = reachability(fleetName, endpoint, joined, joinErr, res.Transport)
 		_ = answer(res, false)
-		return fmt.Errorf("setup finished on %s and it is recorded as machine %q, but the API at %s did not answer from here: %w\n"+
-			"%s\ncheck that port %d and udp %s are reachable (firewall, security group), then try: caramelo --machine %s status",
-			target, name, address, err, bootstrapFailureCause(out.Report, res.Reachability), address.Port, f.cfg.VPNListen, name)
+		return fmt.Errorf("setup finished on %s and its fleet is recorded as %q, but the API at %s did not answer from here: %w\n"+
+			"%s\ncheck that port %d and udp %s are reachable (firewall, security group), then try: %s",
+			target, fleetName, address, err, bootstrapFailureCause(out.Report, res.Reachability),
+			address.Port, f.cfg.VPNListen, statusHint(entry.Name, entry.Default))
 	}
 	res.Verified, res.Status = true, status
 	res.Transport = transportOf(status)
@@ -322,7 +323,7 @@ func verifyOverSSH(ctx context.Context, a *app, fleet string) (json.RawMessage, 
 	return nil, lastErr
 }
 
-func (a *app) printBootstrap(res bootstrapResult, name string, verified bool) error {
+func (a *app) printBootstrap(res bootstrapResult, fleet string, verified bool) error {
 	return a.printer().Result(res, func(w io.Writer) error {
 
 		if res.Probe.OS != "" || res.Probe.Arch != "" {
@@ -348,16 +349,20 @@ func (a *app) printBootstrap(res bootstrapResult, name string, verified bool) er
 		if !verified {
 			return nil
 		}
-		try := "caramelo --fleet " + name + " status"
+		try := statusHint(fleet, false)
 		if res.Fleet != nil {
-			try = "caramelo --fleet " + res.Fleet.Name + " status"
-			if res.Fleet.Default {
-				try = "caramelo status"
-			}
+			try = statusHint(res.Fleet.Name, res.Fleet.Default)
 		}
 		_, err := fmt.Fprintf(w, "API verified from here; try: %s\n", try)
 		return err
 	})
+}
+
+func statusHint(fleet string, isDefault bool) string {
+	if isDefault {
+		return "caramelo status"
+	}
+	return "caramelo --fleet " + fleet + " status"
 }
 
 func writeBootstrapSummary(w io.Writer, r setup.Report) error {

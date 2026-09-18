@@ -88,8 +88,11 @@ config directory is `$XDG_CONFIG_HOME/caramelo`, else `~/.config/caramelo`, and 
 to is decided in this order: `--fleet` (or `CARAMELO_FLEET`), a local caramelod socket, the fleet
 recorded for the app of the checkout you are standing in, `commander.default_fleet`, and the only
 fleet when there is exactly one; with several fleets and none of those, the command refuses and
-names them. `--machine user@host` is the raw ssh target for a box that is in no fleet yet.
-`caramelo fleet list|add|remove|default` manage the map.
+names them. `--machine user@host` is the raw ssh target for a box that is in no fleet yet: typed on the command
+line it drops whatever `CARAMELO_FLEET` said, as `--fleet` drops `CARAMELO_MACHINE`, and asking for
+both at once is refused. `caramelo fleet list|add|remove|default` manage the map; `fleet remove`
+forgets the fleet's tunnel record and key with its entry, so a hub rebuilt at the same address is
+pinned afresh when the fleet is added again.
 
 A fleet's real identity is its hub's public key. It is pinned the first time this commander reaches
 the fleet, and a hub answering at the same address with another key is refused rather than adopted;

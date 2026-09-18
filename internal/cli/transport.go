@@ -67,6 +67,10 @@ func forwardImpl(ctx context.Context, a *app) (int, error) {
 	if os.Getenv("CARAMELO_DEBUG") != "" {
 		fmt.Fprintf(a.stderr, "transport: %s (%s)\n", t, t.why)
 	}
+	return runTransport(ctx, a, t)
+}
+
+var runTransport = func(ctx context.Context, a *app, t transport) (int, error) {
 	switch t.kind {
 	case kindSocket:
 		return forwardSocket(ctx, a, t)

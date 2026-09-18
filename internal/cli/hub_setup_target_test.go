@@ -158,13 +158,13 @@ func TestSetupTargetHumanOutputAndCustomPort(t *testing.T) {
 	if sh.target.Port != 2222 || sh.target.User != localUser() {
 		t.Errorf("target = %+v", sh.target)
 	}
-	for _, want := range []string{"2 steps, 1 changed, 0 failed", "fleet 10 (hub caramelo@10.0.0.5:5022) recorded in", "try: caramelo --fleet 10 status"} {
+	for _, want := range []string{"2 steps, 1 changed, 0 failed", "fleet 10-0-0-5 (hub caramelo@10.0.0.5:5022) recorded in", "try: caramelo --fleet 10-0-0-5 status"} {
 		if !strings.Contains(stdout, want) {
 			t.Errorf("stdout lacks %q:\n%s", want, stdout)
 		}
 	}
 	cfg, _ := remote.LoadCommanderConfig()
-	if cfg.Commander.DefaultFleet != "first" || cfg.Commander.Fleets["10"].Hub != "caramelo@10.0.0.5:5022" {
+	if cfg.Commander.DefaultFleet != "first" || cfg.Commander.Fleets["10-0-0-5"].Hub != "caramelo@10.0.0.5:5022" {
 		t.Errorf("commander config = %+v", cfg)
 	}
 }
@@ -216,11 +216,21 @@ func TestSetupTargetUnreachableAPIIsAnError(t *testing.T) {
 	useScriptedTarget(t, greenReport(), func(string) (json.RawMessage, error) {
 		return nil, context.DeadlineExceeded
 	})
+	if err := remote.SaveCommanderConfig(remote.CommanderConfig{
+		Name: "laptop",
+		Role: remote.RoleCommander,
+		Commander: remote.Commander{
+			DefaultFleet: "first",
+			Fleets:       map[string]remote.Fleet{"first": {Hub: "caramelo@a:4022"}},
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
 	code, _, stderr := run(t, "hub", "setup", "--target", "root@box", "--yes")
 	if code != ExitError {
 		t.Fatalf("exit %d, want %d", code, ExitError)
 	}
-	for _, want := range []string{"recorded as machine \"box\"", "port 4022", "caramelo --machine box status"} {
+	for _, want := range []string{"its fleet is recorded as \"box\"", "port 4022", "caramelo --fleet box status"} {
 		if !strings.Contains(stderr, want) {
 			t.Errorf("stderr lacks %q: %s", want, stderr)
 		}
@@ -229,6 +239,29 @@ func TestSetupTargetUnreachableAPIIsAnError(t *testing.T) {
 	cfg, _ := remote.LoadCommanderConfig()
 	if cfg.Commander.Fleets["box"].Hub == "" {
 		t.Errorf("fleet not recorded: %+v", cfg)
+	}
+}
+
+func TestSetupTargetNamesAFleetAfterTheWholeAddress(t *testing.T) {
+	useScriptedTarget(t, greenReport(), okVerify)
+
+	for _, target := range []string{"10.0.0.5", "10.0.0.6"} {
+		if code, _, stderr := run(t, "hub", "setup", "--target", target, "--yes"); code != ExitOK {
+			t.Fatalf("hub setup %s: exit %d: %s", target, code, stderr)
+		}
+	}
+
+	cfg, _ := remote.LoadCommanderConfig()
+	if len(cfg.Commander.Fleets) != 2 {
+		t.Fatalf("fleets = %+v, want one per hub: two boxes in the same /8 are two fleets", cfg.Commander.Fleets)
+	}
+	for name, hub := range map[string]string{
+		"10-0-0-5": "caramelo@10.0.0.5:4022",
+		"10-0-0-6": "caramelo@10.0.0.6:4022",
+	} {
+		if got := cfg.Commander.Fleets[name].Hub; got != hub {
+			t.Errorf("fleet %s hub = %q, want %q", name, got, hub)
+		}
 	}
 }
 
@@ -623,7 +656,7 @@ func TestSetupTargetUnreachableAPINamesTheFirewallAndTheMachineVerdict(t *testin
 		t.Fatalf("exit %d, want %d", code, ExitError)
 	}
 	for _, want := range []string{"firewall", "not the one blocking the way in",
-		"security group", "port 4022", "caramelo --machine box status"} {
+		"security group", "port 4022", "then try: caramelo status"} {
 		if !strings.Contains(stderr, want) {
 			t.Errorf("stderr lacks %q:\n%s", want, stderr)
 		}

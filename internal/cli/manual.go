@@ -49,7 +49,7 @@ var manualAgentNotes = []string{
 	"Progress and diagnostics go to standard error. With --progress json each line on standard error is one JSON event with the same shape as `caramelo events --json`.",
 	"Exit codes are stable: 0 is success, 1 is a failure the command reports, 2 is a usage error (unknown command, bad flag, missing argument).",
 	"No command needs a terminal. Anything a person is asked interactively can be answered with a flag, and when standard input is not a terminal the command fails at once naming that flag instead of waiting.",
-	"The fleet a command talks to is picked by --fleet (CARAMELO_FLEET is its default), then a local caramelod socket if there is one, then the fleet recorded for the app of this checkout, then commander.default_fleet, then the only fleet there is; with several fleets and none of those, the command refuses and names them. --machine user@host reaches a box that is in no fleet yet.",
+	"The fleet a command talks to is picked by --fleet (CARAMELO_FLEET is its default), then a local caramelod socket if there is one, then the fleet recorded for the app of this checkout, then commander.default_fleet, then the only fleet there is; with several fleets and none of those, the command refuses and names them. --machine user@host reaches a box that is in no fleet yet: typed on the command line it drops whatever CARAMELO_FLEET said, as --fleet drops CARAMELO_MACHINE, and asking for both at once is refused.",
 	"The app and the environment default to the git checkout the command runs in; --app and --env (or CARAMELO_APP and CARAMELO_ENV) name them explicitly.",
 	"Names in the manual are placeholders: feat-x is an environment, shop is an app, box is a machine, home is a fleet.",
 }
