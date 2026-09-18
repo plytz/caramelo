@@ -1,0 +1,45 @@
+laptop, commander · fleets home (default), work ·
+  app shop → fleet home (the fleet recorded for app shop) · env feat-x
+
+An environment is an isolated, disposable copy of an app on the machine:
+a git worktree on its own branch, its own block of ports, a container and a
+named volume per dependency, and the variables that tie them together. Many
+of them can exist at once without sharing anything.
+
+The app is the repository you are standing in; --app (or CARAMELO_APP) names
+it explicitly when you are not.
+
+Usage:
+  caramelo env [flags]
+  caramelo env [command]
+
+Examples:
+  caramelo env create feat-x --from main
+  caramelo env list
+  caramelo env show feat-x
+  caramelo env destroy feat-x --yes
+
+
+Available Commands:
+  create          Create an environment: worktree, ports, dependency containers
+  destroy         Remove an environment: containers, volumes, worktree
+  exec            Run a command inside an environment, on the machine
+  export          Print an environment's variables, for eval, .env or JSON
+  expose          Put an environment's service behind a public hostname
+  handoff         Give an environment to another peer
+  list            List the environments of an app
+  show            Show one environment and what its dependencies are doing
+  unexpose        Stop serving an environment's public hostnames
+  url             Print where an environment's services and dependencies answer
+
+Flags:
+      --app string   application these environments belong to (default: the checkout you are in)
+  -h, --help         help for env
+
+Global Flags:
+      --fleet string      fleet to talk to, by its name in the commander config (default: the app's fleet, then the default fleet)
+      --json              print machine-readable JSON on stdout
+      --machine string    raw ssh target to talk to, for a machine that is in no fleet yet: user@host[:port], or 'local'
+      --progress string   how progress is written to stderr: text (default) or json, one event per line
+
+Use "caramelo env [command] --help" for more information about a command.

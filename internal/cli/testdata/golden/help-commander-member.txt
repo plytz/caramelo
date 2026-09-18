@@ -1,0 +1,39 @@
+laptop, commander · fleets home (default), work ·
+  no app checkout here → fleet home (commander.default_fleet)
+
+The member group is the fleet's: add, token and join are how a box
+becomes a member of a fleet; list, show and remove are what the fleet says
+about itself. A machine that has joined nothing is a fleet of one.
+
+show with no name prints this machine's record instead: CPU, memory, disks, OS,
+network, cgroups and Docker, gauged at setup and at every caramelod start.
+
+Usage:
+  caramelo member [flags]
+  caramelo member [command]
+
+Examples:
+  caramelo member show
+  caramelo member list
+  caramelo member add you@second-box
+
+
+Available Commands:
+  add         Set a box up and join it to this fleet
+  list        List the machines of the fleet
+  remove      Remove a machine from the fleet
+  show        Print the machine record, or one machine of the fleet
+  token       Print a one-time token a machine can join with
+
+Flags:
+  -h, --help   help for member
+
+Global Flags:
+      --fleet string      fleet to talk to, by its name in the commander config (default: the app's fleet, then the default fleet)
+      --json              print machine-readable JSON on stdout
+      --machine string    raw ssh target to talk to, for a machine that is in no fleet yet: user@host[:port], or 'local'
+      --progress string   how progress is written to stderr: text (default) or json, one event per line
+
+Use "caramelo member [command] --help" for more information about a command.
+
+2 commands are hidden here; 'caramelo manual --role all' lists every command of every role.

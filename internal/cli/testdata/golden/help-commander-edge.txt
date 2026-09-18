@@ -1,0 +1,43 @@
+laptop, commander · fleets home (default), work ·
+  no app checkout here → fleet home (commander.default_fleet)
+
+A machine with an edge answers ports 80 and 443 for the hostnames its
+environments are exposed under: HTTP/1.1, HTTP/2 and HTTP/3, certificates
+issued and renewed on their own, WebSockets passed through, and several
+replicas of a service behind one name with the old ones drained rather than
+killed when they are replaced.
+
+Run without a subcommand, this is the edge process itself: systemd starts it
+with the sockets root bound at boot, and it is not something to run by hand.
+Use 'caramelo edge status' to ask a machine what its edge is doing.
+
+Usage:
+  caramelo edge [flags]
+  caramelo edge [command]
+
+Examples:
+  caramelo edge status
+  caramelo edge enable --acme-email ops@example.com
+  caramelo edge counts --since 10m
+  caramelo edge prune --dry-run
+
+
+Available Commands:
+  ca          Print the machine's internal CA root, to trust it
+  counts      Requests, errors and connection failures per hostname and replica
+  prune       Remove certificates left behind by an issuer this machine no longer uses
+  status      Show the machine's routes, targets and certificates
+
+Flags:
+      --config-dir string   directory holding config.yaml (default "/etc/caramelo")
+  -h, --help                help for edge
+
+Global Flags:
+      --fleet string      fleet to talk to, by its name in the commander config (default: the app's fleet, then the default fleet)
+      --json              print machine-readable JSON on stdout
+      --machine string    raw ssh target to talk to, for a machine that is in no fleet yet: user@host[:port], or 'local'
+      --progress string   how progress is written to stderr: text (default) or json, one event per line
+
+Use "caramelo edge [command] --help" for more information about a command.
+
+2 commands are hidden here; 'caramelo manual --role all' lists every command of every role.

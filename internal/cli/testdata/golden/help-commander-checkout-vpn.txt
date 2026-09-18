@@ -1,0 +1,40 @@
+laptop, commander · fleets home (default), work ·
+  app shop → fleet home (the fleet recorded for app shop) · env feat-x
+
+Every Caramelo machine is a private network: the box, each of its
+environments and each authorized peer has an address on it, and nothing else on
+the internet gets an answer.
+
+By default nothing is installed and nothing needs root: the CLI carries the
+tunnel in process, and 'caramelo connect' lends it to other programs as local
+ports. 'caramelo vpn install' is the one-time sudo that turns on transparent
+mode, where names like db.feat-x.shop.internal work in every program.
+
+Usage:
+  caramelo vpn [flags]
+  caramelo vpn [command]
+
+Examples:
+  caramelo vpn up
+  caramelo vpn status
+  caramelo vpn down
+
+
+Available Commands:
+  config      Print a wg-quick configuration for a third-party WireGuard client
+  down        Leave the machine's network (transparent mode only)
+  install     Install transparent mode: a background service and split DNS (needs root)
+  status      Show the mode, address, last handshake and resolver
+  uninstall   Remove transparent mode's service and DNS entry (needs root)
+  up          Join the machine's network from the commander
+
+Flags:
+  -h, --help   help for vpn
+
+Global Flags:
+      --fleet string      fleet to talk to, by its name in the commander config (default: the app's fleet, then the default fleet)
+      --json              print machine-readable JSON on stdout
+      --machine string    raw ssh target to talk to, for a machine that is in no fleet yet: user@host[:port], or 'local'
+      --progress string   how progress is written to stderr: text (default) or json, one event per line
+
+Use "caramelo vpn [command] --help" for more information about a command.

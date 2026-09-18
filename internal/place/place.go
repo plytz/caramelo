@@ -471,16 +471,18 @@ func (c Context) FleetNames() []string {
 	return names
 }
 
-func (c Context) Header() string {
+func (c Context) Header() string { return strings.Join(c.HeaderParts(), " · ") }
+
+func (c Context) HeaderParts() []string {
 	switch {
 	case c.IsFresh():
-		return "fresh box: no config · run 'caramelo commander init' to name this machine"
+		return []string{"fresh box: no config", "run 'caramelo commander init' to name this machine"}
 	case c.IsServer():
-		return strings.Join(c.serverHeader(), " · ")
+		return c.serverHeader()
 	case c.IsCommander():
-		return strings.Join(c.commanderHeader(), " · ")
+		return c.commanderHeader()
 	}
-	return strings.Join([]string{c.Name + ", " + c.Role, c.ConfigFile}, " · ")
+	return []string{c.Name + ", " + c.Role, c.ConfigFile}
 }
 
 func (c Context) serverHeader() []string {

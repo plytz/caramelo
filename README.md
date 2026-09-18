@@ -33,6 +33,9 @@ results but the human experience will be tuned to work through a coding agent.
   makes sense — a commander, a hub, a member, a box with no config at all, as root — and typing it
   somewhere else is refused before anything happens, exit 2, in one line naming where it belongs.
   `caramelo context` says where you are.
+- **`--help` is the commands of this machine.** It opens with the line that says where you are and
+  lists only what holds there, so a laptop is not offered `hub run` and a member box is not offered
+  a fleet's machines.
 - **The manual is part of the tool.** `caramelo manual` is generated from the same definitions the
   commands run on, so it cannot drift, and every example in it is checked against the real flags.
 - **Humans get the same commands.** No separate mode, no behaviour that changes because a terminal
@@ -155,6 +158,15 @@ is the same answer for an agent.
 It costs a file or two, one socket and one `git rev-parse`, and it never dials a machine: it is the
 cheap answer about the place, where `caramelo hub status` is the deep answer about a machine. Run it
 first on a box that puzzles you.
+
+`--help` is scoped to that same place. It opens with the header `caramelo context` opens with, then
+lists only the commands that hold where you are: a command whose condition fails is left out, and a
+group no child of which holds goes with them, so `caramelo --help` on a member has no `env`, `vpn`
+or `fleet` in it and `caramelo hub --help` on a commander offers `setup` and `probe` and not `run`.
+The line after the list says how many commands are hidden and that `caramelo manual --role all`
+lists every command of every role. Help has no role flag: it answers for the machine it runs on. The
+help of a single command always prints in full, whether or not that command holds here, so
+`caramelo hub run --help` still explains itself on a laptop.
 
 ## Development
 

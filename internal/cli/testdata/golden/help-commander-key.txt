@@ -1,0 +1,32 @@
+laptop, commander · fleets home (default), work ·
+  no app checkout here → fleet home (commander.default_fleet)
+
+Keys are the only way in: caramelod re-reads its authorized_keys on
+every connection, and the key's name is the identity logged with every command.
+
+Usage:
+  caramelo key [flags]
+  caramelo key [command]
+
+Examples:
+  caramelo key add --file ~/.ssh/id_ed25519.pub       # under the commander's own name
+  caramelo key add --name laptop --file ~/.ssh/id_ed25519.pub
+  caramelo key list
+  caramelo key remove laptop
+
+
+Available Commands:
+  add         Authorize a public key, read from a file or standard input
+  list        List the authorized keys
+  remove      Revoke a key by name
+
+Flags:
+  -h, --help   help for key
+
+Global Flags:
+      --fleet string      fleet to talk to, by its name in the commander config (default: the app's fleet, then the default fleet)
+      --json              print machine-readable JSON on stdout
+      --machine string    raw ssh target to talk to, for a machine that is in no fleet yet: user@host[:port], or 'local'
+      --progress string   how progress is written to stderr: text (default) or json, one event per line
+
+Use "caramelo key [command] --help" for more information about a command.
