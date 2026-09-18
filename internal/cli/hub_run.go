@@ -35,7 +35,7 @@ configured port and local socket until told to stop.`,
 				return sshapi.Run(ctx, cfg, configDir, version, a.stderr, execCommand)
 			},
 		}
-		cmd.Flags().StringVar(&configDir, "config-dir", serverconfig.DefaultConfigDir,
+		cmd.Flags().StringVar(&configDir, "config-dir", serverconfig.ConfigDir(),
 			"directory holding config.yaml")
 		return cmd
 	})

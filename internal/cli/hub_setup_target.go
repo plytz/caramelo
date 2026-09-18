@@ -99,7 +99,7 @@ var forwardedFlags = []string{
 	"config-dir", "state-dir", "data-dir", "user", "group", "ssh-port", "bind",
 	"vpn-subnet", "vpn-listen", "api-listen",
 	"edge", "acme-email", "acme-ca", "tls", "no-http3", "swap",
-	"join-token", "join-name", "private",
+	"name", "fleet", "join-token", "join-name", "private",
 	"force", "low-ports", "open-ports", "dry-run", "no-packages",
 }
 

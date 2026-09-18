@@ -43,6 +43,8 @@ type Env struct {
 	Firewall *firewall.Report
 }
 
+func (e *Env) PrivateDoor() bool { return e.Opts.Private || e.Config.Member.Private }
+
 type Options struct {
 	AuthorizedKeysFile string
 	Yes                bool
@@ -50,6 +52,7 @@ type Options struct {
 	LowPorts           bool
 	InstallPackages    bool
 	OpenPorts          bool
+	Private            bool
 
 	Join JoinSpec
 

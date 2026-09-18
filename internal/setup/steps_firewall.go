@@ -21,7 +21,7 @@ func NewFirewallStep() *FirewallStep { return &FirewallStep{} }
 func (s *FirewallStep) Name() string { return "firewall" }
 
 func (s *FirewallStep) Check(ctx context.Context, env *Env) (bool, string, error) {
-	want := firewall.Required(env.Config, WantsInbound(env.Config, env.Opts))
+	want := firewall.Required(env.Config, WantsInbound(env.Config, env.Opts), env.PrivateDoor())
 	rep, err := firewall.Check(ctx, env.Run, geteuid(), want)
 	if err != nil {
 		return false, "", fmt.Errorf("read this machine's firewall: %w", err)

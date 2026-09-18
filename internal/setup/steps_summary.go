@@ -61,13 +61,13 @@ func (s *SummaryStep) Check(ctx context.Context, env *Env) (bool, string, error)
 
 func describeFleet(cfg serverconfig.Config) string {
 	if !cfg.IsMember() {
-		return "a hub (a machine on its own is a fleet of one)"
+		return fmt.Sprintf("the hub of the fleet %s (a machine on its own is a fleet of one)", cfg.FleetName())
 	}
-	s := fmt.Sprintf("a member of %s at %s", cfg.Fleet.Hub.Name, cfg.Fleet.Hub.Endpoint)
-	if sub := strings.TrimSpace(cfg.Fleet.Subnet); sub != "" {
+	s := fmt.Sprintf("a member of the fleet %s at %s", cfg.FleetName(), cfg.Member.Hub.Endpoint)
+	if sub := strings.TrimSpace(cfg.Member.Subnet); sub != "" {
 		s += ", " + sub
 	}
-	if cfg.Fleet.Private {
+	if cfg.Member.Private {
 		s += ", private: it is served through its hub and listens on nothing public"
 	}
 	return s
@@ -151,7 +151,7 @@ func (s *SummaryStep) reportPorts(ctx context.Context, env *Env, ip string) {
 	cfg := env.Config
 	rep := env.Firewall
 	if rep == nil {
-		want := firewall.Required(cfg, WantsInbound(cfg, env.Opts))
+		want := firewall.Required(cfg, WantsInbound(cfg, env.Opts), env.PrivateDoor())
 		if len(want) > 0 {
 			logf(env, "this machine needs %s; the firewall was not read in this run", firewall.List(want))
 		}

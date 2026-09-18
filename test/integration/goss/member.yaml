@@ -4,9 +4,10 @@ file:
     filetype: file
     mode: "0640"
     contents:
-      - "fleet:"
       - "role: member"
-      - "hub:"
+      - "member:"
+      - "    fleet:"
+      - "    hub:"
 
   /var/lib/caramelo/caramelo.db:
     exists: true

@@ -22,6 +22,7 @@ func aJoinTicket(t *testing.T) (fleet.Ticket, string) {
 	}
 	tk := fleet.Ticket{
 		Hub:       "nx1",
+		Fleet:     "home",
 		Endpoint:  "hub.example.com:4021",
 		PublicKey: pub.Base64(),
 		Address:   "10.86.0.1",
@@ -155,12 +156,12 @@ func TestJoiningTheHubThisMachineIsAlreadyInStillReportsNoChange(t *testing.T) {
 	configDir, cfg := tempServerConfig(t)
 	ticket, token := aJoinTicket(t)
 	cfg.VPNSubnet = "10.87.0.0/16"
-	cfg.Fleet = serverconfig.Fleet{
-		Role:   serverconfig.RoleMember,
-		Name:   "m1",
+	cfg.Name, cfg.Role, cfg.Hub = "m1", serverconfig.RoleMember, serverconfig.Hub{}
+	cfg.Member = serverconfig.Member{
+		Fleet:  ticket.Fleet,
 		Subnet: "10.87.0.0/16",
-		Hub: serverconfig.FleetHub{
-			Name: ticket.Hub, Endpoint: ticket.Endpoint, Address: ticket.Address, PublicKey: ticket.PublicKey,
+		Hub: serverconfig.MemberHub{
+			Endpoint: ticket.Endpoint, Address: ticket.Address, PublicKey: ticket.PublicKey,
 		},
 	}
 	if err := serverconfig.Save(configDir, cfg, 0o640); err != nil {
@@ -173,6 +174,33 @@ func TestJoiningTheHubThisMachineIsAlreadyInStillReportsNoChange(t *testing.T) {
 	}
 	if !strings.Contains(stdout, ticket.Hub) {
 		t.Errorf("stdout = %q, want it to name the hub it is already a member of", stdout)
+	}
+}
+
+func TestJoiningAnotherFleetUnderTheSameHubKeyIsRefused(t *testing.T) {
+	configDir, cfg := tempServerConfig(t)
+	ticket, token := aJoinTicket(t)
+	cfg.VPNSubnet = "10.87.0.0/16"
+	cfg.Name, cfg.Role, cfg.Hub = "m1", serverconfig.RoleMember, serverconfig.Hub{}
+	cfg.Member = serverconfig.Member{
+		Fleet:  "work",
+		Subnet: "10.87.0.0/16",
+		Hub: serverconfig.MemberHub{
+			Endpoint: ticket.Endpoint, Address: ticket.Address, PublicKey: ticket.PublicKey,
+		},
+	}
+	if err := serverconfig.Save(configDir, cfg, 0o640); err != nil {
+		t.Fatal(err)
+	}
+
+	code, _, stderr := run(t, "member", "join", ticket.Endpoint, "--token", token, "--config-dir", configDir)
+	if code == ExitOK {
+		t.Fatal("a member of one fleet joined another under the same hub key")
+	}
+	for _, want := range []string{"work", ticket.Fleet, "member leave"} {
+		if !strings.Contains(stderr, want) {
+			t.Errorf("stderr = %q, want it to mention %q", stderr, want)
+		}
 	}
 }
 

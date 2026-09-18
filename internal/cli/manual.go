@@ -61,6 +61,7 @@ var manualEnvironment = []manualFlag{
 	{Name: "CARAMELO_SSH", Type: "string", Usage: "the ssh program used to reach a user@host machine (default: ssh)"},
 	{Name: "CARAMELO_SSH_OPTS", Type: "string", Usage: "extra arguments for that ssh, split like shell words"},
 	{Name: "CARAMELO_DEBUG", Type: "string", Usage: "when set, say on standard error which transport was chosen and why"},
+	{Name: "CARAMELO_CONFIG_DIR", Type: "path", Usage: "directory holding a machine's config.yaml, as --config-dir (default: /etc/caramelo)"},
 	{Name: "XDG_CONFIG_HOME", Type: "path", Usage: "absolute path under which the commander config and keys live, in caramelo/ (default: the platform's user config dir)"},
 	{Name: "XDG_CACHE_HOME", Type: "path", Usage: "absolute path under which ssh control sockets live, in caramelo/ (default: the platform's user cache dir)"},
 	{Name: "XDG_RUNTIME_DIR", Type: "path", Usage: "where the transparent-mode service's control socket lives, in caramelo/ (default: the cache dir)"},

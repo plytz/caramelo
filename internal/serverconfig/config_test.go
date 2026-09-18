@@ -18,6 +18,7 @@ import (
 func TestDefault(t *testing.T) {
 	c := Default()
 	want := Config{
+		Role: RoleHub,
 		User: "caramelo", Group: "caramelo",
 		StateDir: "/var/lib/caramelo", DataDir: "/mnt/caramelo", RunDir: "/run/caramelo",
 		SSHPort: 4022, Bind: "0.0.0.0",
@@ -29,8 +30,11 @@ func TestDefault(t *testing.T) {
 	if !reflect.DeepEqual(c, want) {
 		t.Errorf("Default() =\n %+v\nwant\n %+v", c, want)
 	}
-	if err := c.Validate(); err != nil {
-		t.Errorf("Default() does not validate: %v", err)
+	if err := c.Validate(); err == nil {
+		t.Error("Default() validates although it names neither the machine nor its fleet")
+	}
+	if err := hubConfig("box").Validate(); err != nil {
+		t.Errorf("a named hub of a named fleet does not validate: %v", err)
 	}
 }
 
@@ -72,7 +76,7 @@ func TestDerivedPaths(t *testing.T) {
 
 func TestDerivedPathsFollowConfig(t *testing.T) {
 
-	c := Default()
+	c := hubConfig("box")
 	c.StateDir, c.DataDir, c.RunDir = "/srv/state", "/srv/data", "/srv/run"
 	for _, p := range []string{c.DBPath(), c.SSHDir(), c.HostKeyPath(), c.AuthorizedKeysPath()} {
 		if !strings.HasPrefix(p, c.StateDir) {
@@ -91,7 +95,7 @@ func TestDerivedPathsFollowConfig(t *testing.T) {
 
 func TestSaveLoadRoundTrip(t *testing.T) {
 	dir := t.TempDir()
-	want := Default()
+	want := hubConfig("box")
 	want.User, want.Group = "someone", "somegroup"
 	want.SSHPort = 2222
 	want.Bind = "127.0.0.1"
@@ -136,7 +140,7 @@ func TestSaveLoadRoundTrip(t *testing.T) {
 	if err := yaml.Unmarshal(b, &raw); err != nil {
 		t.Fatalf("unmarshal written config: %v", err)
 	}
-	for _, key := range []string{"user", "group", "state_dir", "data_dir", "run_dir", "ssh_port", "bind", "reserve", "swap", "vpn_subnet", "vpn_listen", "api_listen"} {
+	for _, key := range []string{"name", "role", "hub", "user", "group", "state_dir", "data_dir", "run_dir", "ssh_port", "bind", "reserve", "swap", "vpn_subnet", "vpn_listen", "api_listen"} {
 		if _, ok := raw[key]; !ok {
 			t.Errorf("written config has no %q key: %s", key, b)
 		}
@@ -145,11 +149,11 @@ func TestSaveLoadRoundTrip(t *testing.T) {
 
 func TestSaveOverwrites(t *testing.T) {
 	dir := t.TempDir()
-	first := Default()
+	first := hubConfig("box")
 	if err := Save(dir, first, 0o644); err != nil {
 		t.Fatalf("save: %v", err)
 	}
-	second := Default()
+	second := hubConfig("box")
 	second.SSHPort = 5555
 	if err := Save(dir, second, 0o644); err != nil {
 		t.Fatalf("save again: %v", err)
@@ -165,7 +169,7 @@ func TestSaveOverwrites(t *testing.T) {
 
 func TestSaveRejectsInvalid(t *testing.T) {
 	dir := t.TempDir()
-	bad := Default()
+	bad := hubConfig("box")
 	bad.SSHPort = 0
 	if err := Save(dir, bad, 0o644); err == nil {
 		t.Fatal("save: want an error for an invalid config")
@@ -178,7 +182,7 @@ func TestSaveRejectsInvalid(t *testing.T) {
 func TestSaveMissingDir(t *testing.T) {
 
 	dir := filepath.Join(t.TempDir(), "not-created-yet")
-	err := Save(dir, Default(), 0o644)
+	err := Save(dir, hubConfig("box"), 0o644)
 	if err == nil {
 		t.Fatal("save: want an error when the directory does not exist")
 	}
@@ -193,12 +197,13 @@ func TestSaveMissingDir(t *testing.T) {
 func TestLoadFillsDefaults(t *testing.T) {
 	dir := t.TempDir()
 
-	write(t, dir, "ssh_port: 2200\n")
+	write(t, dir, "name: box\nrole: hub\nhub:\n  fleet: home\nssh_port: 2200\n")
 	got, err := Load(dir)
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
-	want := Default()
+	want := hubConfig("box")
+	want.Hub.Fleet = "home"
 	want.SSHPort = 2200
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("load =\n %+v\nwant\n %+v", got, want)
@@ -208,7 +213,7 @@ func TestLoadFillsDefaults(t *testing.T) {
 func TestLoadWithoutASwapKeyKeepsTheDefault(t *testing.T) {
 	dir := t.TempDir()
 
-	write(t, dir, "ssh_port: 2200\nstate_dir: /srv/state\n")
+	write(t, dir, "name: box\nrole: hub\nhub:\n  fleet: box\nssh_port: 2200\nstate_dir: /srv/state\n")
 	got, err := Load(dir)
 	if err != nil {
 		t.Fatalf("load: %v", err)
@@ -231,7 +236,7 @@ func TestSwapFilePathSitsBesideTheStateTree(t *testing.T) {
 		{"/srv/state", "/srv/state.swapfile"},
 	}
 	for _, tc := range tests {
-		c := Default()
+		c := hubConfig("box")
 		c.StateDir = tc.state
 		if got := c.SwapFilePath(); got != tc.want {
 			t.Errorf("SwapFilePath(%q) = %q, want %q", tc.state, got, tc.want)
@@ -284,7 +289,7 @@ func TestLoadMalformed(t *testing.T) {
 func TestLoadValidates(t *testing.T) {
 	dir := t.TempDir()
 
-	write(t, dir, "ssh_port: 0\nstate_dir: relative/path\n")
+	write(t, dir, "name: box\nrole: hub\nhub:\n  fleet: box\nssh_port: 0\nstate_dir: relative/path\n")
 	_, err := Load(dir)
 	if err == nil {
 		t.Fatal("load: want a validation error")
@@ -298,7 +303,7 @@ func TestLoadValidates(t *testing.T) {
 
 func TestValidate(t *testing.T) {
 	empty := func(field string) Config {
-		c := Default()
+		c := hubConfig("box")
 		switch field {
 		case "user":
 			c.User = ""
@@ -316,7 +321,7 @@ func TestValidate(t *testing.T) {
 		return c
 	}
 	relative := func(field string) Config {
-		c := Default()
+		c := hubConfig("box")
 		switch field {
 		case "state_dir":
 			c.StateDir = "state"
@@ -328,12 +333,12 @@ func TestValidate(t *testing.T) {
 		return c
 	}
 	port := func(p int) Config {
-		c := Default()
+		c := hubConfig("box")
 		c.SSHPort = p
 		return c
 	}
 	swap := func(s Swap) Config {
-		c := Default()
+		c := hubConfig("box")
 		c.Swap = s
 		return c
 	}
@@ -343,7 +348,7 @@ func TestValidate(t *testing.T) {
 		cfg  Config
 		want []string
 	}{
-		{name: "default", cfg: Default()},
+		{name: "default", cfg: hubConfig("box")},
 		{name: "min port", cfg: port(1)},
 		{name: "max port", cfg: port(65535)},
 		{name: "empty user", cfg: empty("user"), want: []string{"user must not be empty"}},
@@ -428,7 +433,7 @@ func TestValidate(t *testing.T) {
 }
 
 func TestValidateEmptyDirIsNotAlsoRelative(t *testing.T) {
-	c := Default()
+	c := hubConfig("box")
 	c.StateDir = ""
 	err := c.Validate()
 	if err == nil {
@@ -447,7 +452,7 @@ func write(t *testing.T, dir, content string) {
 }
 
 func TestVPNDefaultsAndPaths(t *testing.T) {
-	c := Default()
+	c := hubConfig("box")
 	if c.VPNSubnet != "10.86.0.0/16" || c.VPNListen != "0.0.0.0:4021" {
 		t.Errorf("vpn defaults = %q %q", c.VPNSubnet, c.VPNListen)
 	}
@@ -481,7 +486,7 @@ func TestAPIListenPredicates(t *testing.T) {
 		{APIListenBoth, true, true},
 	}
 	for _, tc := range tests {
-		c := Default()
+		c := hubConfig("box")
 		c.APIListen = tc.value
 		if got := c.APIListensPublic(); got != tc.public {
 			t.Errorf("%q: APIListensPublic = %v, want %v", tc.value, got, tc.public)
@@ -511,7 +516,7 @@ func TestValidateVPNKeys(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			c := Default()
+			c := hubConfig("box")
 			tc.mut(&c)
 			err := c.Validate()
 			if err == nil {
@@ -523,13 +528,13 @@ func TestValidateVPNKeys(t *testing.T) {
 		})
 	}
 
-	c := Default()
+	c := hubConfig("box")
 	c.VPNListen = ":4021"
 	if err := c.Validate(); err != nil {
 		t.Errorf("Validate(:4021) = %v, want it accepted", err)
 	}
 	for _, v := range APIListenValues {
-		c := Default()
+		c := hubConfig("box")
 		c.APIListen = v
 		if err := c.Validate(); err != nil {
 			t.Errorf("api_listen %q rejected: %v", v, err)
@@ -570,7 +575,7 @@ func TestMachineIP(t *testing.T) {
 }
 
 func TestVPNDerivedAddresses(t *testing.T) {
-	c := Default()
+	c := hubConfig("box")
 	api, err := c.VPNAPIAddrPort()
 	if err != nil {
 		t.Fatal(err)
@@ -595,7 +600,7 @@ func TestVPNDerivedAddresses(t *testing.T) {
 	if got, want := api.String(), "10.99.0.1:2222"; got != want {
 		t.Errorf("VPNAPIAddrPort() = %s, want %s", got, want)
 	}
-	bad := Default()
+	bad := hubConfig("box")
 	bad.VPNSubnet = "not a subnet"
 	if _, err := bad.VPNAPIAddrPort(); err == nil {
 		t.Error("VPNAPIAddrPort accepted an unparseable vpn_subnet")
@@ -619,7 +624,7 @@ func TestValidateEdgeKeys(t *testing.T) {
 		{"a negative certs_keep", func(c *Config) { c.CertsKeep = "-720h" }, "certs_keep"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			c := Default()
+			c := hubConfig("box")
 			tc.edit(&c)
 			err := c.Validate()
 			if err == nil {
@@ -642,7 +647,7 @@ func TestValidateEdgeKeys(t *testing.T) {
 		{"a retention of nothing at all", func(c *Config) { c.Edge, c.TLS, c.CertsKeep = true, "internal", "0s" }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			c := Default()
+			c := hubConfig("box")
 			tc.edit(&c)
 			if err := c.Validate(); err != nil {
 				t.Errorf("Validate() = %v, want nil", err)
@@ -652,7 +657,7 @@ func TestValidateEdgeKeys(t *testing.T) {
 }
 
 func TestEdgePaths(t *testing.T) {
-	c := Default()
+	c := hubConfig("box")
 	for _, tc := range []struct{ got, want string }{
 		{c.EdgeDir(), "/var/lib/caramelo/edge"},
 		{c.EdgeCertsDir(), "/var/lib/caramelo/edge/certs"},
@@ -673,7 +678,7 @@ func TestEdgePaths(t *testing.T) {
 }
 
 func TestCertsKeepDuration(t *testing.T) {
-	c := Default()
+	c := hubConfig("box")
 	keep, err := c.CertsKeepDuration()
 	if err != nil {
 		t.Fatalf("an unset certs_keep: %v", err)
@@ -702,7 +707,7 @@ func TestCertsKeepDuration(t *testing.T) {
 
 func TestCertsKeepSurvivesARoundTrip(t *testing.T) {
 	dir := t.TempDir()
-	c := Default()
+	c := hubConfig("box")
 	c.Edge, c.ACMEEmail, c.CertsKeep = true, "ops@example.com", "168h"
 	if err := Save(dir, c, 0o640); err != nil {
 		t.Fatalf("Save: %v", err)
@@ -715,7 +720,7 @@ func TestCertsKeepSurvivesARoundTrip(t *testing.T) {
 		t.Errorf("certs_keep came back %q", back.CertsKeep)
 	}
 
-	plain := Default()
+	plain := hubConfig("box")
 	plain.Edge, plain.ACMEEmail = true, "ops@example.com"
 	if err := Save(dir, plain, 0o640); err != nil {
 		t.Fatalf("Save: %v", err)

@@ -27,9 +27,7 @@ import (
 
 func useSystemConfigDir(t *testing.T, dir string) {
 	t.Helper()
-	old := systemConfigDir
-	systemConfigDir = dir
-	t.Cleanup(func() { systemConfigDir = old })
+	t.Setenv(serverconfig.ConfigDirEnv, dir)
 }
 
 func useCommanderConfig(t *testing.T, c remote.CommanderConfig) {
@@ -69,6 +67,7 @@ func writeServerConfig(t *testing.T, runDir string) string {
 	t.Helper()
 	dir := t.TempDir()
 	cfg := serverconfig.Default()
+	cfg.Name, cfg.Hub.Fleet = "box", "home"
 	cfg.APIListen = serverconfig.APIListenPublic
 	cfg.RunDir = runDir
 	cfg.StateDir = filepath.Join(runDir, "state")
@@ -228,6 +227,7 @@ func TestForwardOverTheSocketEndToEnd(t *testing.T) {
 	noCommanderConfig(t)
 	dir := t.TempDir()
 	cfg := serverconfig.Default()
+	cfg.Name, cfg.Hub.Fleet = "box", "home"
 	cfg.APIListen = serverconfig.APIListenPublic
 	cfg.StateDir = filepath.Join(dir, "state")
 	cfg.DataDir = filepath.Join(dir, "data")
@@ -312,6 +312,7 @@ func TestForwardOverSSHEndToEnd(t *testing.T) {
 	noCommanderConfig(t)
 	dir := t.TempDir()
 	cfg := serverconfig.Default()
+	cfg.Name, cfg.Hub.Fleet = "box", "home"
 	cfg.APIListen = serverconfig.APIListenPublic
 	cfg.StateDir = filepath.Join(dir, "state")
 	cfg.DataDir = filepath.Join(dir, "data")

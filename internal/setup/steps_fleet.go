@@ -30,16 +30,17 @@ func (s *JoinStep) Check(ctx context.Context, env *Env) (bool, string, error) {
 		return false, "", err
 	}
 	cfg := env.Config
-	if cfg.IsMember() && cfg.Fleet.Hub.Name == ticket.Hub && cfg.Fleet.Hub.PublicKey == ticket.PublicKey {
-		return true, fmt.Sprintf("a member of %s at %s", ticket.Hub, ticket.Endpoint), nil
+	if cfg.IsMember() && cfg.Member.Hub.PublicKey == ticket.PublicKey && cfg.FleetName() == ticket.Fleet {
+		return true, fmt.Sprintf("a member of the fleet %s at %s", ticket.Fleet, ticket.Endpoint), nil
 	}
 	if cfg.IsMember() {
 
 		return false, "", fmt.Errorf(
-			"this machine is already a member of %s; remove it there first (`caramelo member remove %s`) before joining %s",
-			cfg.Fleet.Hub.Name, cfg.Fleet.Hub.Name, ticket.Hub)
+			"this machine is already a member of the fleet %s; leave it first (`caramelo member leave` here, "+
+				"`caramelo member remove %s` on its hub) before joining %s",
+			cfg.FleetName(), cfg.Name, ticket.Fleet)
 	}
-	return false, fmt.Sprintf("not a member of %s yet", ticket.Hub), nil
+	return false, fmt.Sprintf("not a member of the fleet %s yet", ticket.Fleet), nil
 }
 
 func (s *JoinStep) Apply(ctx context.Context, env *Env) error {
@@ -56,21 +57,21 @@ func (s *JoinStep) Apply(ctx context.Context, env *Env) error {
 	if spec.Name != "" {
 		args = append(args, "--name", spec.Name)
 	}
-	if env.Config.Fleet.Private {
+	if env.PrivateDoor() {
 		args = append(args, "--private")
 	}
 	res, err := runCmd(ctx, env, runner.Cmd{
 		Name: serverconfig.BinaryPath, Args: args, Stdin: strings.NewReader(spec.Token),
 	})
 	if err != nil {
-		return fmt.Errorf("join %s at %s: %w", ticket.Hub, ticket.Endpoint, err)
+		return fmt.Errorf("join the fleet %s at %s: %w", ticket.Fleet, ticket.Endpoint, err)
 	}
 	if res.ExitCode != 0 {
 
-		return fmt.Errorf("join %s at %s: exit %d: %s",
-			ticket.Hub, ticket.Endpoint, res.ExitCode, firstLine(res.Stderr, res.Stdout))
+		return fmt.Errorf("join the fleet %s at %s: exit %d: %s",
+			ticket.Fleet, ticket.Endpoint, res.ExitCode, firstLine(res.Stderr, res.Stdout))
 	}
-	logf(env, "joined %s at %s", ticket.Hub, ticket.Endpoint)
+	logf(env, "joined the fleet %s at %s", ticket.Fleet, ticket.Endpoint)
 	return nil
 }
 

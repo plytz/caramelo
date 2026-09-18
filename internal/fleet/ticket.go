@@ -15,6 +15,8 @@ const TicketPrefix = "caramelo-join-v1."
 type Ticket struct {
 	Hub string `json:"hub"`
 
+	Fleet string `json:"fleet"`
+
 	Endpoint string `json:"endpoint"`
 
 	PublicKey string `json:"public_key"`
@@ -62,6 +64,9 @@ func ParseTicket(s string) (Ticket, error) {
 func (t Ticket) Validate() error {
 	if strings.TrimSpace(t.Hub) == "" {
 		return fmt.Errorf("fleet: a join token must name the hub")
+	}
+	if strings.TrimSpace(t.Fleet) == "" {
+		return fmt.Errorf("fleet: a join token must name the fleet the hub is offering")
 	}
 	if strings.TrimSpace(t.Secret) == "" {
 		return fmt.Errorf("fleet: a join token with no secret is not a token")
