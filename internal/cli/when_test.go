@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -124,6 +125,46 @@ func TestEachConditionReadsTheContext(t *testing.T) {
 	}
 }
 
+func TestTheConditionsTellThemselvesApartOffTheCanonicalFive(t *testing.T) {
+	hubWithTheDaemonDown := canonicalOf(t, place.CanonicalHub)
+	hubWithTheDaemonDown.Server.Services.Daemon.Present = false
+	if daemonUp.ok(hubWithTheDaemonDown) {
+		t.Error("daemonUp holds on a hub whose socket is not there")
+	}
+	if !onServer.ok(hubWithTheDaemonDown) {
+		t.Error("onServer stopped holding on a hub because its daemon is down")
+	}
+
+	hubRunByAMortal := canonicalOf(t, place.CanonicalHub)
+	hubRunByAMortal.Root = false
+	if asRoot.ok(hubRunByAMortal) {
+		t.Error("asRoot holds on a hub for a user who is not root")
+	}
+	freshBoxAsRoot := canonicalOf(t, place.CanonicalFresh)
+	freshBoxAsRoot.Root = true
+	if !asRoot.ok(freshBoxAsRoot) {
+		t.Error("asRoot reads the role instead of the euid")
+	}
+
+	checkoutOutsideAWorktree := canonicalOf(t, place.CanonicalCommanderCheckout)
+	checkoutOutsideAWorktree.Work.Env, checkoutOutsideAWorktree.Work.EnvFrom = "", ""
+	if !inCheckout.ok(checkoutOutsideAWorktree) {
+		t.Error("inCheckout stopped holding in an app checkout that is no worktree")
+	}
+	if inWorktree.ok(checkoutOutsideAWorktree) {
+		t.Error("inWorktree holds where no environment worktree is checked out")
+	}
+
+	commanderWithNothingToTalkTo := canonicalOf(t, place.CanonicalCommander)
+	commanderWithNothingToTalkTo.TalksTo = place.TalksTo{Kind: place.TalksNothing}
+	if hasFleet.ok(commanderWithNothingToTalkTo) {
+		t.Error("hasFleet holds on a commander with no fleet to talk to")
+	}
+	if fresh.ok(commanderWithNothingToTalkTo) {
+		t.Error("a commander with no fleet was read as a fresh box")
+	}
+}
+
 func TestConditionsComposeAndReadAsSentences(t *testing.T) {
 	hub := canonicalOf(t, place.CanonicalHub)
 	commander := canonicalOf(t, place.CanonicalCommander)
@@ -233,6 +274,21 @@ func TestALeafTypedWhereItDoesNotBelongIsRefused(t *testing.T) {
 		{name: "commander init on a member", where: memberPlace, args: []string{"commander", "init"},
 			want: "commander init runs on a box with no config at all or a commander, " +
 				"and this machine is a member; 'caramelo context' says where you are"},
+		{name: "up on a member", where: memberPlace, args: []string{"up"},
+			want: "up runs on a commander or a hub, and this machine is a member; " +
+				"'caramelo context' says where you are"},
+		{name: "secrets list on a fresh box", where: freshPlace, args: []string{"secrets", "list"},
+			want: "secrets list runs on a commander or a hub or a member, and this box has no config at all; " +
+				"run 'caramelo commander init' to name this machine"},
+		{name: "config show on a member", where: memberPlace, args: []string{"config", "show"},
+			want: "config show runs on a commander or a hub, and this machine is a member; " +
+				"'caramelo context' says where you are"},
+		{name: "key add on a member", where: memberPlace, args: []string{"key", "add", "--name", "alex"},
+			want: "key add runs on a commander or a hub, and this machine is a member; " +
+				"'caramelo context' says where you are"},
+		{name: "member remove on a member", where: memberPlace, args: []string{"member", "remove", "worker"},
+			want: "member remove runs on a commander or a hub, and this machine is a member; " +
+				"'caramelo context' says where you are"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			tc.where(t)
@@ -253,6 +309,71 @@ func TestALeafTypedWhereItDoesNotBelongIsRefused(t *testing.T) {
 				t.Error("the command was forwarded although it does not belong here")
 			}
 		})
+	}
+}
+
+func preRunOwner(cmd *cobra.Command) *cobra.Command {
+	for c := cmd; c != nil; c = c.Parent() {
+		if c.PersistentPreRunE != nil {
+			return c
+		}
+	}
+	return nil
+}
+
+func preRunOwners(root *cobra.Command) []string {
+	var out []string
+	for _, cmd := range append(groups(root), leaves(root)...) {
+		if cmd.PersistentPreRunE != nil {
+			out = append(out, cmd.CommandPath())
+		}
+	}
+	return out
+}
+
+func TestEveryPreRunHookRefusesALeafThatDoesNotHold(t *testing.T) {
+	asked := map[string]bool{}
+	for _, tc := range []struct {
+		name  string
+		where func(t *testing.T)
+	}{
+		{name: "on a fresh box", where: freshPlace},
+		{name: "on a commander", where: commanderPlace},
+		{name: "on a hub", where: hubPlace},
+		{name: "on a member", where: memberPlace},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.where(t)
+			var out bytes.Buffer
+			a := &app{stdout: &out, stderr: &out}
+			root := newRootCmd(a)
+			c, err := a.place(context.Background())
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, leaf := range leaves(root) {
+				w, ok := whenOf(leaf)
+				if !ok || w.ok(c) {
+					continue
+				}
+				owner := preRunOwner(leaf)
+				if owner == nil {
+					t.Errorf("%s has no pre-run hook above it, so nothing refuses it", leaf.CommandPath())
+					continue
+				}
+				asked[owner.CommandPath()] = true
+				var notHere *notHereError
+				if err := owner.PersistentPreRunE(leaf, nil); !errors.As(err, &notHere) {
+					t.Errorf("%s: the hook on %s returned %v, want the refusal",
+						leaf.CommandPath(), owner.CommandPath(), err)
+				}
+			}
+		})
+	}
+	for _, owner := range preRunOwners(conditionalRoot(t)) {
+		if !asked[owner] {
+			t.Errorf("no case reaches the pre-run hook on %s, so it could stop refusing unnoticed", owner)
+		}
 	}
 }
 
@@ -286,6 +407,24 @@ func TestAPlaceThatCannotBeReadRefusesNothing(t *testing.T) {
 	cmd := available(&cobra.Command{Use: "run"}, onServer)
 	if err := a.refuseWhereItDoesNotBelong(cmd); err != nil {
 		t.Errorf("a place that could not be read refused the command: %v", err)
+	}
+}
+
+func TestAConfigThatCannotBeInterpretedRefusesNothing(t *testing.T) {
+	serverPlace(t, "fleet:\n  role: hub\n")
+	var out bytes.Buffer
+	a := &app{stdout: &out, stderr: &out}
+	c, err := a.place(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Role != place.RoleUnknown || c.Problem == "" {
+		t.Fatalf("role = %q, problem = %q, want a config that cannot be read", c.Role, c.Problem)
+	}
+	for _, w := range []when{fresh, onCommander, onServer, not(onCommander)} {
+		if err := a.refuseWhereItDoesNotBelong(available(&cobra.Command{Use: "setup"}, w)); err != nil {
+			t.Errorf("%q refused the command that would report the problem: %v", w.text, err)
+		}
 	}
 }
 

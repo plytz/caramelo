@@ -129,11 +129,24 @@ type Server struct {
 }
 
 type MemberHub struct {
+	Name string `json:"name,omitempty"`
+
 	Endpoint string `json:"endpoint,omitempty"`
 
 	Address string `json:"address,omitempty"`
 
 	PublicKey string `json:"public_key,omitempty"`
+}
+
+func (h MemberHub) Label() string {
+	switch {
+	case h.Name != "" && h.Endpoint != "":
+		return h.Name + " at " + h.Endpoint
+	case h.Name != "":
+		return h.Name
+	default:
+		return h.Endpoint
+	}
 }
 
 type Paths struct {
@@ -222,18 +235,20 @@ func Detect(ctx context.Context, o Options) (Context, error) {
 	c := Context{Role: RoleFresh, ServerConfigDir: o.ConfigDir, Root: os.Geteuid() == 0}
 	c.Work = o.work(ctx)
 
-	commander := remote.CommanderConfig{}
+	commander, err := o.commander(&c)
+	if err != nil {
+		return Context{}, err
+	}
 	switch {
 	case serverconfig.Exists(o.ConfigDir):
 		o.server(&c)
-	default:
-		cfg, err := o.commander(&c)
-		if err != nil {
-			return Context{}, err
-		}
-		commander = cfg
+	case commander.present:
+		c.Role, c.ConfigFile, c.Name = RoleCommander, c.CommanderConfig, commander.name
 	}
-	c.TalksTo = o.talksTo(&c, commander)
+	if c.Problem == "" {
+		c.Problem = commander.problem
+	}
+	c.TalksTo = o.talksTo(&c, commander.config)
 	return c, nil
 }
 
@@ -321,7 +336,7 @@ func serverOf(cfg serverconfig.Config, dir string, exists func(string) bool) *Se
 	}
 	if cfg.IsMember() {
 		h := cfg.Member.Hub
-		s.Hub = &MemberHub{Endpoint: h.Endpoint, Address: h.Address, PublicKey: h.PublicKey}
+		s.Hub = &MemberHub{Name: h.Name, Endpoint: h.Endpoint, Address: h.Address, PublicKey: h.PublicKey}
 	}
 	return s
 }
@@ -353,24 +368,34 @@ func socketAt(path string, exists func(string) bool) Socket {
 	return Socket{Path: path, Present: path != "" && exists(path)}
 }
 
-func (o Options) commander(c *Context) (remote.CommanderConfig, error) {
+type commanderRead struct {
+	config remote.CommanderConfig
+
+	present bool
+
+	name string
+
+	problem string
+}
+
+func (o Options) commander(c *Context) (commanderRead, error) {
 	path, err := remote.CommanderConfigPath()
 	if err != nil {
-		return remote.CommanderConfig{}, fmt.Errorf("locate the commander config: %w", err)
+		return commanderRead{}, fmt.Errorf("locate the commander config: %w", err)
 	}
 	c.CommanderConfig = path
 
 	if !fileExists(path) {
-		return remote.CommanderConfig{}, nil
+		return commanderRead{}, nil
 	}
 
-	c.Role, c.ConfigFile = RoleCommander, path
+	read := commanderRead{present: true}
 	cfg, err := remote.LoadCommanderConfigFrom(path)
 	if err != nil {
-		c.Problem = problemWith(path, err)
+		read.problem = problemWith(path, err)
 		cfg = remote.CommanderConfig{}
 	}
-	c.Name = cfg.MachineName()
+	read.config, read.name = cfg, cfg.MachineName()
 
 	dir := filepath.Dir(path)
 	records := filepath.Join(dir, vpnclient.KeyDir)
@@ -398,7 +423,7 @@ func (o Options) commander(c *Context) (remote.CommanderConfig, error) {
 		})
 	}
 	c.Commander = cm
-	return cfg, nil
+	return read, nil
 }
 
 func fileExists(path string) bool {
@@ -494,8 +519,8 @@ func (c Context) serverHeader() []string {
 	if s.Fleet != "" {
 		what += " of fleet " + s.Fleet
 	}
-	if c.Role == RoleMember && s.Hub != nil && s.Hub.Endpoint != "" {
-		what += " (hub " + s.Hub.Endpoint + ")"
+	if c.Role == RoleMember && s.Hub != nil && s.Hub.Label() != "" {
+		what += " (hub " + s.Hub.Label() + ")"
 	}
 	name := c.Name
 	if name == "" {

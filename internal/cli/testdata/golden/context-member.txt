@@ -1,8 +1,8 @@
-worker, member of fleet home (hub box.example.com:4021) · /etc/caramelo/config.yaml · caramelod socket /run/caramelo/caramelod.sock · edge off
+worker, member of fleet home (hub box at box.example.com:4021) · /etc/caramelo/config.yaml · caramelod socket /run/caramelo/caramelod.sock · edge off
   config      /etc/caramelo/config.yaml
   user        caramelo:caramelo
   fleet       home
-  hub         box.example.com:4021, 10.80.0.1 inside the tunnel, key Nq0Xw2mS8VbZ…
+  hub         box at box.example.com:4021, 10.80.0.1 inside the tunnel, key Nq0Xw2mS8VbZ…
   state       /var/lib/caramelo
   data        /mnt/caramelo
   run         /run/caramelo

@@ -32,8 +32,8 @@ func home(env, under string) (string, error) {
 	if dir := os.Getenv(env); filepath.IsAbs(dir) {
 		return dir, nil
 	}
-	if invoking, ok := InvokingUserHome(); ok {
-		return filepath.Join(invoking, under), nil
+	if h, ok := InvokingUserHome(); ok {
+		return filepath.Join(h, under), nil
 	}
 	h, err := os.UserHomeDir()
 	if err != nil {

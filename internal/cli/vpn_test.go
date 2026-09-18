@@ -221,3 +221,50 @@ func TestKeyPathsStayInsideTheConfigDir(t *testing.T) {
 		t.Fatalf("KeyPath = %q, want it under %q", path, want)
 	}
 }
+
+func TestVPNRefusesBothTargetsAtOnce(t *testing.T) {
+	dir := isolate(t)
+	writeCommanderFile(t, dir, twoFleetsFile)
+
+	var stdout, stderr bytes.Buffer
+	code := Run([]string{"vpn", "status", "--machine", "alex@box.example", "--fleet", "work"}, &stdout, &stderr)
+	if code != ExitUsage {
+		t.Fatalf("exit %d, want %d: %s", code, ExitUsage, stderr.String())
+	}
+	for _, want := range []string{"--machine", "--fleet"} {
+		if !strings.Contains(stderr.String(), want) {
+			t.Errorf("stderr = %q, want it to name %s", stderr.String(), want)
+		}
+	}
+	if stdout.Len() != 0 {
+		t.Errorf("stdout = %q, want nothing", stdout.String())
+	}
+}
+
+func TestVPNTakesTheFleetFromTheEnvironment(t *testing.T) {
+	dir := isolate(t)
+	writeCommanderFile(t, dir, twoFleetsFile)
+	t.Setenv("CARAMELO_FLEET", "work")
+
+	var stdout, stderr bytes.Buffer
+	if code := Run([]string{"vpn", "status"}, &stdout, &stderr); code != ExitOK {
+		t.Fatalf("exit %d: %s", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "work") {
+		t.Errorf("stdout = %q, want the fleet CARAMELO_FLEET names", stdout.String())
+	}
+}
+
+func TestVPNFleetFlagBeatsTheMachineInTheEnvironment(t *testing.T) {
+	dir := isolate(t)
+	writeCommanderFile(t, dir, twoFleetsFile)
+	t.Setenv("CARAMELO_MACHINE", "alex@box.example")
+
+	var stdout, stderr bytes.Buffer
+	if code := Run([]string{"vpn", "status", "--fleet", "work"}, &stdout, &stderr); code != ExitOK {
+		t.Fatalf("exit %d: %s", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "work") {
+		t.Errorf("stdout = %q, want the fleet named on the command line", stdout.String())
+	}
+}

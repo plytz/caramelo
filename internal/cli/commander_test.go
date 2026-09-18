@@ -256,9 +256,9 @@ func TestABrokenCommanderConfigStopsHubSetup(t *testing.T) {
 	if code == ExitOK {
 		t.Fatal("hub setup ran with a commander config it could not read")
 	}
-	for _, want := range []string{"retired", "commander:", "fleets"} {
+	for _, want := range []string{"machines", "retired", "fleets"} {
 		if !strings.Contains(stderr, want) {
-			t.Errorf("stderr = %q, want it to name %q", stderr, want)
+			t.Errorf("stderr = %q, want it to name %s", stderr, want)
 		}
 	}
 }
