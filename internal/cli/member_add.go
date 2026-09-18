@@ -23,6 +23,9 @@ import (
 
 func (a *app) runMachineAdd(cmd *cobra.Command, target string, spec machineAddSpec) error {
 	ctx := cmd.Context()
+	if err := requireCommander(cmd); err != nil {
+		return err
+	}
 	name := spec.Name
 	ticket, err := a.takeTicket(ctx)
 	if err != nil {
@@ -207,10 +210,10 @@ func (a *app) hubHost() string {
 	}
 	name := strings.TrimSpace(a.machine)
 	if name == "" {
-		name = commander.DefaultMachine
+		name = commander.Commander.DefaultMachine
 	}
 	addr := name
-	if v, ok := commander.Machines[name]; ok {
+	if v, ok := commander.Commander.Machines[name]; ok {
 		addr = v
 	}
 	t, err := remote.ParseTarget(addr)

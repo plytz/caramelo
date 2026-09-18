@@ -1,0 +1,6 @@
+laptop is a commander
+  config         /home/alex/.config/caramelo/config.yaml
+  identity       u2Xq0M3zUqQ2m1Qk4ZbJk3wR2sYqfQ0h8x9mA5bJ2n8=
+  fleet records  /home/alex/.config/caramelo/vpn
+  cache          /home/alex/.cache/caramelo
+  created        /home/alex/.config/caramelo, /home/alex/.config/caramelo/vpn, /home/alex/.cache/caramelo, /home/alex/.config/caramelo/config.yaml, /home/alex/.config/caramelo/identity.key

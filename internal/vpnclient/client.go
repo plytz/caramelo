@@ -70,7 +70,7 @@ func NewWith(opts Options) (Client, error) {
 func (c *client) Up(ctx context.Context, req UpRequest) (*State, error) {
 	machine := strings.TrimSpace(req.Machine)
 	if machine == "" {
-		return nil, errors.New("no machine: pass --machine NAME (or set default_machine in the commander config)")
+		return nil, errors.New("no machine: pass --machine NAME (or set commander.default_machine in the commander config)")
 	}
 	kp, created, err := c.opts.Keys.Ensure(machine)
 	if err != nil {

@@ -31,6 +31,8 @@ func TestRefusedOverAPI(t *testing.T) {
 		{[]string{"edge", "enable"}, false},
 		{[]string{"hub", "setup"}, true},
 		{[]string{"hub"}, true},
+		{[]string{"commander", "init"}, true},
+		{[]string{"commander"}, true},
 		{[]string{"server", "setup"}, false},
 		{[]string{"member", "list"}, false},
 		{[]string{"env", "list"}, false},

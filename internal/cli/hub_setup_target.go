@@ -128,6 +128,9 @@ type machineEntry struct {
 
 func (a *app) runBootstrap(cmd *cobra.Command, f bootstrapFlags) error {
 	ctx := cmd.Context()
+	if err := requireCommander(cmd); err != nil {
+		return err
+	}
 	target, err := remote.ParseTargetWith(f.target, localUser(), bootstrapSSHPort)
 	if err != nil {
 		return &usageError{fmt.Errorf("--target: %w", err)}
@@ -276,17 +279,17 @@ func recordMachine(name string, address remote.Target) (*machineEntry, error) {
 	if err != nil {
 		return nil, err
 	}
-	if cfg.Machines == nil {
-		cfg.Machines = map[string]string{}
+	if cfg.Commander.Machines == nil {
+		cfg.Commander.Machines = map[string]string{}
 	}
-	cfg.Machines[name] = address.String()
-	if cfg.DefaultMachine == "" {
-		cfg.DefaultMachine = name
+	cfg.Commander.Machines[name] = address.String()
+	if cfg.Commander.DefaultMachine == "" {
+		cfg.Commander.DefaultMachine = name
 	}
 	if err := remote.SaveCommanderConfigTo(path, cfg); err != nil {
 		return nil, err
 	}
-	return &machineEntry{Name: name, Address: address.String(), Default: cfg.DefaultMachine == name, Config: path}, nil
+	return &machineEntry{Name: name, Address: address.String(), Default: cfg.Commander.DefaultMachine == name, Config: path}, nil
 }
 
 func verifyOverSSH(ctx context.Context, a *app, address string) (json.RawMessage, error) {
