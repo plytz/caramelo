@@ -276,7 +276,7 @@ func TestARunWhoseReportCannotBeWrittenStillSaysWhatItDid(t *testing.T) {
 	if code != ExitError {
 		t.Fatalf("exit %d, want %d: %s%s", code, ExitError, stdout, stderr)
 	}
-	if !strings.Contains(stdout, "commander-setup  ok=") || !strings.Contains(stdout, "changed=2") {
+	if !strings.Contains(stdout, "commander-setup  ok=") || !strings.Contains(stdout, "changed=1") || !strings.Contains(stdout, "failed=1") {
 		t.Errorf("stdout = %q, want the recap of the run that really happened", stdout)
 	}
 	if !strings.Contains(stderr, "report was not written") {

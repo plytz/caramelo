@@ -82,11 +82,14 @@ func TestCommanderSetupIsTheTaskCommanderInitRuns(t *testing.T) {
 	}
 	var names []string
 	walkItems(f.Items, func(it *Item) { names = append(names, it.Name) })
-	want := []string{"config-dir", "vpn-dir", "cache-dir", "config", "identity"}
+	want := []string{"config-dir", "cache-dir", "vpn-dir", "config", "identity"}
 	if strings.Join(names, ",") != strings.Join(want, ",") {
 		t.Errorf("items = %v, want %v", names, want)
 	}
-	if f.Items[0].Block == nil {
-		t.Error("the three directories are not a parallel block")
+	if f.Items[0].Block == nil || len(f.Items[0].Block.Items) != 2 {
+		t.Error("the config and cache directories are not a parallel block of two")
+	}
+	if f.Items[1].Item == nil || f.Items[1].Item.Name != "vpn-dir" {
+		t.Error("vpn-dir, inside the config directory, does not follow the block that creates it")
 	}
 }
