@@ -214,7 +214,7 @@ func (d *sshDriver) gossFailures(ctx context.Context, spec string) ([]string, er
 	if err := d.m.Copy(checkCtx, path, remote); err != nil {
 		return nil, fmt.Errorf("goss on %s: copy %s: %w", d.m.Alias, path, err)
 	}
-	vars, err := gossVars(checkCtx, d.m)
+	vars, err := gossVars(checkCtx, d.m, nil)
 	if err != nil {
 		return nil, fmt.Errorf("goss on %s: %w", d.m.Alias, err)
 	}
