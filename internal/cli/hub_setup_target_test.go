@@ -55,7 +55,7 @@ type Cmd = bootstrap.Cmd
 
 func useScriptedTarget(t *testing.T, report setup.Report, verify func(address string) (json.RawMessage, error)) *scriptedShell {
 	t.Helper()
-	noCommanderConfig(t)
+	initializedCommander(t)
 	placeholderLinuxSibling(t)
 	sh := &scriptedShell{report: report}
 	prevShell, prevVerify, prevJoin := newBootstrapShell, verifyMachine, joinMachine
@@ -133,7 +133,7 @@ func TestSetupTargetBootstrapsRecordsAndVerifies(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.DefaultMachine != "prod" || cfg.Machines["prod"] != "caramelo@box.example:4022" {
+	if cfg.Commander.DefaultMachine != "prod" || cfg.Commander.Machines["prod"] != "caramelo@box.example:4022" {
 		t.Errorf("commander config = %+v", cfg)
 	}
 }
@@ -141,7 +141,7 @@ func TestSetupTargetBootstrapsRecordsAndVerifies(t *testing.T) {
 func TestSetupTargetHumanOutputAndCustomPort(t *testing.T) {
 	sh := useScriptedTarget(t, greenReport(), okVerify)
 
-	if err := remote.SaveCommanderConfig(remote.CommanderConfig{DefaultMachine: "first", Machines: map[string]string{"first": "caramelo@a:4022"}}); err != nil {
+	if err := remote.SaveCommanderConfig(remote.CommanderConfig{Commander: remote.Commander{DefaultMachine: "first", Machines: map[string]string{"first": "caramelo@a:4022"}}}); err != nil {
 		t.Fatal(err)
 	}
 	code, stdout, _ := run(t, "hub", "setup", "--target", "10.0.0.5:2222", "--yes", "--ssh-port", "5022")
@@ -157,7 +157,7 @@ func TestSetupTargetHumanOutputAndCustomPort(t *testing.T) {
 		}
 	}
 	cfg, _ := remote.LoadCommanderConfig()
-	if cfg.DefaultMachine != "first" || cfg.Machines["10.0.0.5"] != "caramelo@10.0.0.5:5022" {
+	if cfg.Commander.DefaultMachine != "first" || cfg.Commander.Machines["10.0.0.5"] != "caramelo@10.0.0.5:5022" {
 		t.Errorf("commander config = %+v", cfg)
 	}
 }
@@ -181,7 +181,7 @@ func TestSetupTargetDryRunRecordsNothing(t *testing.T) {
 		t.Errorf("--dry-run not forwarded:\n%s", joined)
 	}
 	cfg, _ := remote.LoadCommanderConfig()
-	if len(cfg.Machines) != 0 {
+	if len(cfg.Commander.Machines) != 0 {
 		t.Errorf("dry run recorded a machine: %+v", cfg)
 	}
 }
@@ -220,7 +220,7 @@ func TestSetupTargetUnreachableAPIIsAnError(t *testing.T) {
 	}
 
 	cfg, _ := remote.LoadCommanderConfig()
-	if cfg.Machines["box"] == "" {
+	if cfg.Commander.Machines["box"] == "" {
 		t.Errorf("machine not recorded: %+v", cfg)
 	}
 }

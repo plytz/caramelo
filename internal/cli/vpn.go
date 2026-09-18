@@ -75,13 +75,13 @@ func (a *app) vpnMachine() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if cfg.DefaultMachine != "" {
-		return cfg.DefaultMachine, nil
+	if cfg.Commander.DefaultMachine != "" {
+		return cfg.Commander.DefaultMachine, nil
 	}
 	path, _ := remote.CommanderConfigPath()
 	return "", &usageError{fmt.Errorf(
 		"no machine to join: pass --machine <name|user@host> (or CARAMELO_MACHINE, "+
-			"or default_machine in %s)", path)}
+			"or commander.default_machine in %s)", path)}
 }
 
 func (a *app) vpnUpCmd() *cobra.Command {

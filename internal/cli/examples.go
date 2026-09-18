@@ -18,6 +18,11 @@ caramelo build feat-x --service web       # only this service
 caramelo build feat-x --force             # rebuild even though this tree already has a release
 caramelo build feat-x --json`,
 
+	"caramelo commander init": `
+caramelo commander init                   # name this machine after its hostname and write its config
+caramelo commander init --name laptop     # call it something else
+caramelo commander init --json            # what it wrote and the values it chose`,
+
 	"caramelo config show": `
 caramelo config show feat-x               # every effective field, and where each came from
 caramelo config show feat-x --reveal      # with the secret values filled in

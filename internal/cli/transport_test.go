@@ -45,6 +45,11 @@ func noCommanderConfig(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 }
 
+func initializedCommander(t *testing.T) {
+	t.Helper()
+	useCommanderConfig(t, remote.CommanderConfig{Name: "laptop", Role: remote.RoleCommander})
+}
+
 func makeSocket(t *testing.T, dir string, keep bool) string {
 	t.Helper()
 	path := filepath.Join(dir, "caramelod.sock")
@@ -98,7 +103,7 @@ func TestResolveTransportUsesTheLocalSocket(t *testing.T) {
 
 func TestResolveTransportMachineLocalForcesTheSocket(t *testing.T) {
 
-	useCommanderConfig(t, remote.CommanderConfig{DefaultMachine: "box"})
+	useCommanderConfig(t, remote.CommanderConfig{Commander: remote.Commander{DefaultMachine: "box"}})
 	useSystemConfigDir(t, t.TempDir())
 
 	got, err := resolveTransport(context.Background(), &app{machine: "local"})
@@ -132,7 +137,7 @@ func TestResolveTransportMachineFlagBeatsTheSocket(t *testing.T) {
 }
 
 func TestResolveTransportMachineName(t *testing.T) {
-	useCommanderConfig(t, remote.CommanderConfig{Machines: map[string]string{"box": "alex@10.0.0.5:4023"}})
+	useCommanderConfig(t, remote.CommanderConfig{Commander: remote.Commander{Machines: map[string]string{"box": "alex@10.0.0.5:4023"}}})
 	useSystemConfigDir(t, t.TempDir())
 
 	got, err := resolveTransport(context.Background(), &app{machine: "box"})
@@ -146,8 +151,10 @@ func TestResolveTransportMachineName(t *testing.T) {
 
 func TestResolveTransportDefaultMachine(t *testing.T) {
 	useCommanderConfig(t, remote.CommanderConfig{
-		DefaultMachine: "box",
-		Machines:       map[string]string{"box": "alex@10.0.0.5"},
+		Commander: remote.Commander{
+			DefaultMachine: "box",
+			Machines:       map[string]string{"box": "alex@10.0.0.5"},
+		},
 	})
 	useSystemConfigDir(t, t.TempDir())
 

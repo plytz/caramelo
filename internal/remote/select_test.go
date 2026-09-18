@@ -55,10 +55,10 @@ func TestSelectOrder(t *testing.T) {
 		}
 	})
 
-	t.Run("a local socket beats default_machine", func(t *testing.T) {
+	t.Run("a local socket beats commander.default_machine", func(t *testing.T) {
 		s := selection()
 		s.SocketExists = func(string) bool { return true }
-		s.Config.DefaultMachine = "box"
+		s.Config.Commander.DefaultMachine = "box"
 		got, err := Select(ctx, s)
 		if err != nil {
 			t.Fatal(err)
@@ -68,9 +68,9 @@ func TestSelectOrder(t *testing.T) {
 		}
 	})
 
-	t.Run("default_machine when there is no socket", func(t *testing.T) {
+	t.Run("commander.default_machine when there is no socket", func(t *testing.T) {
 		s := selection()
-		s.Config = CommanderConfig{DefaultMachine: "box", Machines: map[string]string{"box": "alex@10.0.0.5:4023"}}
+		s.Config = CommanderConfig{Commander: Commander{DefaultMachine: "box", Machines: map[string]string{"box": "alex@10.0.0.5:4023"}}}
 		got, err := Select(ctx, s)
 		if err != nil {
 			t.Fatal(err)
@@ -108,7 +108,7 @@ func TestSelectPrefersTheTunnel(t *testing.T) {
 		mut  func(*Selection)
 	}{
 		{"--machine", func(s *Selection) { s.Machine = "box" }},
-		{"default_machine", func(s *Selection) { s.Config.DefaultMachine = "box" }},
+		{"commander.default_machine", func(s *Selection) { s.Config.Commander.DefaultMachine = "box" }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			s := selection()

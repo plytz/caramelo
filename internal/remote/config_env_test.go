@@ -21,8 +21,12 @@ func TestLoadAndSaveCommanderConfigUseTheUsersConfigDir(t *testing.T) {
 	}
 
 	want := CommanderConfig{
-		DefaultMachine: "worker1",
-		Machines:       map[string]string{"worker1": "caramelo@192.168.56.11:4022"},
+		Name: "laptop",
+		Role: RoleCommander,
+		Commander: Commander{
+			DefaultMachine: "worker1",
+			Machines:       map[string]string{"worker1": "caramelo@192.168.56.11:4022"},
+		},
 	}
 	if err := SaveCommanderConfig(want); err != nil {
 		t.Fatalf("SaveCommanderConfig: %v", err)

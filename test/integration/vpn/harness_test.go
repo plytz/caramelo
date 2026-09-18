@@ -20,9 +20,11 @@ import (
 	"time"
 
 	"golang.org/x/crypto/curve25519"
+	"gopkg.in/yaml.v3"
 
 	capi "github.com/plytz/caramelo/internal/api"
 	cenv "github.com/plytz/caramelo/internal/env"
+	"github.com/plytz/caramelo/internal/remote"
 	"github.com/plytz/caramelo/internal/state"
 	"github.com/plytz/caramelo/internal/vpn"
 	"github.com/plytz/caramelo/internal/vpnclient"
@@ -274,9 +276,20 @@ func (s *suite) sudoCommanderCaramelo(t *testing.T, args string) itest.Result {
 
 func (s *suite) writeCommanderConfig(t *testing.T, machine string) {
 	t.Helper()
-	home := itest.HomeOf(s.commander)
-	cmd := fmt.Sprintf("mkdir -p %s/.config/caramelo && "+
-		"printf 'default_machine: %s\\n' > %s/.config/caramelo/config.yaml", home, machine, home)
+	body, err := yaml.Marshal(remote.CommanderConfig{
+		Name: itest.CommanderName,
+		Role: remote.RoleCommander,
+		Commander: remote.Commander{
+			DefaultMachine: machine,
+		},
+	})
+	if err != nil {
+		t.Fatalf("encoding the commander config for %s: %v", s.commander.Alias, err)
+	}
+	dir := filepath.Join(itest.HomeOf(s.commander), ".config", remote.CommanderDirName)
+	path := filepath.Join(dir, remote.CommanderConfigFile)
+	cmd := fmt.Sprintf("mkdir -p %s && chmod 0700 %s && printf %%s %s | base64 -d > %s && chmod 0600 %s",
+		dir, dir, base64.StdEncoding.EncodeToString(body), path, path)
 	if res := s.runOnCommander(t, cmd, itest.Scale(time.Minute)); res.ExitCode != 0 {
 		t.Fatalf("writing the commander config on %s: exit %d: %s", s.commander.Alias, res.ExitCode, res.Stderr)
 	}

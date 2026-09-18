@@ -109,6 +109,8 @@ func (b *suiteTB) runCleanups() {
 
 const machineName = "lab"
 
+const commanderName = "lab-commander"
+
 const commanderBin = itest.RemoteBin
 
 type result struct {
@@ -145,6 +147,9 @@ var (
 	first    result
 	firstRaw string
 	firstErr error
+
+	initRaw string
+	initErr error
 )
 
 func TestMain(m *testing.M) { os.Exit(runSuite(m)) }
@@ -192,8 +197,25 @@ func start() (err error) {
 		return err
 	}
 
+	if initRaw, initErr = commanderInit(ctx); initErr != nil {
+		return initErr
+	}
+
 	first, firstRaw, firstErr = bootstrap(ctx, "--name", machineName)
 	return nil
+}
+
+func commanderInit(ctx context.Context) (string, error) {
+	cmd := strings.Join([]string{commanderBin, "commander", "init", "--name", commanderName, "--json"}, " ")
+	res, err := commander.Run(ctx, cmd)
+	raw := res.Stdout + "\n--- stderr ---\n" + res.Stderr
+	if err != nil {
+		return raw, fmt.Errorf("commander init: %w", err)
+	}
+	if res.ExitCode != 0 {
+		return raw, fmt.Errorf("commander init: exit %d", res.ExitCode)
+	}
+	return raw, nil
 }
 
 func bootstrap(ctx context.Context, extra ...string) (result, string, error) {

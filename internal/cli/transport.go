@@ -88,7 +88,7 @@ func resolveTransport(ctx context.Context, a *app) (transport, error) {
 		return transport{}, fmt.Errorf(
 			"no local caramelod (no socket at %s) and no machine configured; "+
 				"run 'sudo caramelo hub setup' on this machine, or point at one with "+
-				"--machine <user@host> (or CARAMELO_MACHINE, or default_machine in %s)",
+				"--machine <user@host> (or CARAMELO_MACHINE, or commander.default_machine in %s)",
 			socketPath, path)
 	}
 	if err != nil {

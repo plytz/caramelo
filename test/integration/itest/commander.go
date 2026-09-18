@@ -15,6 +15,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/plytz/caramelo/internal/remote"
 )
 
 const CommanderTimeout = 2 * time.Minute
@@ -100,7 +102,17 @@ func WriteCommanderHomeNoPeer(home string, m *Machine) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(sshDir, "config"), []byte(blocks), 0o600)
+	if err := os.WriteFile(filepath.Join(sshDir, "config"), []byte(blocks), 0o600); err != nil {
+		return err
+	}
+	return WriteCommanderConfig(home, CommanderName)
+}
+
+const CommanderName = "commander"
+
+func WriteCommanderConfig(home, name string) error {
+	path := filepath.Join(home, ".config", remote.CommanderDirName, remote.CommanderConfigFile)
+	return remote.SaveCommanderConfigTo(path, remote.CommanderConfig{Name: name, Role: remote.RoleCommander})
 }
 
 func AddCommanderHost(home string, m *Machine) error {

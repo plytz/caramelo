@@ -106,8 +106,12 @@ func TestCommanderConfigRoundTrip(t *testing.T) {
 	}
 
 	want := CommanderConfig{
-		DefaultMachine: "box",
-		Machines:       map[string]string{"box": "alex@192.168.56.11:4022"},
+		Name: "laptop",
+		Role: RoleCommander,
+		Commander: Commander{
+			DefaultMachine: "box",
+			Machines:       map[string]string{"box": "alex@192.168.56.11:4022"},
+		},
 	}
 	if err := SaveCommanderConfigTo(path, want); err != nil {
 		t.Fatal(err)
@@ -127,10 +131,10 @@ func TestCommanderConfigRoundTrip(t *testing.T) {
 }
 
 func TestCommanderConfigResolve(t *testing.T) {
-	c := CommanderConfig{Machines: map[string]string{
+	c := CommanderConfig{Commander: Commander{Machines: map[string]string{
 		"box":  "alex@192.168.56.11:4022",
 		"prod": "prod.example.com",
-	}}
+	}}}
 	got, err := c.Resolve("box")
 	if err != nil {
 		t.Fatal(err)
@@ -152,7 +156,7 @@ func TestCommanderConfigResolve(t *testing.T) {
 }
 
 func TestCommanderConfigResolveBadEntry(t *testing.T) {
-	c := CommanderConfig{Machines: map[string]string{"box": "alex@box:notaport"}}
+	c := CommanderConfig{Commander: Commander{Machines: map[string]string{"box": "alex@box:notaport"}}}
 	_, err := c.Resolve("box")
 	if err == nil {
 		t.Fatal("want an error for a broken machines entry")
