@@ -14,6 +14,7 @@ import (
 	cedge "github.com/plytz/caramelo/internal/edge"
 	cenv "github.com/plytz/caramelo/internal/env"
 	cfleet "github.com/plytz/caramelo/internal/fleet"
+	"github.com/plytz/caramelo/internal/place"
 	cprogress "github.com/plytz/caramelo/internal/progress"
 	"github.com/plytz/caramelo/test/integration/itest"
 )
@@ -144,6 +145,87 @@ func TestAMemberJoins(t *testing.T) {
 	after := machineList(t)
 	if len(after) != len(list) {
 		t.Errorf("member list = %v after a second add, want %v", machineSummary(after), machineSummary(list))
+	}
+}
+
+func TestTheContextOnAMemberAndItsHub(t *testing.T) {
+	begin(t)
+	box := needM1(t)
+	needRepo(t)
+
+	hubCtx := itest.MustContextOn(t, hub, itest.CarameloBinary)
+	if hubCtx.Role != place.RoleHub {
+		t.Fatalf("the box that hubs this fleet says role %q, want %q: %+v", hubCtx.Role, place.RoleHub, hubCtx)
+	}
+	if hubCtx.Server == nil || hubCtx.Server.Fleet == "" {
+		t.Fatalf("the hub names no fleet: %+v", hubCtx.Server)
+	}
+	if hubCtx.Server.Hub != nil {
+		t.Errorf("the hub carries a hub it joined: %+v", hubCtx.Server.Hub)
+	}
+
+	cfg := itest.MustServerConfigOn(t, box)
+	got := itest.MustContextOn(t, box, itest.CarameloBinary)
+	name := memberNames[0]
+	if got.Role != place.RoleMember {
+		t.Fatalf("a box the hub added says role %q, want %q: %+v", got.Role, place.RoleMember, got)
+	}
+	if got.Name != name {
+		t.Errorf("context calls the box %q and the hub calls it %q", got.Name, name)
+	}
+	if got.Problem != "" {
+		t.Errorf("context on a member reports a problem: %s", got.Problem)
+	}
+	if got.Server == nil {
+		t.Fatalf("context on a member carries no server half: %+v", got)
+	}
+	s := got.Server
+	if s.Fleet != cfg.Member.Fleet || s.Fleet != hubCtx.Server.Fleet {
+		t.Errorf("the member says it is in fleet %q, its config.yaml says %q and the hub hubs %q",
+			s.Fleet, cfg.Member.Fleet, hubCtx.Server.Fleet)
+	}
+	if s.Hub == nil {
+		t.Fatalf("context on a member says nothing about the hub it joined: %+v", s)
+	}
+	if s.Hub.Endpoint != cfg.Member.Hub.Endpoint {
+		t.Errorf("context says the member dials %q, its config.yaml says %q", s.Hub.Endpoint, cfg.Member.Hub.Endpoint)
+	}
+	if s.Hub.Name != hubCtx.Name {
+		t.Errorf("the member calls its hub %q, the hub answers to %q", s.Hub.Name, hubCtx.Name)
+	}
+	if want := fmt.Sprintf(":%d", itest.VPNPort); !strings.HasSuffix(s.Hub.Endpoint, want) {
+		t.Errorf("the member dials %q, want the tunnel port %s", s.Hub.Endpoint, want)
+	}
+
+	var hubRow cfleet.Machine
+	for _, row := range machineList(t) {
+		if row.Role.IsHub() {
+			hubRow = row
+			break
+		}
+	}
+	if hubRow.PublicKey == "" {
+		t.Fatalf("member list holds no hub row with a key: %v", machineSummary(machineList(t)))
+	}
+	if s.Hub.PublicKey != hubRow.PublicKey {
+		t.Errorf("the member holds hub key %q, the fleet's hub is %q", s.Hub.PublicKey, hubRow.PublicKey)
+	}
+	if addr := hubRow.Address(); addr.IsValid() && s.Hub.Address != addr.String() {
+		t.Errorf("the member answers the hub at %q inside the tunnel, the hub holds %s", s.Hub.Address, addr)
+	}
+	if !s.Services.Daemon.Present {
+		t.Errorf("context finds no caramelod socket at %s on a joined member", s.Services.Daemon.Path)
+	}
+	if got.TalksTo.Kind != place.TalksSocket {
+		t.Errorf("a command typed on a member would talk to %q (%s), want the caramelod on this machine",
+			got.TalksTo.Kind, got.TalksTo.Problem)
+	}
+
+	text := itest.ContextTextOn(t, box, itest.CarameloBinary)
+	for _, want := range []string{name + ", " + place.RoleMember, "of fleet " + s.Fleet, "(hub " + s.Hub.Label() + ")"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("caramelo context on %s never says %q:\n%s", box.Alias, want, text)
+		}
 	}
 }
 

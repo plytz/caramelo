@@ -20,6 +20,8 @@ import (
 
 	capi "github.com/plytz/caramelo/internal/api"
 	"github.com/plytz/caramelo/internal/firewall"
+	"github.com/plytz/caramelo/internal/place"
+	"github.com/plytz/caramelo/internal/remote"
 	"github.com/plytz/caramelo/internal/serverconfig"
 	setuppkg "github.com/plytz/caramelo/internal/setup"
 	"github.com/plytz/caramelo/internal/state"
@@ -461,6 +463,139 @@ func TestVPNAfterSetup(t *testing.T) {
 	}
 	if st.VPN.APIListen != cfg.APIListen {
 		t.Errorf("status says api_listen %q, config.yaml says %q", st.VPN.APIListen, cfg.APIListen)
+	}
+}
+
+func TestTheContextOnAHub(t *testing.T) {
+	_, m := begin(t)
+	if firstRunErr != nil {
+		t.Skip("hub setup failed; what the box says it is proves nothing")
+	}
+	cfg := itest.MustServerConfigOn(t, m)
+	got := itest.MustContextOn(t, m, itest.CarameloBinary)
+
+	if got.Role != place.RoleHub {
+		t.Fatalf("a box that ran hub setup says role %q, want %q: %+v", got.Role, place.RoleHub, got)
+	}
+	if got.Name == "" || got.Name != cfg.Name {
+		t.Errorf("context calls this box %q and config.yaml calls it %q", got.Name, cfg.Name)
+	}
+	wantConfig := serverconfig.Path(serverconfig.DefaultConfigDir)
+	if got.ConfigFile != wantConfig {
+		t.Errorf("context read %q, want %s", got.ConfigFile, wantConfig)
+	}
+	if got.Problem != "" {
+		t.Errorf("context on a set-up box reports a problem: %s", got.Problem)
+	}
+	if got.Server == nil {
+		t.Fatalf("context on a hub carries no server half: %+v", got)
+	}
+	s := got.Server
+	if s.Fleet != cfg.FleetName() {
+		t.Errorf("context says fleet %q, config.yaml says %q", s.Fleet, cfg.FleetName())
+	}
+	if s.Hub != nil {
+		t.Errorf("context on a hub names a hub it joined: %+v", s.Hub)
+	}
+	for _, p := range []struct{ what, got, want string }{
+		{"state", s.Paths.State, cfg.StateDir},
+		{"data", s.Paths.Data, cfg.DataDir},
+		{"run", s.Paths.Run, cfg.RunDir},
+		{"socket", s.Paths.Socket, cfg.SocketPath()},
+		{"apps", s.Paths.Apps, cfg.AppsDir()},
+		{"secrets", s.Paths.Secrets, cfg.SecretsDir()},
+	} {
+		if p.got != p.want {
+			t.Errorf("context says the %s path is %q, config.yaml derives %q", p.what, p.got, p.want)
+		}
+	}
+	if !s.Services.Daemon.Present {
+		t.Errorf("context finds no caramelod socket at %s, and %s is in the %s group: the daemon setup started "+
+			"is invisible to the person typing", s.Services.Daemon.Path, itest.UserOf(m), cfg.Group)
+	}
+	if got.TalksTo.Kind != place.TalksSocket {
+		t.Errorf("a command typed on this hub would talk to %q (%s), want the caramelod on this machine",
+			got.TalksTo.Kind, got.TalksTo.Problem)
+	}
+
+	text := itest.ContextTextOn(t, m, itest.CarameloBinary)
+	for _, want := range []string{cfg.Name + ", " + place.RoleHub, "of fleet " + cfg.FleetName(), "state " + cfg.StateDir} {
+		if !strings.Contains(text, want) {
+			t.Errorf("caramelo context on %s never says %q:\n%s", m.Alias, want, text)
+		}
+	}
+}
+
+func TestTheContextOnACommander(t *testing.T) {
+	begin(t)
+	if commander == nil {
+		t.Skip("setup suite: this lab has no commander container of its own")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), itest.Scale(10*time.Minute))
+	defer cancel()
+	if err := itest.InstallBinaryOn(ctx, commander); err != nil {
+		t.Fatalf("install the binary on %s: %v", commander.Alias, err)
+	}
+
+	fresh, err := itest.ContextOn(ctx, commander, itest.CarameloBinary)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	if fresh.Role != place.RoleFresh {
+		t.Fatalf("a box with no config at all says role %q, want %q: %+v", fresh.Role, place.RoleFresh, fresh)
+	}
+	if fresh.Server != nil || fresh.Commander != nil {
+		t.Errorf("a fresh box carries a server or a commander half: %+v", fresh)
+	}
+	if !strings.Contains(fresh.TalksTo.Problem, "commander init") {
+		t.Errorf("a fresh box does not name 'commander init' as the one command it can run: %q", fresh.TalksTo.Problem)
+	}
+
+	const name = "commander"
+	init, err := commander.Run(ctx, itest.CarameloBinary+" commander init --name "+name+" --json")
+	if err != nil {
+		t.Fatalf("commander init on %s: %v", commander.Alias, err)
+	}
+	if init.ExitCode != 0 {
+		t.Fatalf("commander init on %s: exit %d\nstdout:\n%sstderr:\n%s",
+			commander.Alias, init.ExitCode, init.Stdout, init.Stderr)
+	}
+
+	got := itest.MustContextOn(t, commander, itest.CarameloBinary)
+	if got.Role != place.RoleCommander {
+		t.Fatalf("a box that ran commander init says role %q, want %q: %+v", got.Role, place.RoleCommander, got)
+	}
+	if got.Name != name {
+		t.Errorf("context calls this commander %q, want %q", got.Name, name)
+	}
+	if got.Problem != "" {
+		t.Errorf("context on an initialized commander reports a problem: %s", got.Problem)
+	}
+	if got.Server != nil {
+		t.Errorf("context on a commander carries a server half: %+v", got.Server)
+	}
+	if got.Commander == nil {
+		t.Fatalf("context on a commander carries no commander half: %+v", got)
+	}
+	if !strings.HasSuffix(got.ConfigFile, "/.config/caramelo/"+remote.CommanderConfigFile) {
+		t.Errorf("the commander config is %q, want it under the user's own config directory", got.ConfigFile)
+	}
+	if !got.Commander.Identified {
+		t.Errorf("commander init wrote no identity key at %s", got.Commander.IdentityKey)
+	}
+	if len(got.Commander.Fleets) != 0 {
+		t.Errorf("a commander that joined nothing holds fleets %v", got.FleetNames())
+	}
+	if got.TalksTo.Kind != place.TalksNothing || !strings.Contains(got.TalksTo.Problem, "fleet add") {
+		t.Errorf("a commander with no fleet would talk to %q (%s), want nothing and a line naming 'fleet add'",
+			got.TalksTo.Kind, got.TalksTo.Problem)
+	}
+
+	text := itest.ContextTextOn(t, commander, itest.CarameloBinary)
+	for _, want := range []string{name + ", " + place.RoleCommander, "no fleets"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("caramelo context on %s never says %q:\n%s", commander.Alias, want, text)
+		}
 	}
 }
 

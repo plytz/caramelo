@@ -203,7 +203,11 @@ integration` runs the whole integration tier, `SUITE=` narrows it to one suite, 
 integration-clean` removes every container, network and volume a run left behind. The machine state
 each suite asserts is described by the goss specs in `test/integration/goss/`, which goss renders as
 Go templates, so a double opening brace may appear in them only as `.Vars.user`, `.Vars.home`,
-`.Vars.uid` or `.Vars.arch`.
+`.Vars.uid` or `.Vars.arch`. The suites also check what each box says it is through `caramelo
+context --json`: the setup suite expects `hub` with that box's name on the machine it set up, and
+`fresh` then `commander` on a container beside it that had no config at all until `caramelo
+commander init` named it; the fleet suite expects `member` on the box it joined, with the fleet and
+the hub that box dials.
 
 ```sh
 make check
