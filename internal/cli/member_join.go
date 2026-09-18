@@ -179,7 +179,7 @@ func bootstrapRecord(t fleet.Ticket) (vpnclient.Record, error) {
 		return vpnclient.Record{}, err
 	}
 	return vpnclient.Record{
-		Machine: t.Hub, MachineName: t.Hub, Endpoint: t.Endpoint, MachineKey: t.PublicKey,
+		Fleet: t.Fleet, MachineName: t.Hub, Endpoint: t.Endpoint, MachineKey: t.PublicKey,
 		Subnet: rng, MachineIP: hubIP,
 		PeerName: "joining", IP: peer,
 		APIPort: serverconfig.DefaultSSHPort,

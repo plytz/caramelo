@@ -42,6 +42,7 @@ const (
 	hostPeer      = itest.LabPeerName
 	commanderPeer = "vpn-itest-commander"
 	agentPeer     = "vpn-itest-agent"
+	vpnFleetName  = "lab"
 )
 
 var commanderTimeout = itest.Scale(5 * time.Minute)
@@ -274,13 +275,14 @@ func (s *suite) sudoCommanderCaramelo(t *testing.T, args string) itest.Result {
 	return s.runOnCommander(t, "sudo -n "+itest.CarameloBinary+" "+args, itest.Scale(3*time.Minute))
 }
 
-func (s *suite) writeCommanderConfig(t *testing.T, machine string) {
+func (s *suite) writeCommanderConfig(t *testing.T, hub string) {
 	t.Helper()
 	body, err := yaml.Marshal(remote.CommanderConfig{
 		Name: itest.CommanderName,
 		Role: remote.RoleCommander,
 		Commander: remote.Commander{
-			DefaultMachine: machine,
+			DefaultFleet: vpnFleetName,
+			Fleets:       map[string]remote.Fleet{vpnFleetName: {Hub: hub}},
 		},
 	})
 	if err != nil {

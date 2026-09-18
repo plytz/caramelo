@@ -27,10 +27,9 @@ func TestTheRetiredTopLevelKeysAreRefusedByName(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		body string
-		want string
 	}{
-		{"default_machine", "default_machine: box\n", "commander.default_machine"},
-		{"machines", "machines:\n  box: alex@box:4022\n", "commander.machines"},
+		{"default_machine", "default_machine: box\n"},
+		{"machines", "machines:\n  box: alex@box:4022\n"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), CommanderConfigFile)
@@ -39,10 +38,12 @@ func TestTheRetiredTopLevelKeysAreRefusedByName(t *testing.T) {
 			}
 			_, err := LoadCommanderConfigFrom(path)
 			if err == nil {
-				t.Fatalf("%s loaded; want a refusal naming %s", tc.name, tc.want)
+				t.Fatalf("%s loaded; want a refusal naming it and the fleets that replace it", tc.name)
 			}
-			if !strings.Contains(err.Error(), tc.want) {
-				t.Errorf("error = %v, want it to name %s", err, tc.want)
+			for _, want := range []string{tc.name, "retired", "fleets"} {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("error = %v, want it to name %s", err, want)
+				}
 			}
 		})
 	}

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
+	"sync"
 
 	"github.com/plytz/caramelo/internal/api"
 	"github.com/plytz/caramelo/internal/progress"
@@ -30,6 +32,10 @@ type app struct {
 	stdin io.Reader
 
 	machine string
+	fleet   string
+
+	chosenFleet string
+	appHint     func() string
 
 	progressFlag string
 	progress     progress.Format
@@ -87,14 +93,52 @@ var forward = func(ctx context.Context, a *app) (int, error) {
 }
 
 func (a *app) forwardIfCommander(cmd *cobra.Command) error {
+	a.typedTargetWins(cmd)
 	if !isCommander(cmd) || a.service != nil || cmd.HasSubCommands() {
 		return nil
 	}
+	a.appHint = appOfCommand(cmd)
 	code, err := a.forwardRendered(cmd.Context(), cmd)
 	if err != nil {
 		return err
 	}
+	if code == ExitOK {
+		a.rememberAppFleet(cmd.Context())
+	}
 	return &exitError{code}
+}
+
+func (a *app) typedTargetWins(cmd *cobra.Command) {
+	machineTyped, fleetTyped := flagTyped(cmd, "machine"), flagTyped(cmd, "fleet")
+	switch {
+	case machineTyped && !fleetTyped:
+		a.fleet = ""
+	case fleetTyped && !machineTyped:
+		a.machine = ""
+	}
+}
+
+func flagTyped(cmd *cobra.Command, name string) bool {
+	f := cmd.Flags().Lookup(name)
+	return f != nil && f.Changed
+}
+
+func appOfCommand(cmd *cobra.Command) func() string {
+	if cmd.Flags().Lookup("app") == nil {
+		return nil
+	}
+	var once sync.Once
+	var name string
+	return func() string {
+		once.Do(func() {
+			if f := cmd.Flags().Lookup("app"); f != nil && strings.TrimSpace(f.Value.String()) != "" {
+				name = strings.TrimSpace(f.Value.String())
+				return
+			}
+			name = appFromCheckout(cmd.Context(), ".")
+		})
+		return name
+	}
 }
 
 func (a *app) printer() *Printer {
@@ -156,7 +200,9 @@ types the same commands. 'caramelo manual' is the complete reference.`,
 	root.CompletionOptions.DisableDefaultCmd = true
 	root.PersistentFlags().BoolVar(&a.json, "json", false, "print machine-readable JSON on stdout")
 	root.PersistentFlags().StringVar(&a.machine, "machine", os.Getenv("CARAMELO_MACHINE"),
-		"machine to talk to: name, user@host[:port], or 'local' (default: auto-detect)")
+		"raw ssh target to talk to, for a machine that is in no fleet yet: user@host[:port], or 'local'")
+	root.PersistentFlags().StringVar(&a.fleet, "fleet", os.Getenv("CARAMELO_FLEET"),
+		"fleet to talk to, by its name in the commander config (default: the app's fleet, then the default fleet)")
 	root.PersistentFlags().StringVar(&a.progressFlag, "progress", "",
 		"how progress is written to stderr: text (default) or json, one event per line")
 	root.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {

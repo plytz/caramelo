@@ -77,7 +77,7 @@ func JoinLabPeer(home string, m *Machine) error {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return fmt.Errorf("create %s: %w", dir, err)
 	}
-	keyPath := filepath.Join(dir, vpnclient.KeyFileName(rec.Machine))
+	keyPath := filepath.Join(dir, vpnclient.KeyFileName(rec.Fleet))
 	if err := os.WriteFile(keyPath, []byte(kp.Private+"\n"), 0o600); err != nil {
 		return fmt.Errorf("write %s: %w", keyPath, err)
 	}

@@ -13,24 +13,24 @@ func TestTunnel(t *testing.T) {
 
 	t.Run("nothing installed", func(t *testing.T) {
 		TunnelDialer = nil
-		if _, err := Tunnel(ctx, target); !errors.Is(err, ErrNoTunnel) {
+		if _, err := Tunnel(ctx, "home", target); !errors.Is(err, ErrNoTunnel) {
 			t.Errorf("err = %v, want ErrNoTunnel", err)
 		}
 	})
 
 	t.Run("installed but no tunnel for this machine", func(t *testing.T) {
-		TunnelDialer = func(context.Context, Target) (Dialer, error) { return nil, nil }
+		TunnelDialer = func(context.Context, string, Target) (Dialer, error) { return nil, nil }
 		t.Cleanup(func() { TunnelDialer = nil })
-		if _, err := Tunnel(ctx, target); !errors.Is(err, ErrNoTunnel) {
+		if _, err := Tunnel(ctx, "home", target); !errors.Is(err, ErrNoTunnel) {
 			t.Errorf("a nil dialer with no error must read as ErrNoTunnel, got %v", err)
 		}
 	})
 
 	t.Run("a real failure is not a fall-through", func(t *testing.T) {
 		boom := errors.New("handshake timed out")
-		TunnelDialer = func(context.Context, Target) (Dialer, error) { return nil, boom }
+		TunnelDialer = func(context.Context, string, Target) (Dialer, error) { return nil, boom }
 		t.Cleanup(func() { TunnelDialer = nil })
-		if _, err := Tunnel(ctx, target); !errors.Is(err, boom) {
+		if _, err := Tunnel(ctx, "home", target); !errors.Is(err, boom) {
 			t.Errorf("err = %v, want the dialer's own error", err)
 		}
 	})
@@ -40,9 +40,9 @@ func TestTunnel(t *testing.T) {
 			return nil, errors.New("unused")
 		})
 		var got Target
-		TunnelDialer = func(_ context.Context, tt Target) (Dialer, error) { got = tt; return want, nil }
+		TunnelDialer = func(_ context.Context, _ string, tt Target) (Dialer, error) { got = tt; return want, nil }
 		t.Cleanup(func() { TunnelDialer = nil })
-		d, err := Tunnel(ctx, target)
+		d, err := Tunnel(ctx, "home", target)
 		if err != nil {
 			t.Fatal(err)
 		}

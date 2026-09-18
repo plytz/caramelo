@@ -108,7 +108,7 @@ type bootstrapResult struct {
 	Probe  bootstrap.Probe `json:"probe"`
 	Setup  setup.Report    `json:"setup"`
 
-	Machine *machineEntry `json:"machine,omitempty"`
+	Fleet *fleetEntry `json:"fleet,omitempty"`
 
 	Peer *setup.PeerSpec `json:"peer,omitempty"`
 
@@ -119,9 +119,9 @@ type bootstrapResult struct {
 	Reachability *vpnclient.Probe `json:"reachability,omitempty"`
 }
 
-type machineEntry struct {
+type fleetEntry struct {
 	Name    string `json:"name"`
-	Address string `json:"address"`
+	Hub     string `json:"hub"`
 	Default bool   `json:"default"`
 	Config  string `json:"config"`
 }
@@ -152,6 +152,7 @@ func (a *app) runBootstrap(cmd *cobra.Command, f bootstrapFlags) error {
 	if name == "" {
 		name = target.Host
 	}
+	fleetName := strOr(strings.TrimSpace(f.cfg.Hub.Fleet), defaultMachineName(name))
 	address := remote.Target{User: f.cfg.User, Host: target.Host, Port: f.cfg.SSHPort}
 
 	if !f.yes && !f.dryRun {
@@ -164,7 +165,7 @@ func (a *app) runBootstrap(cmd *cobra.Command, f bootstrapFlags) error {
 		}
 	}
 
-	peer, err := a.bootstrapPeer(f, name)
+	peer, err := a.bootstrapPeer(f, fleetName)
 	if err != nil {
 		return err
 	}
@@ -207,7 +208,7 @@ func (a *app) runBootstrap(cmd *cobra.Command, f bootstrapFlags) error {
 			*f.report = r
 			return nil
 		}
-		return a.printBootstrap(r, name, verified)
+		return a.printBootstrap(r, fleetName, verified)
 	}
 	if !peer.Empty() {
 		res.Peer = &peer
@@ -225,30 +226,31 @@ func (a *app) runBootstrap(cmd *cobra.Command, f bootstrapFlags) error {
 
 		return answer(res, true)
 	}
-	entry, err := recordMachine(name, address)
+	entry, err := recordFleet(fleetName, address)
 	if err != nil {
 		_ = answer(res, false)
-		return fmt.Errorf("setup finished on %s, but the machine could not be recorded: %w", target, err)
+		return fmt.Errorf("setup finished on %s, but its fleet could not be recorded: %w", target, err)
 	}
-	res.Machine = entry
+	res.Fleet = entry
 
 	endpoint := net.JoinHostPort(target.Host, strconv.Itoa(firewall.VPNPort(f.cfg.VPNListen)))
-	joined, joinErr := a.join(ctx, name, peer, f, shellControl{shell: shell, sudo: out.Probe.Privilege != bootstrap.PrivilegeRoot})
+	joined, joinErr := a.join(ctx, fleetName, peer, f, shellControl{shell: shell, sudo: out.Probe.Privilege != bootstrap.PrivilegeRoot})
 	if joinErr != nil {
 		fmt.Fprintf(a.stderr, "[bootstrap] warning: could not join the machine's network: %v\n", joinErr)
 	}
 
-	status, err := verifyMachine(ctx, a, name)
+	status, err := verifyMachine(ctx, a, fleetName)
 	if err != nil {
-		res.Reachability = reachability(name, endpoint, joined, joinErr, res.Transport)
+		res.Reachability = reachability(fleetName, endpoint, joined, joinErr, res.Transport)
 		_ = answer(res, false)
-		return fmt.Errorf("setup finished on %s and it is recorded as machine %q, but the API at %s did not answer from here: %w\n"+
-			"%s\ncheck that port %d and udp %s are reachable (firewall, security group), then try: caramelo --machine %s status",
-			target, name, address, err, bootstrapFailureCause(out.Report, res.Reachability), address.Port, f.cfg.VPNListen, name)
+		return fmt.Errorf("setup finished on %s and its fleet is recorded as %q, but the API at %s did not answer from here: %w\n"+
+			"%s\ncheck that port %d and udp %s are reachable (firewall, security group), then try: %s",
+			target, fleetName, address, err, bootstrapFailureCause(out.Report, res.Reachability),
+			address.Port, f.cfg.VPNListen, statusHint(entry.Name, entry.Default))
 	}
 	res.Verified, res.Status = true, status
 	res.Transport = transportOf(status)
-	res.Reachability = reachability(name, endpoint, joined, joinErr, res.Transport)
+	res.Reachability = reachability(fleetName, endpoint, joined, joinErr, res.Transport)
 	return answer(res, true)
 }
 
@@ -270,7 +272,11 @@ func setupArgs(flags *pflag.FlagSet) []string {
 	return args
 }
 
-func recordMachine(name string, address remote.Target) (*machineEntry, error) {
+func recordFleet(name string, address remote.Target) (*fleetEntry, error) {
+	if !remote.ValidFleetName(name) {
+		return nil, fmt.Errorf(
+			"fleet %q: a fleet's name is a slug — lowercase letters, digits and dashes", name)
+	}
 	path, err := remote.CommanderConfigPath()
 	if err != nil {
 		return nil, err
@@ -279,20 +285,16 @@ func recordMachine(name string, address remote.Target) (*machineEntry, error) {
 	if err != nil {
 		return nil, err
 	}
-	if cfg.Commander.Machines == nil {
-		cfg.Commander.Machines = map[string]string{}
-	}
-	cfg.Commander.Machines[name] = address.String()
-	if cfg.Commander.DefaultMachine == "" {
-		cfg.Commander.DefaultMachine = name
-	}
+	f := cfg.Commander.Fleets[name]
+	f.Hub = address.String()
+	cfg.SetFleet(name, f)
 	if err := remote.SaveCommanderConfigTo(path, cfg); err != nil {
 		return nil, err
 	}
-	return &machineEntry{Name: name, Address: address.String(), Default: cfg.Commander.DefaultMachine == name, Config: path}, nil
+	return &fleetEntry{Name: name, Hub: f.Hub, Default: cfg.Commander.DefaultFleet == name, Config: path}, nil
 }
 
-func verifyOverSSH(ctx context.Context, a *app, address string) (json.RawMessage, error) {
+func verifyOverSSH(ctx context.Context, a *app, fleet string) (json.RawMessage, error) {
 	var lastErr error
 	for attempt := 0; attempt < 3; attempt++ {
 		if attempt > 0 {
@@ -303,7 +305,7 @@ func verifyOverSSH(ctx context.Context, a *app, address string) (json.RawMessage
 			}
 		}
 		var stdout, stderr bytes.Buffer
-		sub := &app{stdout: &stdout, stderr: &stderr, machine: address, args: []string{"status", "--json"}}
+		sub := &app{stdout: &stdout, stderr: &stderr, fleet: fleet, args: []string{"status", "--json"}}
 		code, err := forwardImpl(ctx, sub)
 		if err != nil {
 			return nil, err
@@ -324,7 +326,7 @@ func verifyOverSSH(ctx context.Context, a *app, address string) (json.RawMessage
 	return nil, lastErr
 }
 
-func (a *app) printBootstrap(res bootstrapResult, name string, verified bool) error {
+func (a *app) printBootstrap(res bootstrapResult, fleet string, verified bool) error {
 	return a.printer().Result(res, func(w io.Writer) error {
 
 		if res.Probe.OS != "" || res.Probe.Arch != "" {
@@ -336,9 +338,9 @@ func (a *app) printBootstrap(res bootstrapResult, name string, verified bool) er
 		if err := writeBootstrapSummary(w, res.Setup); err != nil {
 			return err
 		}
-		if res.Machine != nil {
-			how := "machine %s (%s) recorded in %s\n"
-			if _, err := fmt.Fprintf(w, how, res.Machine.Name, res.Machine.Address, res.Machine.Config); err != nil {
+		if res.Fleet != nil {
+			how := "fleet %s (hub %s) recorded in %s\n"
+			if _, err := fmt.Fprintf(w, how, res.Fleet.Name, res.Fleet.Hub, res.Fleet.Config); err != nil {
 				return err
 			}
 		}
@@ -350,13 +352,20 @@ func (a *app) printBootstrap(res bootstrapResult, name string, verified bool) er
 		if !verified {
 			return nil
 		}
-		try := "caramelo --machine " + name + " status"
-		if res.Machine != nil && res.Machine.Default {
-			try = "caramelo status"
+		try := statusHint(fleet, false)
+		if res.Fleet != nil {
+			try = statusHint(res.Fleet.Name, res.Fleet.Default)
 		}
 		_, err := fmt.Fprintf(w, "API verified from here; try: %s\n", try)
 		return err
 	})
+}
+
+func statusHint(fleet string, isDefault bool) string {
+	if isDefault {
+		return "caramelo status"
+	}
+	return "caramelo --fleet " + fleet + " status"
 }
 
 func writeBootstrapSummary(w io.Writer, r setup.Report) error {
@@ -401,7 +410,8 @@ func bootstrapPlan(target remote.Target, f bootstrapFlags) string {
 		fmt.Fprintf(&b, "  edge      ports 80 and 443, certificates from %s\n", edgeSource(cfg))
 	}
 	fmt.Fprintf(&b, "  keys      %s\n", keys)
-	fmt.Fprintf(&b, "  commander records the machine as %q in the commander config\n", nameOr(f.name, target.Host))
+	fmt.Fprintf(&b, "  commander records the fleet as %q in the commander config\n",
+		nameOr(strings.TrimSpace(cfg.Hub.Fleet), nameOr(f.name, target.Host)))
 	return b.String()
 }
 
@@ -441,13 +451,15 @@ func localUser() string {
 var (
 	commanderPeerKey = ensurePeerKey
 
-	joinMachine = func(ctx context.Context, machine string, ctl vpnclient.Control) (*vpnclient.State, error) {
+	joinMachine = func(ctx context.Context, fleet string, ctl vpnclient.Control) (*vpnclient.State, error) {
 
-		c, err := vpnclient.NewWith(vpnclient.Options{Control: ctl, Log: io.Discard})
+		c, err := vpnclient.NewWith(vpnclient.Options{
+			Control: ctl, Records: pinnedRecords{}, Log: io.Discard,
+		})
 		if err != nil {
 			return nil, err
 		}
-		return c.Up(ctx, vpnclient.UpRequest{Machine: machine})
+		return c.Up(ctx, vpnclient.UpRequest{Machine: fleet, Identity: commanderName()})
 	}
 )
 
@@ -466,14 +478,14 @@ func (c shellControl) Run(ctx context.Context, _ string, argv []string, stdout, 
 	return c.shell.Run(ctx, bootstrap.Cmd{Line: line, Stdout: stdout, Stderr: stderr})
 }
 
-func (a *app) bootstrapPeer(f bootstrapFlags, machine string) (setup.PeerSpec, error) {
+func (a *app) bootstrapPeer(f bootstrapFlags, fleet string) (setup.PeerSpec, error) {
 	if !f.peer.Empty() {
 		return f.peer, nil
 	}
 	if f.dryRun || commanderPeerKey == nil {
 		return setup.PeerSpec{}, nil
 	}
-	peer, err := commanderPeerKey(machine)
+	peer, err := commanderPeerKey(fleet)
 	if err != nil {
 
 		fmt.Fprintf(a.stderr, "[bootstrap] warning: no key for the commander: %v\n", err)
@@ -482,11 +494,11 @@ func (a *app) bootstrapPeer(f bootstrapFlags, machine string) (setup.PeerSpec, e
 	return peer, nil
 }
 
-func (a *app) join(ctx context.Context, machine string, peer setup.PeerSpec, f bootstrapFlags, ctl vpnclient.Control) (*vpnclient.State, error) {
+func (a *app) join(ctx context.Context, fleet string, peer setup.PeerSpec, f bootstrapFlags, ctl vpnclient.Control) (*vpnclient.State, error) {
 	if joinMachine == nil || peer.Empty() || !f.peer.Empty() {
 		return nil, nil
 	}
-	return joinMachine(ctx, machine, ctl)
+	return joinMachine(ctx, fleet, ctl)
 }
 
 func reachability(machine, endpoint string, st *vpnclient.State, joinErr error, transport string) *vpnclient.Probe {
@@ -577,7 +589,7 @@ func ensurePeerKey(machine string) (setup.PeerSpec, error) {
 	if err != nil {
 		return setup.PeerSpec{}, err
 	}
-	return setup.PeerSpec{Name: vpnclient.DefaultPeerName(), PublicKey: kp.Public}, nil
+	return setup.PeerSpec{Name: strOr(commanderName(), vpnclient.DefaultPeerName()), PublicKey: kp.Public}, nil
 }
 
 func transportOf(status json.RawMessage) string {

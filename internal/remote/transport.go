@@ -39,15 +39,15 @@ type Transport interface {
 	Run(ctx context.Context, argv []string, s Streams) (int, error)
 }
 
-var TunnelDialer func(ctx context.Context, t Target) (Dialer, error)
+var TunnelDialer func(ctx context.Context, fleet string, t Target) (Dialer, error)
 
 var ErrNoTunnel = errors.New("no tunnel for this machine")
 
-func Tunnel(ctx context.Context, t Target) (Dialer, error) {
+func Tunnel(ctx context.Context, fleet string, t Target) (Dialer, error) {
 	if TunnelDialer == nil {
 		return nil, ErrNoTunnel
 	}
-	d, err := TunnelDialer(ctx, t)
+	d, err := TunnelDialer(ctx, fleet, t)
 	if err != nil {
 		return nil, err
 	}

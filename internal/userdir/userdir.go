@@ -8,34 +8,38 @@ import (
 	"strings"
 )
 
+const (
+	ConfigHomeEnv = "XDG_CONFIG_HOME"
+
+	CacheHomeEnv = "XDG_CACHE_HOME"
+
+	ConfigHomeDefault = ".config"
+
+	CacheHomeDefault = ".cache"
+)
+
 var ServerConfigured = func() bool { return false }
 
 func Config() (string, error) {
-	if dir := os.Getenv("XDG_CONFIG_HOME"); filepath.IsAbs(dir) {
-		return dir, nil
-	}
-	if home, ok := InvokingUserHome(); ok {
-		return filepath.Join(home, ".config"), nil
-	}
-	dir, err := os.UserConfigDir()
-	if err != nil {
-		return "", fmt.Errorf("locate user config dir: %w", err)
-	}
-	return dir, nil
+	return home(ConfigHomeEnv, ConfigHomeDefault)
 }
 
 func Cache() (string, error) {
-	if dir := os.Getenv("XDG_CACHE_HOME"); filepath.IsAbs(dir) {
+	return home(CacheHomeEnv, CacheHomeDefault)
+}
+
+func home(env, under string) (string, error) {
+	if dir := os.Getenv(env); filepath.IsAbs(dir) {
 		return dir, nil
 	}
-	if home, ok := InvokingUserHome(); ok {
-		return filepath.Join(home, ".cache"), nil
+	if h, ok := InvokingUserHome(); ok {
+		return filepath.Join(h, under), nil
 	}
-	dir, err := os.UserCacheDir()
+	h, err := os.UserHomeDir()
 	if err != nil {
-		return "", fmt.Errorf("locate user cache dir: %w", err)
+		return "", fmt.Errorf("locate the home directory for %s: %w", filepath.Join("~", under), err)
 	}
-	return dir, nil
+	return filepath.Join(h, under), nil
 }
 
 func InvokingUserHome() (string, bool) {

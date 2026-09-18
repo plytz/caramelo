@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/netip"
 	"sort"
 	"strings"
 	"time"
@@ -155,8 +156,10 @@ func defaultMachineName(target string) string {
 	if i := strings.Index(host, ":"); i >= 0 {
 		host = host[:i]
 	}
-	if i := strings.Index(host, "."); i > 0 {
-		host = host[:i]
+	if _, err := netip.ParseAddr(host); err != nil {
+		if i := strings.Index(host, "."); i > 0 {
+			host = host[:i]
+		}
 	}
 	return strOr(machineNameSlug(host), "member")
 }
@@ -204,19 +207,27 @@ func (a *app) hubReachableFrom(token string) string {
 }
 
 func (a *app) hubHost() string {
+	if m := strings.TrimSpace(a.machine); m != "" {
+		t, err := remote.ParseTarget(m)
+		if err != nil {
+			return ""
+		}
+		return t.Host
+	}
 	commander, err := remote.LoadCommanderConfig()
 	if err != nil {
 		return ""
 	}
-	name := strings.TrimSpace(a.machine)
+	name := strings.TrimSpace(a.fleet)
 	if name == "" {
-		name = commander.Commander.DefaultMachine
+		name = commander.Commander.DefaultFleet
 	}
-	addr := name
-	if v, ok := commander.Commander.Machines[name]; ok {
-		addr = v
+	if name == "" {
+		if names := commander.FleetNames(); len(names) == 1 {
+			name = names[0]
+		}
 	}
-	t, err := remote.ParseTarget(addr)
+	t, err := commander.FleetTarget(name)
 	if err != nil {
 		return ""
 	}

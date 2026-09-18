@@ -95,7 +95,7 @@ func TestManualCommandFormats(t *testing.T) {
 	if err := json.Unmarshal(stdout.Bytes(), &m); err != nil {
 		t.Fatalf("manual --json is not JSON: %v", err)
 	}
-	if len(m.Commands) == 0 || len(m.GlobalFlags) != 3 || m.ExitCodes["usage"] != ExitUsage {
+	if len(m.Commands) == 0 || len(m.GlobalFlags) != 4 || m.ExitCodes["usage"] != ExitUsage {
 		t.Errorf("manual --json = %d commands, %d global flags, exit codes %v", len(m.Commands), len(m.GlobalFlags), m.ExitCodes)
 	}
 }

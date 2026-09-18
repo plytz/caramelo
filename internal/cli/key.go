@@ -53,7 +53,9 @@ func (a *app) keyAddCmd() *cobra.Command {
 		Args:  exactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if strings.TrimSpace(name) == "" {
-				return &usageError{fmt.Errorf("--name is required: it is the identity this key is logged under")}
+				return &usageError{fmt.Errorf(
+					"--name is required here: it is the identity this key is logged under, and only a " +
+						"commander has a name of its own to fall back on")}
 			}
 			line, err := readKeyLine(cmd.Context(), file)
 			if err != nil {
@@ -68,7 +70,20 @@ func (a *app) keyAddCmd() *cobra.Command {
 			})
 		},
 	}
-	cmd.Flags().StringVar(&name, "name", "", "identity for this key (unique, no spaces)")
+	cmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		if err := a.setProgress(); err != nil {
+			return err
+		}
+		if a.service == nil && strings.TrimSpace(name) == "" {
+			if own := commanderPeerName(""); own != "" {
+				name = own
+				a.args = injectFlag(a.args, "--name", own)
+			}
+		}
+		return a.forwardIfCommander(cmd)
+	}
+	cmd.Flags().StringVar(&name, "name", "",
+		"identity for this key (unique, no spaces; default: the commander's own name)")
 	cmd.Flags().StringVar(&options, "options", "", "authorized_keys options, e.g. caramelo-role=admin")
 	cmd.Flags().StringVarP(&file, "file", "f", "", "read the key from this file instead of standard input")
 	return cmd

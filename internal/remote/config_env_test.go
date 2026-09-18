@@ -21,11 +21,13 @@ func TestLoadAndSaveCommanderConfigUseTheUsersConfigDir(t *testing.T) {
 	}
 
 	want := CommanderConfig{
-		Name: "laptop",
+		Name: "eric-laptop",
 		Role: RoleCommander,
 		Commander: Commander{
-			DefaultMachine: "worker1",
-			Machines:       map[string]string{"worker1": "caramelo@192.168.56.11:4022"},
+			DefaultFleet: "home",
+			Fleets: map[string]Fleet{
+				"home": {Hub: "caramelo@192.168.56.11:4022", Apps: []string{"shop"}},
+			},
 		},
 	}
 	if err := SaveCommanderConfig(want); err != nil {
@@ -68,7 +70,7 @@ func TestCommanderConfigPathFailsWithoutAHome(t *testing.T) {
 func TestLoadCommanderConfigRejectsBrokenYAML(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.yaml")
-	if err := os.WriteFile(path, []byte("default_machine: [unclosed\n"), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte("commander: [unclosed\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	_, err := LoadCommanderConfigFrom(path)

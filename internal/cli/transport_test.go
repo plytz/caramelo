@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
+	"encoding/json"
 	"encoding/pem"
 	"github.com/plytz/caramelo/internal/testutil"
 	"net"
@@ -43,6 +44,31 @@ func useCommanderConfig(t *testing.T, c remote.CommanderConfig) {
 func noCommanderConfig(t *testing.T) {
 	t.Helper()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("CARAMELO_FLEET", "")
+}
+
+func oneFleet() remote.CommanderConfig {
+	return remote.CommanderConfig{
+		Name: "laptop",
+		Role: remote.RoleCommander,
+		Commander: remote.Commander{
+			DefaultFleet: "home",
+			Fleets:       map[string]remote.Fleet{"home": {Hub: "alex@10.0.0.5"}},
+		},
+	}
+}
+
+func twoFleets() remote.CommanderConfig {
+	return remote.CommanderConfig{
+		Name: "laptop",
+		Role: remote.RoleCommander,
+		Commander: remote.Commander{
+			Fleets: map[string]remote.Fleet{
+				"home": {Hub: "alex@10.0.0.5", Apps: []string{"shop"}},
+				"work": {Hub: "ops@hub.work.example:4023", Apps: []string{"blog"}},
+			},
+		},
+	}
 }
 
 func initializedCommander(t *testing.T) {
@@ -103,7 +129,7 @@ func TestResolveTransportUsesTheLocalSocket(t *testing.T) {
 
 func TestResolveTransportMachineLocalForcesTheSocket(t *testing.T) {
 
-	useCommanderConfig(t, remote.CommanderConfig{Commander: remote.Commander{DefaultMachine: "box"}})
+	useCommanderConfig(t, oneFleet())
 	useSystemConfigDir(t, t.TempDir())
 
 	got, err := resolveTransport(context.Background(), &app{machine: "local"})
@@ -136,26 +162,24 @@ func TestResolveTransportMachineFlagBeatsTheSocket(t *testing.T) {
 	}
 }
 
-func TestResolveTransportMachineName(t *testing.T) {
-	useCommanderConfig(t, remote.CommanderConfig{Commander: remote.Commander{Machines: map[string]string{"box": "alex@10.0.0.5:4023"}}})
+func TestResolveTransportFleetFlag(t *testing.T) {
+	useCommanderConfig(t, twoFleets())
 	useSystemConfigDir(t, t.TempDir())
 
-	got, err := resolveTransport(context.Background(), &app{machine: "box"})
+	got, err := resolveTransport(context.Background(), &app{fleet: "work"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := (remote.Target{User: "alex", Host: "10.0.0.5", Port: 4023}); got.kind != kindSSH || got.target != want {
-		t.Errorf("got %+v, want ssh to %+v", got, want)
+	want := remote.Target{User: "ops", Host: "hub.work.example", Port: 4023}
+	if got.kind != kindSSH || got.target != want || got.fleet != "work" {
+		t.Errorf("got %+v, want ssh to %+v for fleet work", got, want)
 	}
 }
 
-func TestResolveTransportDefaultMachine(t *testing.T) {
-	useCommanderConfig(t, remote.CommanderConfig{
-		Commander: remote.Commander{
-			DefaultMachine: "box",
-			Machines:       map[string]string{"box": "alex@10.0.0.5"},
-		},
-	})
+func TestResolveTransportDefaultFleet(t *testing.T) {
+	cfg := twoFleets()
+	cfg.Commander.DefaultFleet = "home"
+	useCommanderConfig(t, cfg)
 	useSystemConfigDir(t, t.TempDir())
 
 	got, err := resolveTransport(context.Background(), &app{})
@@ -163,8 +187,39 @@ func TestResolveTransportDefaultMachine(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := remote.Target{User: "alex", Host: "10.0.0.5", Port: serverconfig.DefaultSSHPort}
-	if got.kind != kindSSH || got.target != want {
-		t.Errorf("got %+v, want ssh to %+v", got, want)
+	if got.kind != kindSSH || got.target != want || got.fleet != "home" {
+		t.Errorf("got %+v, want ssh to %+v for fleet home", got, want)
+	}
+}
+
+func TestResolveTransportAppFleet(t *testing.T) {
+	cfg := twoFleets()
+	cfg.Commander.DefaultFleet = "home"
+	useCommanderConfig(t, cfg)
+	useSystemConfigDir(t, t.TempDir())
+
+	got, err := resolveTransport(context.Background(),
+		&app{appHint: func() string { return "blog" }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.fleet != "work" {
+		t.Errorf("fleet = %q, want the fleet recorded for blog", got.fleet)
+	}
+}
+
+func TestResolveTransportRefusesToGuessBetweenFleets(t *testing.T) {
+	useCommanderConfig(t, twoFleets())
+	useSystemConfigDir(t, t.TempDir())
+
+	_, err := resolveTransport(context.Background(), &app{})
+	if err == nil {
+		t.Fatal("want a refusal when two fleets are configured and nothing picks one")
+	}
+	for _, want := range []string{"home, work", "--fleet"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error %q does not mention %q", err, want)
+		}
 	}
 }
 
@@ -177,7 +232,7 @@ func TestResolveTransportWithNothingConfigured(t *testing.T) {
 		t.Fatal("want an error when there is no socket and no machine")
 	}
 	msg := err.Error()
-	for _, want := range []string{"hub setup", "--machine", "default_machine"} {
+	for _, want := range []string{"hub setup", "--machine", "fleet add"} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("error %q does not mention %q; it must name both fixes", msg, want)
 		}
@@ -462,5 +517,114 @@ func TestControlPathRefusesADeepCacheDir(t *testing.T) {
 	}
 	if len(cp)-len("%C")+40+17 > maxControlPath {
 		t.Errorf("controlPath() = %q leaves no room for ssh's suffix", cp)
+	}
+}
+
+type fakeTransport struct {
+	apps    []string
+	listErr error
+	code    int
+
+	seen []transport
+}
+
+func (f *fakeTransport) install(t *testing.T) {
+	t.Helper()
+	old := runTransport
+	runTransport = func(_ context.Context, a *app, tr transport) (int, error) {
+		f.seen = append(f.seen, tr)
+		if len(a.args) < 2 || a.args[0] != "app" || a.args[1] != "list" {
+			return f.code, nil
+		}
+		if f.listErr != nil {
+			return ExitError, f.listErr
+		}
+		body, err := json.Marshal(appNames(f.apps))
+		if err != nil {
+			return ExitError, err
+		}
+		_, _ = a.stdout.Write(body)
+		return ExitOK, nil
+	}
+	t.Cleanup(func() { runTransport = old })
+}
+
+func noTargetInTheEnvironment(t *testing.T) {
+	t.Helper()
+	t.Setenv("CARAMELO_MACHINE", "")
+	t.Setenv("CARAMELO_FLEET", "")
+}
+
+func TestATypedMachineBeatsTheFleetInTheEnvironment(t *testing.T) {
+	noTargetInTheEnvironment(t)
+	useCommanderConfig(t, twoFleets())
+	t.Setenv("CARAMELO_FLEET", "home")
+	f := &fakeTransport{}
+	f.install(t)
+
+	if code, _, stderr := run(t, "status", "--machine", "alex@box.example"); code != ExitOK {
+		t.Fatalf("exit %d, want the raw box to be reached: %s", code, stderr)
+	}
+	if len(f.seen) != 1 {
+		t.Fatalf("transports = %+v, want one", f.seen)
+	}
+	if got := f.seen[0]; got.fleet != "" || got.target.Host != "box.example" {
+		t.Errorf("transport = %+v, want ssh to the box named on the command line and no fleet", got)
+	}
+}
+
+func TestATypedFleetBeatsTheMachineInTheEnvironment(t *testing.T) {
+	noTargetInTheEnvironment(t)
+	useCommanderConfig(t, twoFleets())
+	t.Setenv("CARAMELO_MACHINE", "alex@raw.example")
+	f := &fakeTransport{}
+	f.install(t)
+
+	if code, _, stderr := run(t, "status", "--fleet", "work"); code != ExitOK {
+		t.Fatalf("exit %d, want the fleet named on the command line: %s", code, stderr)
+	}
+	if len(f.seen) != 1 {
+		t.Fatalf("transports = %+v, want one", f.seen)
+	}
+	if got := f.seen[0]; got.fleet != "work" || got.target.Host != "hub.work.example" {
+		t.Errorf("transport = %+v, want the hub of work", got)
+	}
+}
+
+func TestTwoTargetsGivenTogetherAreRefused(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		env  map[string]string
+		args []string
+	}{
+		{"both typed", nil, []string{"status", "--machine", "alex@box.example", "--fleet", "work"}},
+		{
+			"both in the environment",
+			map[string]string{"CARAMELO_MACHINE": "alex@box.example", "CARAMELO_FLEET": "work"},
+			[]string{"status"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			noTargetInTheEnvironment(t)
+			useCommanderConfig(t, twoFleets())
+			for k, v := range tc.env {
+				t.Setenv(k, v)
+			}
+			f := &fakeTransport{}
+			f.install(t)
+
+			code, _, stderr := run(t, tc.args...)
+			if code != ExitError {
+				t.Fatalf("exit %d, want %d", code, ExitError)
+			}
+			for _, want := range []string{"--machine", "--fleet"} {
+				if !strings.Contains(stderr, want) {
+					t.Errorf("stderr = %q, want it to name %s", stderr, want)
+				}
+			}
+			if len(f.seen) != 0 {
+				t.Errorf("transports = %+v, want none: nothing was reached", f.seen)
+			}
+		})
 	}
 }

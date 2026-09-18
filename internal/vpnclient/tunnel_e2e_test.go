@@ -107,6 +107,15 @@ func TestUpJoinsTheNetwork(t *testing.T) {
 	if !strings.Contains(joined, "peer add test-peer ") {
 		t.Errorf("the second up did not reuse the name it joined under; calls were:\n%s", joined)
 	}
+
+	control.calls = nil
+	if _, err := client.Up(context.Background(), UpRequest{Machine: machine, Identity: "renamed"}); err != nil {
+		t.Fatalf("vpn up after the commander was given a name: %v", err)
+	}
+	joined = strings.Join(control.calls, "\n")
+	if !strings.Contains(joined, "peer add test-peer ") {
+		t.Errorf("a commander renamed in its config must stay the peer it already is; calls were:\n%s", joined)
+	}
 }
 
 func TestUpRefusesAMachineWithNoNetwork(t *testing.T) {

@@ -36,13 +36,13 @@ func TestBootstrap(t *testing.T) {
 	if first.Setup.Failed != 0 || first.Setup.Changed == 0 {
 		t.Errorf("setup report: %d failed, %d changed\noutput:\n%s", first.Setup.Failed, first.Setup.Changed, firstRaw)
 	}
-	if first.Machine == nil {
-		t.Fatalf("no machine recorded\noutput:\n%s", firstRaw)
+	if first.Fleet == nil {
+		t.Fatalf("no fleet recorded\noutput:\n%s", firstRaw)
 	}
-	if first.Machine.Name != machineName || !first.Machine.Default ||
-		!strings.HasPrefix(first.Machine.Address, itest.CarameloUser+"@") ||
-		!strings.HasSuffix(first.Machine.Address, fmt.Sprintf(":%d", itest.CarameloSSHPort)) {
-		t.Errorf("machine = %+v", first.Machine)
+	if first.Fleet.Name != machineName || !first.Fleet.Default ||
+		!strings.HasPrefix(first.Fleet.Hub, itest.CarameloUser+"@") ||
+		!strings.HasSuffix(first.Fleet.Hub, fmt.Sprintf(":%d", itest.CarameloSSHPort)) {
+		t.Errorf("fleet = %+v", first.Fleet)
 	}
 	if !first.Verified {
 		t.Errorf("the API was not verified from the commander\noutput:\n%s", firstRaw)
@@ -53,8 +53,11 @@ func TestBootstrap(t *testing.T) {
 	}
 
 	cfg := commanderConfig(t)
-	if cfg.Commander.DefaultMachine != machineName || cfg.Commander.Machines[machineName] != first.Machine.Address {
-		t.Errorf("commander config = %+v, want default %s -> %s", cfg, machineName, first.Machine.Address)
+	if cfg.Commander.DefaultFleet != machineName || cfg.Commander.Fleets[machineName].Hub != first.Fleet.Hub {
+		t.Errorf("commander config = %+v, want default %s -> %s", cfg, machineName, first.Fleet.Hub)
+	}
+	if key := cfg.Commander.Fleets[machineName].PublicKey; key == "" {
+		t.Errorf("commander config = %+v, want the hub's key pinned for the fleet on first contact", cfg)
 	}
 }
 
@@ -74,7 +77,7 @@ func TestNothingLeftInTmp(t *testing.T) {
 	}
 }
 
-func TestCommanderUsesTheNewDefaultMachine(t *testing.T) {
+func TestCommanderUsesTheNewDefaultFleet(t *testing.T) {
 	begin(t)
 	if firstErr != nil {
 		t.Skip("bootstrap failed")
@@ -177,7 +180,7 @@ func TestIdempotent(t *testing.T) {
 		t.Errorf("second run: %d changed, %d failed; want 0 and 0", res.Setup.Changed, res.Setup.Failed)
 		explainNotIdempotent(t, m)
 	}
-	if !res.Verified || res.Machine == nil || !res.Machine.Default {
+	if !res.Verified || res.Fleet == nil || !res.Fleet.Default {
 		t.Errorf("second run result = %+v", res)
 	}
 }

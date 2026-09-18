@@ -127,7 +127,7 @@ func (e probeSetupError) Unwrap() error { return e.err }
 var probeHandshake = func(ctx context.Context, c *client, rec Record, timeout time.Duration) (time.Time, error) {
 	dev, err := c.device(rec)
 	if err != nil {
-		return time.Time{}, probeSetupError{fmt.Errorf("open a tunnel to %s: %w", rec.Machine, err)}
+		return time.Time{}, probeSetupError{fmt.Errorf("open a tunnel to %s: %w", rec.Fleet, err)}
 	}
 	defer dev.release()
 	return verify(ctx, dev, timeout)
@@ -177,7 +177,7 @@ func probeRecord(machine string, rec Record, endpoint, key string, admitted bool
 		return rec
 	}
 	return Record{
-		Machine:    machine,
+		Fleet:      machine,
 		Endpoint:   endpoint,
 		MachineKey: key,
 		Subnet:     probeSubnet,

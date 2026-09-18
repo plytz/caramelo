@@ -15,7 +15,7 @@ import (
 
 func testRecord(machine string) Record {
 	return Record{
-		Machine:     machine,
+		Fleet:       machine,
 		MachineName: "worker1",
 		Endpoint:    "192.168.56.11:4021",
 		MachineKey:  "0000000000000000000000000000000000000000000=",
@@ -213,5 +213,26 @@ func TestARecordRoutesTheFleetToAHubThatRelays(t *testing.T) {
 	}
 	if got := rec.Subnet.String(); got != "10.86.0.0/16" {
 		t.Errorf("a machine of one routes %s, want its own range", got)
+	}
+}
+
+func TestPeerNameForPrefersTheNameGivenThenTheOneRecorded(t *testing.T) {
+	recorded := Record{PeerName: "eric-laptop"}
+	for _, tc := range []struct {
+		name string
+		req  UpRequest
+		rec  Record
+		want string
+	}{
+		{"--name wins", UpRequest{PeerName: "typed", Identity: "commander"}, recorded, "typed"},
+		{"the name already registered comes next", UpRequest{Identity: "commander"}, recorded, "eric-laptop"},
+		{"the commander's own name joins a fleet it never joined", UpRequest{Identity: "commander"}, Record{}, "commander"},
+		{"a commander with no name falls back", UpRequest{}, Record{}, DefaultPeerName()},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := peerNameFor(tc.req, tc.rec); got != tc.want {
+				t.Errorf("peerNameFor(%+v, %+v) = %q, want %q", tc.req, tc.rec, got, tc.want)
+			}
+		})
 	}
 }

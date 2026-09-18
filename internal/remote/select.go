@@ -8,14 +8,21 @@ import (
 	"net/netip"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/plytz/caramelo/internal/serverconfig"
 )
 
-var ErrNoMachine = errors.New("no caramelod to talk to")
+var ErrNoFleet = errors.New("no caramelod to talk to")
+
+const MachineLocal = "local"
 
 type Selection struct {
 	Machine string
+
+	Fleet string
+
+	App func() string
 
 	Config CommanderConfig
 
@@ -24,7 +31,7 @@ type Selection struct {
 
 	SocketExists func(path string) bool
 
-	Tunnel func(ctx context.Context, t Target) (Dialer, error)
+	Tunnel func(ctx context.Context, fleet string, t Target) (Dialer, error)
 }
 
 type Choice struct {
@@ -34,6 +41,8 @@ type Choice struct {
 	User       string
 
 	Target Target
+
+	Fleet string
 
 	Dialer Dialer
 
@@ -49,44 +58,84 @@ func Select(ctx context.Context, s Selection) (Choice, error) {
 		return Choice{Kind: KindSocket, SocketPath: s.SocketPath, User: s.SocketUser, Why: why}
 	}
 
-	if s.Machine != "" {
-		if s.Machine == "local" {
-			return socket("--machine local"), nil
+	machine := strings.TrimSpace(s.Machine)
+	fleet := strings.TrimSpace(s.Fleet)
+	if machine != "" && fleet != "" {
+		return Choice{}, fmt.Errorf(
+			"--machine %s and --fleet %s ask for two different things: --fleet names a fleet of the "+
+				"commander config and --machine a raw ssh target that is in no fleet yet", machine, fleet)
+	}
+
+	if machine != "" {
+		if machine == MachineLocal {
+			return socket("--machine " + MachineLocal), nil
 		}
-		target, err := s.Config.Resolve(s.Machine)
+		target, err := ParseTarget(machine)
 		if err != nil {
 			return Choice{}, err
 		}
-		return s.remote(ctx, target, "--machine "+s.Machine)
+		return s.remote(ctx, target, "", "--machine "+machine)
+	}
+
+	if fleet != "" {
+		return s.fleet(ctx, fleet, "--fleet "+fleet)
 	}
 
 	if exists(s.SocketPath) {
 		return socket("local daemon socket"), nil
 	}
 
-	if s.Config.Commander.DefaultMachine != "" {
-		target, err := s.Config.Resolve(s.Config.Commander.DefaultMachine)
-		if err != nil {
-			return Choice{}, err
+	if app := s.app(); app != "" {
+		if name := s.Config.FleetForApp(app); name != "" {
+			return s.fleet(ctx, name, "the fleet recorded for app "+app)
 		}
-		return s.remote(ctx, target, "commander.default_machine in the commander config")
 	}
 
-	return Choice{}, ErrNoMachine
+	if name := strings.TrimSpace(s.Config.Commander.DefaultFleet); name != "" {
+		return s.fleet(ctx, name, "commander.default_fleet")
+	}
+
+	names := s.Config.FleetNames()
+	switch len(names) {
+	case 0:
+		return Choice{}, ErrNoFleet
+	case 1:
+		return s.fleet(ctx, names[0], "the only fleet in the commander config")
+	}
+	return Choice{}, fmt.Errorf(
+		"this commander knows %d fleets (%s) and nothing here says which one to talk to: "+
+			"pass --fleet NAME (or CARAMELO_FLEET), or make one the default with "+
+			"'caramelo fleet default NAME'", len(names), s.Config.FleetList())
 }
 
-func (s Selection) remote(ctx context.Context, target Target, why string) (Choice, error) {
+func (s Selection) app() string {
+	if s.App == nil {
+		return ""
+	}
+	return strings.TrimSpace(s.App())
+}
+
+func (s Selection) fleet(ctx context.Context, name, why string) (Choice, error) {
+	target, err := s.Config.FleetTarget(name)
+	if err != nil {
+		return Choice{}, err
+	}
+	return s.remote(ctx, target, name, why)
+}
+
+func (s Selection) remote(ctx context.Context, target Target, fleet, why string) (Choice, error) {
 	tunnel := s.Tunnel
 	if tunnel == nil {
 		tunnel = Tunnel
 	}
-	d, err := tunnel(ctx, target)
+	d, err := tunnel(ctx, fleet, target)
 	switch {
 	case err == nil && d != nil:
-		return Choice{Kind: KindTunnel, Target: target, Dialer: d, Why: why + ", peer key for this machine"}, nil
+		return Choice{Kind: KindTunnel, Target: target, Fleet: fleet, Dialer: d,
+			Why: why + ", peer key for this machine"}, nil
 	case err == nil, errors.Is(err, ErrNoTunnel):
 
-		return Choice{Kind: KindSSH, Target: target, Why: why}, nil
+		return Choice{Kind: KindSSH, Target: target, Fleet: fleet, Why: why}, nil
 	default:
 
 		return Choice{}, fmt.Errorf("reach %s through its tunnel: %w", target, err)

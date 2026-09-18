@@ -116,7 +116,7 @@ func TestTargetsFromURLsSkipWhatHasNoAddress(t *testing.T) {
 }
 
 func TestSilenceErrorSaysWhatToCheck(t *testing.T) {
-	rec := Record{Machine: "box", Endpoint: "192.168.56.11:4021"}
+	rec := Record{Fleet: "box", Endpoint: "192.168.56.11:4021"}
 	ap := netip.MustParseAddrPort("10.86.0.1:4022")
 
 	never := silenceError(rec, ap, time.Time{}, true).Error()

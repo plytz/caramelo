@@ -122,8 +122,8 @@ func TestSetupTargetBootstrapsRecordsAndVerifies(t *testing.T) {
 	if res.Target != "admin@box.example:22" || res.Setup.Changed != 8 || !res.Verified {
 		t.Errorf("result = %+v", res)
 	}
-	if res.Machine == nil || res.Machine.Name != "prod" || res.Machine.Address != "caramelo@box.example:4022" || !res.Machine.Default {
-		t.Errorf("machine = %+v", res.Machine)
+	if res.Fleet == nil || res.Fleet.Name != "prod" || res.Fleet.Hub != "caramelo@box.example:4022" || !res.Fleet.Default {
+		t.Errorf("fleet = %+v", res.Fleet)
 	}
 	if !strings.Contains(string(res.Status), `"transport":"ssh"`) {
 		t.Errorf("status = %s", res.Status)
@@ -133,7 +133,7 @@ func TestSetupTargetBootstrapsRecordsAndVerifies(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Commander.DefaultMachine != "prod" || cfg.Commander.Machines["prod"] != "caramelo@box.example:4022" {
+	if cfg.Commander.DefaultFleet != "prod" || cfg.Commander.Fleets["prod"].Hub != "caramelo@box.example:4022" {
 		t.Errorf("commander config = %+v", cfg)
 	}
 }
@@ -141,7 +141,14 @@ func TestSetupTargetBootstrapsRecordsAndVerifies(t *testing.T) {
 func TestSetupTargetHumanOutputAndCustomPort(t *testing.T) {
 	sh := useScriptedTarget(t, greenReport(), okVerify)
 
-	if err := remote.SaveCommanderConfig(remote.CommanderConfig{Commander: remote.Commander{DefaultMachine: "first", Machines: map[string]string{"first": "caramelo@a:4022"}}}); err != nil {
+	if err := remote.SaveCommanderConfig(remote.CommanderConfig{
+		Name: "laptop",
+		Role: remote.RoleCommander,
+		Commander: remote.Commander{
+			DefaultFleet: "first",
+			Fleets:       map[string]remote.Fleet{"first": {Hub: "caramelo@a:4022"}},
+		},
+	}); err != nil {
 		t.Fatal(err)
 	}
 	code, stdout, _ := run(t, "hub", "setup", "--target", "10.0.0.5:2222", "--yes", "--ssh-port", "5022")
@@ -151,13 +158,13 @@ func TestSetupTargetHumanOutputAndCustomPort(t *testing.T) {
 	if sh.target.Port != 2222 || sh.target.User != localUser() {
 		t.Errorf("target = %+v", sh.target)
 	}
-	for _, want := range []string{"2 steps, 1 changed, 0 failed", "machine 10.0.0.5 (caramelo@10.0.0.5:5022) recorded in", "try: caramelo --machine 10.0.0.5 status"} {
+	for _, want := range []string{"2 steps, 1 changed, 0 failed", "fleet 10-0-0-5 (hub caramelo@10.0.0.5:5022) recorded in", "try: caramelo --fleet 10-0-0-5 status"} {
 		if !strings.Contains(stdout, want) {
 			t.Errorf("stdout lacks %q:\n%s", want, stdout)
 		}
 	}
 	cfg, _ := remote.LoadCommanderConfig()
-	if cfg.Commander.DefaultMachine != "first" || cfg.Commander.Machines["10.0.0.5"] != "caramelo@10.0.0.5:5022" {
+	if cfg.Commander.DefaultFleet != "first" || cfg.Commander.Fleets["10-0-0-5"].Hub != "caramelo@10.0.0.5:5022" {
 		t.Errorf("commander config = %+v", cfg)
 	}
 }
@@ -181,8 +188,8 @@ func TestSetupTargetDryRunRecordsNothing(t *testing.T) {
 		t.Errorf("--dry-run not forwarded:\n%s", joined)
 	}
 	cfg, _ := remote.LoadCommanderConfig()
-	if len(cfg.Commander.Machines) != 0 {
-		t.Errorf("dry run recorded a machine: %+v", cfg)
+	if len(cfg.Commander.Fleets) != 0 {
+		t.Errorf("dry run recorded a fleet: %+v", cfg)
 	}
 }
 
@@ -200,7 +207,7 @@ func TestSetupTargetFailedStepExitsOne(t *testing.T) {
 	if err := json.Unmarshal([]byte(stdout), &res); err != nil {
 		t.Fatalf("stdout: %v", err)
 	}
-	if res.Setup.Failed != 1 || res.Machine != nil || res.Verified {
+	if res.Setup.Failed != 1 || res.Fleet != nil || res.Verified {
 		t.Errorf("result = %+v", res)
 	}
 }
@@ -209,19 +216,52 @@ func TestSetupTargetUnreachableAPIIsAnError(t *testing.T) {
 	useScriptedTarget(t, greenReport(), func(string) (json.RawMessage, error) {
 		return nil, context.DeadlineExceeded
 	})
+	if err := remote.SaveCommanderConfig(remote.CommanderConfig{
+		Name: "laptop",
+		Role: remote.RoleCommander,
+		Commander: remote.Commander{
+			DefaultFleet: "first",
+			Fleets:       map[string]remote.Fleet{"first": {Hub: "caramelo@a:4022"}},
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
 	code, _, stderr := run(t, "hub", "setup", "--target", "root@box", "--yes")
 	if code != ExitError {
 		t.Fatalf("exit %d, want %d", code, ExitError)
 	}
-	for _, want := range []string{"recorded as machine \"box\"", "port 4022", "caramelo --machine box status"} {
+	for _, want := range []string{"its fleet is recorded as \"box\"", "port 4022", "caramelo --fleet box status"} {
 		if !strings.Contains(stderr, want) {
 			t.Errorf("stderr lacks %q: %s", want, stderr)
 		}
 	}
 
 	cfg, _ := remote.LoadCommanderConfig()
-	if cfg.Commander.Machines["box"] == "" {
-		t.Errorf("machine not recorded: %+v", cfg)
+	if cfg.Commander.Fleets["box"].Hub == "" {
+		t.Errorf("fleet not recorded: %+v", cfg)
+	}
+}
+
+func TestSetupTargetNamesAFleetAfterTheWholeAddress(t *testing.T) {
+	useScriptedTarget(t, greenReport(), okVerify)
+
+	for _, target := range []string{"10.0.0.5", "10.0.0.6"} {
+		if code, _, stderr := run(t, "hub", "setup", "--target", target, "--yes"); code != ExitOK {
+			t.Fatalf("hub setup %s: exit %d: %s", target, code, stderr)
+		}
+	}
+
+	cfg, _ := remote.LoadCommanderConfig()
+	if len(cfg.Commander.Fleets) != 2 {
+		t.Fatalf("fleets = %+v, want one per hub: two boxes in the same /8 are two fleets", cfg.Commander.Fleets)
+	}
+	for name, hub := range map[string]string{
+		"10-0-0-5": "caramelo@10.0.0.5:4022",
+		"10-0-0-6": "caramelo@10.0.0.6:4022",
+	} {
+		if got := cfg.Commander.Fleets[name].Hub; got != hub {
+			t.Errorf("fleet %s hub = %q, want %q", name, got, hub)
+		}
 	}
 }
 
@@ -616,7 +656,7 @@ func TestSetupTargetUnreachableAPINamesTheFirewallAndTheMachineVerdict(t *testin
 		t.Fatalf("exit %d, want %d", code, ExitError)
 	}
 	for _, want := range []string{"firewall", "not the one blocking the way in",
-		"security group", "port 4022", "caramelo --machine box status"} {
+		"security group", "port 4022", "then try: caramelo status"} {
 		if !strings.Contains(stderr, want) {
 			t.Errorf("stderr lacks %q:\n%s", want, stderr)
 		}

@@ -1,18 +1,23 @@
 package cli
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/plytz/caramelo/internal/userdir"
 	"io"
 	"io/fs"
 	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
+	"strings"
 	"time"
+
+	"github.com/plytz/caramelo/internal/userdir"
 
 	gossh "golang.org/x/crypto/ssh"
 
@@ -29,6 +34,7 @@ type transport struct {
 	socketPath string
 	user       string
 	target     remote.Target
+	fleet      string
 
 	dialer remote.Dialer
 
@@ -57,9 +63,14 @@ func forwardImpl(ctx context.Context, a *app) (int, error) {
 	if err != nil {
 		return ExitError, err
 	}
+	a.chosenFleet = t.fleet
 	if os.Getenv("CARAMELO_DEBUG") != "" {
 		fmt.Fprintf(a.stderr, "transport: %s (%s)\n", t, t.why)
 	}
+	return runTransport(ctx, a, t)
+}
+
+var runTransport = func(ctx context.Context, a *app, t transport) (int, error) {
 	switch t.kind {
 	case kindSocket:
 		return forwardSocket(ctx, a, t)
@@ -78,17 +89,20 @@ func resolveTransport(ctx context.Context, a *app) (transport, error) {
 	}
 	c, err := remote.Select(ctx, remote.Selection{
 		Machine:      a.machine,
+		Fleet:        a.fleet,
+		App:          a.appHint,
 		Config:       commander,
 		SocketPath:   socketPath,
 		SocketUser:   user,
 		SocketExists: socketExists,
 	})
-	if errors.Is(err, remote.ErrNoMachine) {
+	if errors.Is(err, remote.ErrNoFleet) {
 		path, _ := remote.CommanderConfigPath()
 		return transport{}, fmt.Errorf(
-			"no local caramelod (no socket at %s) and no machine configured; "+
-				"run 'sudo caramelo hub setup' on this machine, or point at one with "+
-				"--machine <user@host> (or CARAMELO_MACHINE, or commander.default_machine in %s)",
+			"no local caramelod (no socket at %s) and no fleet in %s; "+
+				"run 'sudo caramelo hub setup' on this machine, or record a fleet with "+
+				"'caramelo fleet add NAME user@host' and pick it with --fleet NAME (or CARAMELO_FLEET); "+
+				"--machine <user@host> reaches a box that is in no fleet yet",
 			socketPath, path)
 	}
 	if err != nil {
@@ -96,8 +110,69 @@ func resolveTransport(ctx context.Context, a *app) (transport, error) {
 	}
 	return transport{
 		kind: c.Kind, socketPath: c.SocketPath, user: c.User,
-		target: c.Target, dialer: c.Dialer, why: c.Why,
+		target: c.Target, fleet: c.Fleet, dialer: c.Dialer, why: c.Why,
 	}, nil
+}
+
+func (a *app) rememberAppFleet(ctx context.Context) {
+	if a.chosenFleet == "" || a.appHint == nil {
+		return
+	}
+	name := a.appHint()
+	if name == "" {
+		return
+	}
+	if err := rememberAppFleet(ctx, a.chosenFleet, name); err != nil {
+		fmt.Fprintf(a.stderr, "warning: app %s could not be recorded in fleet %s: %v\n",
+			name, a.chosenFleet, err)
+	}
+}
+
+func rememberAppFleet(ctx context.Context, fleet, name string) error {
+	path, err := remote.CommanderConfigPath()
+	if err != nil {
+		return err
+	}
+	cfg, err := remote.LoadCommanderConfigFrom(path)
+	if err != nil {
+		return err
+	}
+	if slices.Contains(cfg.Commander.Fleets[fleet].Apps, name) {
+		return nil
+	}
+	held, err := fleetHoldsApp(ctx, fleet, name)
+	if err != nil {
+		return err
+	}
+	if !held || !cfg.RecordApp(fleet, name) {
+		return nil
+	}
+	return remote.SaveCommanderConfigTo(path, cfg)
+}
+
+func fleetHoldsApp(ctx context.Context, fleet, name string) (bool, error) {
+	var out, errs bytes.Buffer
+	sub := &app{stdout: &out, stderr: &errs, fleet: fleet, args: []string{"app", "list", "--json"}}
+	code, err := forward(ctx, sub)
+	if err != nil {
+		return false, fmt.Errorf("ask the hub of %s which apps it holds: %w", fleet, err)
+	}
+	if code != ExitOK {
+		return false, fmt.Errorf("ask the hub of %s which apps it holds: app list exited %d: %s",
+			fleet, code, strings.TrimSpace(errs.String()))
+	}
+	var apps []struct {
+		Name string `json:"name"`
+	}
+	if err := json.Unmarshal(bytes.TrimSpace(out.Bytes()), &apps); err != nil {
+		return false, fmt.Errorf("read the app list of %s: %w", fleet, err)
+	}
+	for _, app := range apps {
+		if app.Name == name {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func daemonSocket() (path, user string) {
