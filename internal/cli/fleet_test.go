@@ -205,7 +205,7 @@ func TestAnAppTheHubDoesNotHoldIsNotRecorded(t *testing.T) {
 }
 
 func TestFleetRemoveForgetsTheTunnelItKept(t *testing.T) {
-	isolate(t)
+	isolateOnACommander(t)
 	if code, _, stderr := runFleet(t, "fleet", "add", "home", "eric@box.example.com"); code != ExitOK {
 		t.Fatalf("fleet add: exit %d: %s", code, stderr)
 	}
