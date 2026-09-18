@@ -72,6 +72,8 @@ type UpRequest struct {
 
 	PeerName string `json:"peer_name,omitempty"`
 
+	Identity string `json:"identity,omitempty"`
+
 	Transparent bool `json:"transparent,omitempty"`
 }
 

@@ -444,12 +444,11 @@ func (d *Daemon) MachineRemoved(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	hub := d.Config.FleetName()
-	if !d.Config.IsMember() || peer.Name != hub {
+	if !d.Config.IsMember() || peer.Name != d.Config.HubName() {
 		return fmt.Errorf("member removed: %q is not this machine's hub", peer.Name)
 	}
 
-	d.leaveFleetIn(ctx, hub, leaveReplyGrace, d.logf)
+	d.leaveFleetIn(ctx, d.Config.FleetName(), leaveReplyGrace, d.logf)
 	return nil
 }
 

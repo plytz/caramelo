@@ -67,6 +67,15 @@ func NewWith(opts Options) (Client, error) {
 	return &client{opts: opts}, nil
 }
 
+func peerNameFor(req UpRequest, recorded Record) string {
+	for _, name := range []string{req.PeerName, recorded.PeerName, req.Identity} {
+		if n := strings.TrimSpace(name); n != "" {
+			return n
+		}
+	}
+	return DefaultPeerName()
+}
+
 func (c *client) Up(ctx context.Context, req UpRequest) (*State, error) {
 	machine := strings.TrimSpace(req.Machine)
 	if machine == "" {
@@ -76,12 +85,16 @@ func (c *client) Up(ctx context.Context, req UpRequest) (*State, error) {
 	if err != nil {
 		return nil, err
 	}
+	prev, prevErr := c.opts.Records.Load(machine)
+	if prevErr != nil {
+		prev = Record{}
+	}
 	if req.Transparent {
 		if err := c.requireInstalled(ctx); err != nil {
 			return nil, err
 		}
 
-		if prev, err := c.opts.Records.Load(machine); err == nil && prev.Valid() {
+		if prev.Valid() {
 			if err := c.transparentUp(ctx, prev); err != nil {
 				return nil, err
 			}
@@ -91,16 +104,7 @@ func (c *client) Up(ctx context.Context, req UpRequest) (*State, error) {
 	if err != nil {
 		return nil, err
 	}
-	peerName := strings.TrimSpace(req.PeerName)
-	if peerName == "" {
-
-		if prev, err := c.opts.Records.Load(machine); err == nil && prev.PeerName != "" {
-			peerName = prev.PeerName
-		}
-	}
-	if peerName == "" {
-		peerName = DefaultPeerName()
-	}
+	peerName := peerNameFor(req, prev)
 	peer, err := c.addPeer(ctx, machine, peerName, kp.Public)
 	if err != nil {
 		return nil, err
@@ -109,9 +113,7 @@ func (c *client) Up(ctx context.Context, req UpRequest) (*State, error) {
 	if err != nil {
 		return nil, err
 	}
-	if prev, err := c.opts.Records.Load(machine); err == nil {
-		rec.LastHandshake = prev.LastHandshake
-	}
+	rec.LastHandshake = prev.LastHandshake
 	rec.UpdatedAt = time.Now().UTC()
 	if err := c.opts.Records.Save(rec); err != nil {
 		return nil, err

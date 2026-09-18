@@ -87,7 +87,7 @@ command:
       - /internal/
   getent hosts nope.sampleapp.internal:
     exit-status: 2
-  sudo -u {{.Vars.user}} env HOME={{.Vars.home}} XDG_RUNTIME_DIR=/run/user/{{.Vars.uid}} /usr/local/bin/caramelo vpn status --json:
+  sudo -u {{.Vars.user}} env HOME={{.Vars.home}} XDG_RUNTIME_DIR=/run/user/{{.Vars.uid}} CARAMELO_MACHINE={{.Vars.machine}} /usr/local/bin/caramelo vpn status --json:
     exit-status: 0
     stdout:
       - /"mode":\s*"transparent"/

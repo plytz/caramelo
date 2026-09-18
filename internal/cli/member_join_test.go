@@ -1,10 +1,12 @@
 package cli
 
 import (
+	"net/netip"
 	"os"
 	"strings"
 	"testing"
 
+	"github.com/plytz/caramelo/internal/api"
 	"github.com/plytz/caramelo/internal/fleet"
 	"github.com/plytz/caramelo/internal/serverconfig"
 	"github.com/plytz/caramelo/internal/vpn"
@@ -161,7 +163,7 @@ func TestJoiningTheHubThisMachineIsAlreadyInStillReportsNoChange(t *testing.T) {
 		Fleet:  ticket.Fleet,
 		Subnet: "10.87.0.0/16",
 		Hub: serverconfig.MemberHub{
-			Endpoint: ticket.Endpoint, Address: ticket.Address, PublicKey: ticket.PublicKey,
+			Name: ticket.Hub, Endpoint: ticket.Endpoint, Address: ticket.Address, PublicKey: ticket.PublicKey,
 		},
 	}
 	if err := serverconfig.Save(configDir, cfg, 0o640); err != nil {
@@ -186,7 +188,7 @@ func TestJoiningAnotherFleetUnderTheSameHubKeyIsRefused(t *testing.T) {
 		Fleet:  "work",
 		Subnet: "10.87.0.0/16",
 		Hub: serverconfig.MemberHub{
-			Endpoint: ticket.Endpoint, Address: ticket.Address, PublicKey: ticket.PublicKey,
+			Name: ticket.Hub, Endpoint: ticket.Endpoint, Address: ticket.Address, PublicKey: ticket.PublicKey,
 		},
 	}
 	if err := serverconfig.Save(configDir, cfg, 0o640); err != nil {
@@ -215,5 +217,77 @@ func TestJoinHelpSaysItRunsAfterServerSetup(t *testing.T) {
 		if !strings.Contains(help, want) {
 			t.Errorf("the help of %q does not name %q", cmd.CommandPath(), want)
 		}
+	}
+}
+
+func TestTheJoinWritesTheFleetItJoinedAndTheHubItAnswersTo(t *testing.T) {
+	ticket, _ := aJoinTicket(t)
+	cases := map[string]struct {
+		res       api.RedeemResult
+		wantFleet string
+		wantHub   string
+	}{
+		"the hub names the fleet and itself": {
+			res: api.RedeemResult{
+				Machine: fleet.Machine{
+					Name: "m1", Role: fleet.RoleMember, Subnet: netip.MustParsePrefix("10.87.0.0/16"),
+				},
+				Hub: fleet.Machine{
+					Name: "box", Role: fleet.RoleHub, Subnet: netip.MustParsePrefix("10.86.0.0/16"),
+					Endpoint: "hub.example.com:4021",
+				},
+				Fleet:    "work",
+				Endpoint: "hub.example.com:4021",
+			},
+			wantFleet: "work",
+			wantHub:   "box",
+		},
+		"an answer that names neither falls back to the token": {
+			res: api.RedeemResult{
+				Machine: fleet.Machine{
+					Name: "m1", Role: fleet.RoleMember, Subnet: netip.MustParsePrefix("10.87.0.0/16"),
+				},
+				Hub: fleet.Machine{Role: fleet.RoleHub},
+			},
+			wantFleet: ticket.Fleet,
+			wantHub:   ticket.Hub,
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			configDir, cfg := tempServerConfig(t)
+			if err := writeMemberConfig(configDir, cfg, ticket, &tc.res); err != nil {
+				t.Fatalf("writeMemberConfig: %v", err)
+			}
+			back, err := serverconfig.Load(configDir)
+			if err != nil {
+				t.Fatalf("Load: %v", err)
+			}
+			if !back.IsMember() || back.Name != "m1" {
+				t.Fatalf("the file says name %q role %q, want m1 and a member", back.Name, back.Role)
+			}
+			if back.FleetName() != tc.wantFleet {
+				t.Errorf("member.fleet = %q, want %q", back.FleetName(), tc.wantFleet)
+			}
+			if back.HubName() != tc.wantHub {
+				t.Errorf("member.hub.name = %q, want %q", back.HubName(), tc.wantHub)
+			}
+			if !back.Hub.Empty() {
+				t.Errorf("a member kept a hub block of its own: %+v", back.Hub)
+			}
+			if back.Member.Hub.Endpoint != ticket.Endpoint {
+				t.Errorf("member.hub.endpoint = %q, want %q", back.Member.Hub.Endpoint, ticket.Endpoint)
+			}
+			if back.Member.Hub.PublicKey != ticket.PublicKey {
+				t.Errorf("member.hub.public_key = %q, want the key the token carried", back.Member.Hub.PublicKey)
+			}
+			if back.Member.Subnet != "10.87.0.0/16" || back.VPNSubnet != "10.87.0.0/16" {
+				t.Errorf("subnet = %q and vpn_subnet = %q, want 10.87.0.0/16 twice",
+					back.Member.Subnet, back.VPNSubnet)
+			}
+			if got, err := back.HubAddress(); err != nil || got.String() != "10.86.0.1" {
+				t.Errorf("hub address = %v (%v), want 10.86.0.1", got, err)
+			}
+		})
 	}
 }

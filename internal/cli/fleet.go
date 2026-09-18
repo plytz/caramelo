@@ -10,6 +10,7 @@ import (
 
 	"github.com/plytz/caramelo/internal/cli/ui"
 	"github.com/plytz/caramelo/internal/remote"
+	"github.com/plytz/caramelo/internal/vpnclient"
 )
 
 func init() {
@@ -162,8 +163,9 @@ func (a *app) fleetRemoveCmd() *cobra.Command {
 		Aliases: []string{"rm"},
 		Short:   "Forget a fleet",
 		Long: `remove takes a fleet out of the commander config: its hub address, the key
-pinned for it and the apps recorded there. The fleet itself is untouched and
-adding it again pins its key afresh.`,
+pinned for it and the apps recorded there. The tunnel this commander kept for the
+fleet goes with it, record and key, so a hub rebuilt at the same address is
+adopted afresh when the fleet is added again. The fleet itself is untouched.`,
 		Args: exactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
@@ -179,6 +181,9 @@ adding it again pins its key afresh.`,
 				return &usageError{fmt.Errorf(
 					"fleet %q is not one of the fleets this commander knows (%s)", name, cfg.FleetList())}
 			}
+			if err := forgetFleetTunnel(name); err != nil {
+				return err
+			}
 			if err := remote.SaveCommanderConfigTo(path, cfg); err != nil {
 				return err
 			}
@@ -189,6 +194,16 @@ adding it again pins its key afresh.`,
 		},
 	}
 	return available(cmd, onCommander)
+}
+
+func forgetFleetTunnel(name string) error {
+	if err := (pinnedRecords{}).Remove(name); err != nil {
+		return fmt.Errorf("forget the tunnel this commander kept for fleet %s: %w", name, err)
+	}
+	if err := (&vpnclient.FileKeyStore{}).Remove(name); err != nil {
+		return fmt.Errorf("forget the key this commander used on fleet %s: %w", name, err)
+	}
+	return nil
 }
 
 func (a *app) fleetDefaultCmd() *cobra.Command {
