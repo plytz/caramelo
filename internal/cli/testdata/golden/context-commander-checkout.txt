@@ -1,0 +1,13 @@
+laptop, commander · fleets home (default), work · app shop → fleet home (the fleet recorded for app shop) · env feat-x
+  config     /home/alex/.config/caramelo/config.yaml
+  identity   /home/alex/.config/caramelo/identity.key
+  records    /home/alex/.config/caramelo/vpn
+  cache      /home/alex/.cache/caramelo
+  directory  /home/alex/src/shop-feat-x
+  app        shop (the checkout)
+  env        feat-x (the worktree)
+  talks to   fleet home at caramelo@box.example.com:4022 (the fleet recorded for app shop)
+
+FLEET  HUB                            KEY            APPS       DEFAULT  TUNNEL
+home   caramelo@box.example.com:4022  Nq0Xw2mS8VbZ…  blog shop  yes      yes
+work   ops@hub.work.example:4022      -              -          -        -

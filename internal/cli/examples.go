@@ -23,6 +23,11 @@ caramelo commander init                   # name this machine after its hostname
 caramelo commander init --name laptop     # call it something else
 caramelo commander init --json            # what it wrote and the values it chose`,
 
+	"caramelo context": `
+caramelo context                          # this machine: its role, the config read, and what a command here would act on
+caramelo context --json                   # the same answer for an agent
+caramelo context --fleet work             # which fleet that flag would pick, without dialing it`,
+
 	"caramelo config show": `
 caramelo config show feat-x               # every effective field, and where each came from
 caramelo config show feat-x --reveal      # with the secret values filled in

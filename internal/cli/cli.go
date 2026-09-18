@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/plytz/caramelo/internal/api"
+	"github.com/plytz/caramelo/internal/place"
 	"github.com/plytz/caramelo/internal/progress"
 	"github.com/spf13/cobra"
 )
@@ -36,6 +37,10 @@ type app struct {
 
 	chosenFleet string
 	appHint     func() string
+
+	placeOnce sync.Once
+	placeHere place.Context
+	placeErr  error
 
 	progressFlag string
 	progress     progress.Format

@@ -1,0 +1,7 @@
+fresh box: no config · run 'caramelo commander init' to name this machine
+  looked for  /etc/caramelo/config.yaml
+  and for     /home/alex/.config/caramelo/config.yaml
+  directory   /home/alex
+  app         no app checkout here
+  env         no environment worktree here
+  talks to    nothing: this box has no config at all, and 'caramelo commander init' is the one command it can run

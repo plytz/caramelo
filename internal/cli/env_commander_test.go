@@ -115,23 +115,6 @@ func TestAppFromCheckoutOutsideARepository(t *testing.T) {
 	}
 }
 
-func TestAppFromRepoPath(t *testing.T) {
-	ok := map[string]string{
-		"/mnt/caramelo/apps/shop/repo.git": "shop",
-		"/var/data/apps/my-app/repo.git":   "my-app",
-	}
-	for in, want := range ok {
-		if got := appFromRepoPath(in); got != want {
-			t.Errorf("appFromRepoPath(%q) = %q, want %q", in, got, want)
-		}
-	}
-	for _, in := range []string{"", "/home/alex/code/shop/.git", "/mnt/caramelo/shop/repo.git", "/apps/Shop/repo.git"} {
-		if got := appFromRepoPath(in); got != "" {
-			t.Errorf("appFromRepoPath(%q) = %q, want none", in, got)
-		}
-	}
-}
-
 type fakeForward struct {
 	called bool
 	args   []string

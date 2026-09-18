@@ -5,13 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/plytz/caramelo/internal/api"
 	"github.com/plytz/caramelo/internal/env"
+	"github.com/plytz/caramelo/internal/place"
 )
 
 type envTargets struct {
@@ -137,22 +137,7 @@ func afterDash(cmd *cobra.Command, args []string) []string {
 }
 
 func envFromCheckout(ctx context.Context, dir string) string {
-	top, err := runGit(ctx, dir, "rev-parse", "--show-toplevel")
-	if err != nil || top == "" {
-		return ""
-	}
-	if filepath.Base(top) != "src" {
-		return ""
-	}
-	envDir := filepath.Dir(top)
-	if filepath.Base(filepath.Dir(envDir)) != "envs" {
-		return ""
-	}
-	name := filepath.Base(envDir)
-	if !env.ValidSlug(name) {
-		return ""
-	}
-	return name
+	return place.EnvFromCheckout(ctx, runGit, dir)
 }
 
 func (t *envTargets) requireApp() error {

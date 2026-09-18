@@ -136,6 +136,33 @@ not a role either, and no longer names the commander; where it survives it is fr
 a peer name, an ssh-key name, a fixture directory or an example (`caramelo key add --name laptop`) —
 or a generic device in a list of examples.
 
+## Where the CLI is running
+
+A command has to know the place it was typed in, and caramelo works that out from this machine
+alone, when something asks for it. The machine's own `config.yaml` — `--config-dir`, else
+`CARAMELO_CONFIG_DIR`, else `/etc/caramelo` — makes this a server, and its `role` says hub or
+member; failing that the commander's config makes it a commander; failing that it is a fresh box,
+and `caramelo commander init` is the one command it can run. Under `sudo` on a box that is not a
+server, the commander config read is the invoking user's, not root's.
+
+A box can be both. On a server the role always comes from the machine's own `config.yaml`, and the
+commander config beside it is read all the same, for the fleets it records: when no local caramelod
+answers, that is where a command typed there goes, so the place and the command never disagree
+about the fleet.
+
+`caramelo context` prints that place in full: the machine's name and role, the config file that
+says so, the paths and services a server holds — state, data, run, apps, edge, vpn and secrets
+directories, the caramelod socket, whether the edge is on and where it answers, `vpn_listen` and
+`api_listen`, and for a member the hub it joined — or the fleets, the identity key and the tunnel
+records a commander holds, then the fleet a command typed here would talk to and why, and the app
+and the environment the working directory names. `CARAMELO_APP` and `CARAMELO_ENV` override those
+last two, `--fleet` and `--machine` change the answer to what a command would talk to, and `--json`
+is the same answer for an agent.
+
+It costs a file or two, one socket and one `git rev-parse`, and it never dials a machine: it is the
+cheap answer about the place, where `caramelo hub status` is the deep answer about a machine. Run it
+first on a box that puzzles you.
+
 ## Development
 
 Docker is required. The integration tests run caramelo inside containers that stand in for real

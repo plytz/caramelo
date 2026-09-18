@@ -1,0 +1,13 @@
+laptop, commander · fleets home (default), work · no app checkout here → fleet home (commander.default_fleet)
+  config     /home/alex/.config/caramelo/config.yaml
+  identity   /home/alex/.config/caramelo/identity.key
+  records    /home/alex/.config/caramelo/vpn
+  cache      /home/alex/.cache/caramelo
+  directory  /home/alex
+  app        no app checkout here
+  env        no environment worktree here
+  talks to   fleet home at caramelo@box.example.com:4022 (commander.default_fleet)
+
+FLEET  HUB                            KEY            APPS       DEFAULT  TUNNEL
+home   caramelo@box.example.com:4022  Nq0Xw2mS8VbZ…  blog shop  yes      yes
+work   ops@hub.work.example:4022      -              -          -        -
