@@ -8,8 +8,8 @@ production. Every environment caramelo produces is built from the same definitio
 
 **Status: early prototype.** Nothing about the commands, the config file or the on-disk layout is
 stable yet. Binaries for Linux and macOS are on the
-[releases page](https://github.com/plytz/caramelo/releases), each with a `MANUAL.md` beside it (the
-same text `caramelo manual` prints).
+[releases page](https://github.com/plytz/caramelo/releases). There is no manual to download beside
+them: run `caramelo manual` where you are, and `caramelo manual --role all` for everything.
 
 ## Goal
 
@@ -38,6 +38,8 @@ results but the human experience will be tuned to work through a coding agent.
   a fleet's machines.
 - **The manual is part of the tool.** `caramelo manual` is generated from the same definitions the
   commands run on, so it cannot drift, and every example in it is checked against the real flags.
+  It is the manual of the machine it runs on; `--role commander`, `hub` or `member` reads another
+  role and `--role all` every command there is.
 - **Humans get the same commands.** No separate mode, no behaviour that changes because a terminal
   was attached.
 
@@ -167,6 +169,15 @@ The line after the list says how many commands are hidden and that `caramelo man
 lists every command of every role. Help has no role flag: it answers for the machine it runs on. The
 help of a single command always prints in full, whether or not that command holds here, so
 `caramelo hub run --help` still explains itself on a laptop.
+
+`caramelo manual` is the same answer at length. It opens with that same header, documents the
+commands that hold where it runs with their flags, examples and the place each one holds on, and
+says how many it left out. `--role commander`, `--role hub` and `--role member` render one role
+against a canonical machine of that role, for reading about a place you are not standing in, and
+`--role all` is every command of every role. `--markdown` is the form an agent reads, `--man` a roff
+page, `--json` a tree carrying the role and the place it was rendered for. Nothing ships a copy of
+it: a release carries the binaries and their checksums, and the manual is whatever the binary in
+front of you prints.
 
 ## Development
 

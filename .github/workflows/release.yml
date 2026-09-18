@@ -30,8 +30,6 @@ jobs:
               -ldflags "-s -w -X github.com/plytz/caramelo/internal/cli.version=${GITHUB_REF_NAME}" \
               -o "dist/caramelo-$os-$arch" ./cmd/caramelo
           done
-          go run ./cmd/caramelo manual --man > dist/caramelo.1
-          go run ./cmd/caramelo manual --markdown > dist/MANUAL.md
           (cd dist && sha256sum * > SHA256SUMS)
           ls -l dist
       - name: publish

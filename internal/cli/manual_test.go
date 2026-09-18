@@ -3,11 +3,16 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
+
+	"github.com/plytz/caramelo/internal/place"
 )
 
 func manualRoot(t *testing.T) *cobra.Command {
@@ -31,36 +36,153 @@ func visibleCommands(root *cobra.Command) []*cobra.Command {
 	return out
 }
 
-func TestManualCoversEveryCommandInEveryFormat(t *testing.T) {
-	root := manualRoot(t)
-	cmds := visibleCommands(root)
-	if len(cmds) < 60 {
-		t.Fatalf("only %d commands found; the tree did not register", len(cmds))
+func manualHere(t *testing.T, name string) (manual, *manualScope) {
+	t.Helper()
+	c := canonicalOf(t, name)
+	s := &manualScope{role: c.Role, ctx: c, here: true}
+	return buildManual(manualRoot(t), s), s
+}
+
+func manualOfRole(t *testing.T, role string) (manual, *manualScope) {
+	t.Helper()
+	s, err := manualScopeOfRole(role)
+	if err != nil {
+		t.Fatalf("manual --role %s: %v", role, err)
 	}
-	m := buildManual(root)
-	plain := renderPlain(m)
-	md := renderManual(m, false)
-	for _, c := range cmds {
-		path := c.CommandPath()
-		if !strings.Contains(plain, "\n"+strings.ToUpper(path)+"\n") {
-			t.Errorf("plain manual lacks a section for %q", path)
+	return buildManual(manualRoot(t), s), s
+}
+
+func manualPaths(m manual) []string {
+	var out []string
+	var walk func(cs []manualCommand)
+	walk = func(cs []manualCommand) {
+		for _, c := range cs {
+			out = append(out, c.Path)
+			walk(c.Subcommands)
 		}
-		if !strings.Contains(md, "\n## "+path+"\n") {
-			t.Errorf("markdown manual lacks a heading for %q", path)
+	}
+	walk(m.Commands)
+	return out
+}
+
+func TestManualCoversEveryCommandInEveryFormat(t *testing.T) {
+	for _, role := range manualRoles() {
+		t.Run(role, func(t *testing.T) {
+			m, _ := manualOfRole(t, role)
+			paths := manualPaths(m)
+			if len(paths) < 5 {
+				t.Fatalf("the manual of a %s lists %d commands; the tree did not register", role, len(paths))
+			}
+			plain := renderPlain(m)
+			md := renderManual(m, false)
+			body, err := json.Marshal(m)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var back manual
+			if err := json.Unmarshal(body, &back); err != nil {
+				t.Fatal(err)
+			}
+			structured := map[string]bool{}
+			for _, path := range manualPaths(back) {
+				structured[path] = true
+			}
+			for _, path := range paths {
+				if !strings.Contains(plain, "\n"+strings.ToUpper(path)+"\n") {
+					t.Errorf("the plain manual of a %s lacks a section for %q", role, path)
+				}
+				if !strings.Contains(md, "\n## "+path+"\n") {
+					t.Errorf("the markdown manual of a %s lacks a heading for %q", role, path)
+				}
+				if !structured[path] {
+					t.Errorf("the JSON manual of a %s lacks %q", role, path)
+				}
+			}
+		})
+	}
+}
+
+func TestEveryRoleIsPartOfTheManualOfAll(t *testing.T) {
+	root := manualRoot(t)
+	all := buildManual(root, everyRoleScope())
+	tree := map[string]bool{}
+	for _, c := range visibleCommands(root) {
+		tree[c.CommandPath()] = true
+	}
+	if len(tree) < 60 {
+		t.Fatalf("only %d commands found; the tree did not register", len(tree))
+	}
+	everywhere := map[string]bool{}
+	for _, path := range manualPaths(all) {
+		if !tree[path] {
+			t.Errorf("--role all lists %q, which is not a command of the tree", path)
 		}
-		if strings.TrimSpace(c.Short) == "" {
-			t.Errorf("%q has no Short description", path)
+		everywhere[path] = true
+	}
+	for path := range tree {
+		if !everywhere[path] {
+			t.Errorf("--role all leaves out %q", path)
+		}
+	}
+	for _, name := range place.CanonicalNames() {
+		m, _ := manualHere(t, name)
+		paths := manualPaths(m)
+		if len(paths) >= len(everywhere) {
+			t.Errorf("the manual of the canonical %s lists %d of the %d commands there are",
+				name, len(paths), len(everywhere))
+		}
+		for _, path := range paths {
+			if !everywhere[path] {
+				t.Errorf("the manual of the canonical %s lists %q, which --role all does not", name, path)
+			}
 		}
 	}
 }
 
+func TestEveryCommandOfTheTreeSaysWhatItIsFor(t *testing.T) {
+	for _, c := range visibleCommands(manualRoot(t)) {
+		if strings.TrimSpace(c.Short) == "" {
+			t.Errorf("%q has no Short description", c.CommandPath())
+		}
+	}
+}
+
+func TestEveryCommandOfTheManualSaysWhereItHolds(t *testing.T) {
+	m, _ := manualOfRole(t, manualRoleAll)
+	plain := renderPlain(m)
+	var walk func(cs []manualCommand)
+	walk = func(cs []manualCommand) {
+		for _, c := range cs {
+			if len(c.Subcommands) > 0 {
+				if c.Holds != "" {
+					t.Errorf("%q is a group and carries a condition of its own: %q", c.Path, c.Holds)
+				}
+				walk(c.Subcommands)
+				continue
+			}
+			if c.Holds == "" {
+				t.Errorf("%q does not say where it holds", c.Path)
+				continue
+			}
+			if !strings.Contains(plain, holdsOnLine(c.Holds)) {
+				t.Errorf("the section of %q does not print %q", c.Path, holdsOnLine(c.Holds))
+			}
+		}
+	}
+	walk(m.Commands)
+}
+
 func TestManualCommandFormats(t *testing.T) {
+	commanderPlace(t)
 	var stdout, stderr bytes.Buffer
 	if code := Run([]string{"manual"}, &stdout, &stderr); code != ExitOK {
 		t.Fatalf("manual: exit %d: %s", code, stderr.String())
 	}
-	if !strings.HasPrefix(stdout.String(), "CARAMELO(1)") || !strings.Contains(stdout.String(), "\nNAME\n") {
-		t.Errorf("plain manual does not look like a manual page:\n%s", firstLines(stdout.String(), 5))
+	if !strings.HasPrefix(stdout.String(), "laptop, commander · ") {
+		t.Errorf("the plain manual does not open with the header of this place:\n%s", firstLines(stdout.String(), 3))
+	}
+	if !strings.Contains(stdout.String(), "\nCARAMELO(1)") || !strings.Contains(stdout.String(), "\nNAME\n") {
+		t.Errorf("plain manual does not look like a manual page:\n%s", firstLines(stdout.String(), 8))
 	}
 	if strings.Contains(stdout.String(), "\n## ") || strings.Contains(stdout.String(), "```") {
 		t.Errorf("plain manual contains markdown syntax")
@@ -70,8 +192,8 @@ func TestManualCommandFormats(t *testing.T) {
 	if code := Run([]string{"manual", "--markdown"}, &stdout, &stderr); code != ExitOK {
 		t.Fatalf("manual --markdown: exit %d: %s", code, stderr.String())
 	}
-	if !strings.HasPrefix(stdout.String(), "# caramelo manual\n") {
-		t.Errorf("markdown manual starts with %q", firstLines(stdout.String(), 1))
+	if !strings.HasPrefix(stdout.String(), "# caramelo manual\n\nlaptop, commander · ") {
+		t.Errorf("markdown manual starts with %q", firstLines(stdout.String(), 3))
 	}
 
 	stdout.Reset()
@@ -80,6 +202,9 @@ func TestManualCommandFormats(t *testing.T) {
 	}
 	if !strings.Contains(stdout.String(), `.TH CARAMELO 1 `) {
 		t.Errorf("man output has no .TH header:\n%s", firstLines(stdout.String(), 3))
+	}
+	if !strings.Contains(stdout.String(), "laptop, commander") {
+		t.Errorf("man output does not say where it was rendered:\n%s", firstLines(stdout.String(), 20))
 	}
 
 	stdout.Reset()
@@ -98,6 +223,231 @@ func TestManualCommandFormats(t *testing.T) {
 	if len(m.Commands) == 0 || len(m.GlobalFlags) != 4 || m.ExitCodes["usage"] != ExitUsage {
 		t.Errorf("manual --json = %d commands, %d global flags, exit codes %v", len(m.Commands), len(m.GlobalFlags), m.ExitCodes)
 	}
+}
+
+func TestTheManualIsTheManualOfThePlaceItRunsIn(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		where  func(t *testing.T)
+		header string
+		lists  []string
+		absent []string
+	}{
+		{name: "fresh", where: freshPlace, header: "fresh box: no config",
+			lists:  []string{"caramelo commander init", "caramelo context", "caramelo hub setup", "caramelo manual"},
+			absent: []string{"caramelo deploy", "caramelo env create", "caramelo vpn up", "caramelo fleet list"}},
+		{name: "commander", where: commanderPlace, header: "laptop, commander",
+			lists:  []string{"caramelo deploy", "caramelo vpn up", "caramelo fleet list", "caramelo hub setup"},
+			absent: []string{"caramelo hub uninstall", "caramelo member join", "caramelo member leave"}},
+		{name: "hub", where: hubPlace, header: "box, hub of fleet home",
+			lists:  []string{"caramelo hub status", "caramelo member add", "caramelo env create"},
+			absent: []string{"caramelo fleet list", "caramelo vpn up", "caramelo commander init"}},
+		{name: "member", where: memberPlace, header: "worker, member of fleet home",
+			lists:  []string{"caramelo member leave", "caramelo hub status", "caramelo edge status"},
+			absent: []string{"caramelo env create", "caramelo deploy", "caramelo fleet list"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.where(t)
+			code, stdout, stderr := run(t, "manual")
+			if code != ExitOK {
+				t.Fatalf("exit = %d: %s", code, stderr)
+			}
+			if !strings.HasPrefix(stdout, tc.header) {
+				t.Errorf("the manual does not open with %q:\n%s", tc.header, firstLines(stdout, 3))
+			}
+			for _, path := range tc.lists {
+				if !strings.Contains(stdout, "\n"+strings.ToUpper(path)+"\n") {
+					t.Errorf("the manual of a %s has no section for %q", tc.name, path)
+				}
+			}
+			for _, path := range tc.absent {
+				if strings.Contains(stdout, "\n"+strings.ToUpper(path)+"\n") {
+					t.Errorf("the manual of a %s has a section for %q, which does not hold there", tc.name, path)
+				}
+			}
+		})
+	}
+}
+
+func TestTheManualOfAnotherRoleIsRenderedAgainstACanonicalMachine(t *testing.T) {
+	freshPlace(t)
+	code, stdout, stderr := run(t, "manual", "--role", "hub")
+	if code != ExitOK {
+		t.Fatalf("exit = %d: %s", code, stderr)
+	}
+	if !strings.HasPrefix(stdout, "box, hub of fleet home · ") {
+		t.Errorf("manual --role hub does not open with the canonical hub's header:\n%s", firstLines(stdout, 3))
+	}
+	if !strings.Contains(stdout, "This is the manual of a canonical hub, not of this machine") {
+		t.Errorf("nothing says the manual is not of this machine:\n%s", firstLines(stdout, 5))
+	}
+	for _, path := range []string{"caramelo hub status", "caramelo member add"} {
+		if !strings.Contains(stdout, "\n"+strings.ToUpper(path)+"\n") {
+			t.Errorf("a hub's manual has no section for %q", path)
+		}
+	}
+	if strings.Contains(stdout, "\nCARAMELO VPN UP\n") {
+		t.Errorf("a hub's manual has a section for vpn up, which holds on a commander")
+	}
+	if strings.Contains(stdout, "hidden here") {
+		t.Errorf("a role's manual counts what it hides:\n%s", firstLines(stdout, 5))
+	}
+}
+
+func TestTheManualOfEveryRoleHidesNothing(t *testing.T) {
+	memberPlace(t)
+	code, stdout, stderr := run(t, "manual", "--role", "all")
+	if code != ExitOK {
+		t.Fatalf("exit = %d: %s", code, stderr)
+	}
+	if !strings.HasPrefix(stdout, manualEveryRole) {
+		t.Errorf("manual --role all does not open by saying so:\n%s", firstLines(stdout, 3))
+	}
+	if strings.Contains(stdout, "hidden here") {
+		t.Errorf("manual --role all counts hidden commands:\n%s", firstLines(stdout, 5))
+	}
+	for _, path := range []string{"caramelo vpn up", "caramelo fleet list", "caramelo env create",
+		"caramelo member leave", "caramelo commander init"} {
+		if !strings.Contains(stdout, "\n"+strings.ToUpper(path)+"\n") {
+			t.Errorf("manual --role all has no section for %q", path)
+		}
+	}
+}
+
+func TestAnUnknownRoleIsAUsageError(t *testing.T) {
+	freshPlace(t)
+	code, stdout, stderr := run(t, "manual", "--role", "laptop")
+	if code != ExitUsage {
+		t.Fatalf("exit = %d, want %d", code, ExitUsage)
+	}
+	if stdout != "" {
+		t.Errorf("stdout = %q, want nothing", stdout)
+	}
+	if !strings.Contains(stderr, `--role is one of commander, hub, member, all, not "laptop"`) {
+		t.Errorf("stderr = %q, want it to name the roles there are", stderr)
+	}
+}
+
+func TestTheManualSaysHowManyCommandsItLeftOut(t *testing.T) {
+	for _, name := range place.CanonicalNames() {
+		t.Run(name, func(t *testing.T) {
+			c := canonicalOf(t, name)
+			m, s := manualHere(t, name)
+			want := len(hiddenByThePlace(t, c))
+			if want == 0 {
+				t.Fatalf("nothing is hidden on the canonical %s; the count cannot be checked", name)
+			}
+			if s.hidden != want {
+				t.Errorf("the manual left out %d commands, the place hides %d", s.hidden, want)
+			}
+			if m.note != hiddenHere(want) {
+				t.Errorf("the note = %q, want %q", m.note, hiddenHere(want))
+			}
+			line := strconv.Itoa(want) + " commands are hidden here"
+			if !strings.Contains(renderPlain(m), line) {
+				t.Errorf("the plain manual does not say %q", line)
+			}
+		})
+	}
+}
+
+func TestTheManualOfAPlaceThatCannotBeReadIsEveryRole(t *testing.T) {
+	var out bytes.Buffer
+	a := &app{stdout: &out, stderr: &out}
+	a.placeOnce.Do(func() { a.placeErr = errors.New("locate the commander config: no home directory") })
+	s, err := a.manualScope(&cobra.Command{}, "")
+	if err != nil {
+		t.Fatalf("a place that cannot be read: %v", err)
+	}
+	if !s.every || s.role != manualRoleAll {
+		t.Errorf("scope = %+v, want every command of every role", s)
+	}
+}
+
+func TestManualJSONSaysTheRoleAndThePlace(t *testing.T) {
+	hubPlace(t)
+	code, stdout, stderr := run(t, "manual", "--json")
+	if code != ExitOK {
+		t.Fatalf("exit = %d: %s", code, stderr)
+	}
+	var m manual
+	if err := json.Unmarshal([]byte(stdout), &m); err != nil {
+		t.Fatalf("manual --json is not JSON: %v", err)
+	}
+	if m.Role != place.RoleHub {
+		t.Errorf("role = %q, want %q", m.Role, place.RoleHub)
+	}
+	if m.Context == nil {
+		t.Fatal("the JSON manual carries no context")
+	}
+	if m.Context.Role != place.RoleHub || m.Context.Name != "box" {
+		t.Errorf("context = %q on %q, want a hub named box", m.Context.Role, m.Context.Name)
+	}
+	if holds := manualHolds(m, "caramelo hub status"); holds != "anything but a commander" {
+		t.Errorf("hub status holds on %q", holds)
+	}
+
+	code, stdout, stderr = run(t, "manual", "--role", "all", "--json")
+	if code != ExitOK {
+		t.Fatalf("exit = %d: %s", code, stderr)
+	}
+	var every manual
+	if err := json.Unmarshal([]byte(stdout), &every); err != nil {
+		t.Fatalf("manual --role all --json is not JSON: %v", err)
+	}
+	if every.Role != manualRoleAll || every.Context != nil {
+		t.Errorf("role = %q with context %v, want %q and no place", every.Role, every.Context, manualRoleAll)
+	}
+}
+
+func manualHolds(m manual, path string) string {
+	var found string
+	var walk func(cs []manualCommand)
+	walk = func(cs []manualCommand) {
+		for _, c := range cs {
+			if c.Path == path {
+				found = c.Holds
+			}
+			walk(c.Subcommands)
+		}
+	}
+	walk(m.Commands)
+	return found
+}
+
+func manualOutline(t *testing.T, out string) string {
+	t.Helper()
+	opening, rest, ok := strings.Cut(out, "CARAMELO(1)")
+	if !ok {
+		t.Fatalf("the manual has no title line:\n%s", firstLines(out, 5))
+	}
+	_, list, ok := strings.Cut(rest, "\nCOMMANDS\n")
+	if !ok {
+		t.Fatal("the manual has no command index")
+	}
+	var b strings.Builder
+	b.WriteString(opening)
+	b.WriteString("COMMANDS\n")
+	for _, line := range strings.Split(list, "\n") {
+		if strings.TrimSpace(line) == "" {
+			break
+		}
+		fmt.Fprintln(&b, line)
+	}
+	return b.String()
+}
+
+func TestGoldenManualOfEveryPlace(t *testing.T) {
+	for _, name := range place.CanonicalNames() {
+		t.Run(name, func(t *testing.T) {
+			m, _ := manualHere(t, name)
+			checkGolden(t, "manual-"+name, manualOutline(t, renderPlain(m)))
+		})
+	}
+	t.Run("every-role", func(t *testing.T) {
+		m, _ := manualOfRole(t, manualRoleAll)
+		checkGolden(t, "manual-every-role", manualOutline(t, renderPlain(m)))
+	})
 }
 
 var exampleCommand = regexp.MustCompile(`caramelo\s+([^#|)"']*)`)

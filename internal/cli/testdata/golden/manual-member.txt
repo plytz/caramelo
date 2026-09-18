@@ -1,0 +1,41 @@
+worker, member of fleet home (hub box.example.com:4021) · /etc/caramelo/config.yaml ·
+  caramelod socket /run/caramelo/caramelod.sock · edge off
+37 commands are hidden here; 'caramelo manual --role all' lists every command
+of every role.
+
+COMMANDS
+    caramelo app                  Inspect the applications on the machine
+      caramelo app list           List the applications, their default branch and their size
+    caramelo context              Say where this CLI is running and what a command typed here would act on
+    caramelo edge                 The machine's public edge: routes, certificates, targets
+      caramelo edge ca            Print the machine's internal CA root, to trust it
+      caramelo edge counts        Requests, errors and connection failures per hostname and replica
+      caramelo edge disable       Turn the edge off for this machine (run as root)
+      caramelo edge enable        Turn the edge on for this machine (run as root)
+      caramelo edge prune         Remove certificates left behind by an issuer this machine no longer uses
+      caramelo edge status        Show the machine's routes, targets and certificates
+    caramelo events               Everything the machine does, whoever started it
+    caramelo hub                  Commands the machine itself runs: setup, uninstall, status, run
+      caramelo hub probe          Ask whether a machine's tunnel port answers from here
+      caramelo hub setup          Turn this machine into a Caramelo host (run as root)
+      caramelo hub status         Report what setup installed on this machine and whether it is running
+      caramelo hub uninstall      Stop caramelod and undo what setup changed on this machine (run as root)
+    caramelo logs                 Show an environment's service logs, merged and prefixed
+    caramelo manual               The manual of this machine: every command that holds here, with examples
+    caramelo member               Inspect this machine, and the fleet it is part of
+      caramelo member join        Join this machine to a hub (run on the machine, as root)
+      caramelo member leave       Leave the fleet this machine joined (run on the machine, as root)
+      caramelo member list        List the machines of the fleet
+      caramelo member show        Print the machine record, or one machine of the fleet
+    caramelo peer                 Manage the identities allowed on the machine's network
+      caramelo peer add           Admit an identity by its WireGuard public key
+      caramelo peer list          List the identities on the machine's network
+      caramelo peer remove        Revoke an identity by name
+    caramelo releases             An environment's deploy history, or the app's releases
+    caramelo secrets              The machine's vault: scoped secrets, encrypted at rest
+      caramelo secrets export     An environment's resolved secrets, redacted unless --reveal
+      caramelo secrets list       Names, scopes and versions — never values
+      caramelo secrets rm         Forget secrets at one scope
+      caramelo secrets set        Write secrets at one scope
+    caramelo status               Show whether caramelod and Docker are up, and how we reached them
+    caramelo version              Print the caramelo version
