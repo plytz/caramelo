@@ -38,7 +38,7 @@ type wgDevice struct {
 
 func openDevice(rec Record, private string, logw io.Writer) (*wgDevice, error) {
 	if !rec.Valid() {
-		return nil, fmt.Errorf("the record for %s is incomplete; run 'caramelo vpn up'", rec.Machine)
+		return nil, fmt.Errorf("the record for %s is incomplete; run 'caramelo vpn up'", rec.Fleet)
 	}
 	cfg, err := ipcConfig(rec, private)
 	if err != nil {
@@ -56,11 +56,11 @@ func openDevice(rec Record, private string, logw io.Writer) (*wgDevice, error) {
 	dev := device.NewDevice(tdev, conn.NewDefaultBind(), newLogger(level, logw))
 	if err := dev.IpcSet(cfg); err != nil {
 		dev.Close()
-		return nil, fmt.Errorf("configure the tunnel to %s: %w", rec.Machine, err)
+		return nil, fmt.Errorf("configure the tunnel to %s: %w", rec.Fleet, err)
 	}
 	if err := dev.Up(); err != nil {
 		dev.Close()
-		return nil, fmt.Errorf("bring the tunnel to %s up: %w", rec.Machine, err)
+		return nil, fmt.Errorf("bring the tunnel to %s up: %w", rec.Fleet, err)
 	}
 	return &wgDevice{rec: rec, refs: 1, dev: dev, tnet: tnet}, nil
 }
@@ -85,7 +85,7 @@ func ipcConfig(rec Record, private string) (string, error) {
 	}
 	pub, err := KeyHex(rec.MachineKey)
 	if err != nil {
-		return "", fmt.Errorf("the public key of %s: %w", rec.Machine, err)
+		return "", fmt.Errorf("the public key of %s: %w", rec.Fleet, err)
 	}
 	var b strings.Builder
 	b.WriteString("private_key=" + priv + "\n")
@@ -156,7 +156,7 @@ func (d *wgDevice) dial(ctx context.Context, network string, ap netip.AddrPort) 
 
 func (d *wgDevice) dialError(ap netip.AddrPort, err error) error {
 	if !errors.Is(err, context.DeadlineExceeded) {
-		return fmt.Errorf("connect to %s through the tunnel to %s: %w", ap, d.rec.Machine, err)
+		return fmt.Errorf("connect to %s through the tunnel to %s: %w", ap, d.rec.Fleet, err)
 	}
 	hs, herr := d.lastHandshake()
 	return silenceError(d.rec, ap, hs, herr == nil)
@@ -211,13 +211,13 @@ var pool = &devicePool{devices: map[string]*wgDevice{}}
 func (p *devicePool) get(rec Record, keys KeyStore, log io.Writer) (*wgDevice, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if dev, ok := p.devices[rec.Machine]; ok && dev.acquire() {
+	if dev, ok := p.devices[rec.Fleet]; ok && dev.acquire() {
 		return dev, nil
 	}
 	if keys == nil {
 		keys = &FileKeyStore{}
 	}
-	kp, err := keys.Load(rec.Machine)
+	kp, err := keys.Load(rec.Fleet)
 	if err != nil {
 		return nil, err
 	}
@@ -227,7 +227,7 @@ func (p *devicePool) get(rec Record, keys KeyStore, log io.Writer) (*wgDevice, e
 	}
 
 	dev.refs++
-	p.devices[rec.Machine] = dev
+	p.devices[rec.Fleet] = dev
 	return dev, nil
 }
 

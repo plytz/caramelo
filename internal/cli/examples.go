@@ -134,6 +134,25 @@ caramelo env unexpose feat-x                        # every name; the env keeps 
 caramelo env url feat-x                             # the app's URL
 caramelo env url feat-x postgres                    # a dependency's address`,
 
+	"caramelo fleet": `
+caramelo fleet list                          # the fleets this commander knows, and which is the default
+caramelo fleet add home you@box              # record a fleet by the ssh address of its hub
+caramelo fleet default home`,
+
+	"caramelo fleet add": `
+caramelo fleet add home you@box
+caramelo fleet add work ops@hub.work.example:4022`,
+
+	"caramelo fleet default": `
+caramelo fleet default home                  # what commands talk to when nothing says otherwise`,
+
+	"caramelo fleet list": `
+caramelo fleet list
+caramelo fleet list --json`,
+
+	"caramelo fleet remove": `
+caramelo fleet remove work                   # forget it here; the fleet itself is untouched`,
+
 	"caramelo events": `
 caramelo events                                     # the last 100 events on the machine
 caramelo events --follow                            # keep streaming
@@ -175,11 +194,13 @@ sudo caramelo hub uninstall --yes
 sudo caramelo hub uninstall --yes --purge        # data and state too`,
 
 	"caramelo key": `
+caramelo key add --file ~/.ssh/id_ed25519.pub       # under the commander's own name
 caramelo key add --name laptop --file ~/.ssh/id_ed25519.pub
 caramelo key list
 caramelo key remove laptop`,
 
 	"caramelo key add": `
+caramelo key add --file ~/.ssh/id_ed25519.pub       # under the commander's own name
 caramelo key add --name laptop --file ~/.ssh/id_ed25519.pub
 cat agent.pub | caramelo key add --name agent-7
 caramelo key add --name ci --file ci.pub --options 'restrict'`,
@@ -300,7 +321,8 @@ printf 'STRIPE_KEY=sk_live_...' | caramelo secrets set --app-scope --stdin   # K
 
 	"caramelo status": `
 caramelo status                                     # caramelod, Docker, and how we reached them
-caramelo status --machine box
+caramelo status --fleet home                        # a fleet of the commander config
+caramelo status --machine you@box                   # a box that is in no fleet yet
 caramelo status --json`,
 
 	"caramelo test": `
@@ -342,9 +364,9 @@ caramelo vpn status --json`,
 sudo caramelo vpn uninstall`,
 
 	"caramelo vpn up": `
-caramelo vpn up                                     # join the default machine's network
-caramelo vpn up --machine box
-caramelo vpn up --name laptop                       # the peer name the commander joins as
+caramelo vpn up                                     # join the default fleet's network
+caramelo vpn up --fleet work
+caramelo vpn up --name laptop                       # the peer name instead of the commander's own
 caramelo vpn up --transparent                       # through the installed transparent mode`,
 }
 

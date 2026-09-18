@@ -109,8 +109,8 @@ func TestCommanderConfigRoundTrip(t *testing.T) {
 		Name: "laptop",
 		Role: RoleCommander,
 		Commander: Commander{
-			DefaultMachine: "box",
-			Machines:       map[string]string{"box": "alex@192.168.56.11:4022"},
+			DefaultFleet: "home",
+			Fleets:       map[string]Fleet{"home": {Hub: "alex@192.168.56.11:4022"}},
 		},
 	}
 	if err := SaveCommanderConfigTo(path, want); err != nil {
@@ -130,39 +130,44 @@ func TestCommanderConfigRoundTrip(t *testing.T) {
 	}
 }
 
-func TestCommanderConfigResolve(t *testing.T) {
-	c := CommanderConfig{Commander: Commander{Machines: map[string]string{
-		"box":  "alex@192.168.56.11:4022",
-		"prod": "prod.example.com",
+func TestFleetTarget(t *testing.T) {
+	c := CommanderConfig{Commander: Commander{Fleets: map[string]Fleet{
+		"home": {Hub: "alex@192.168.56.11:4022"},
+		"work": {Hub: "prod.example.com"},
 	}}}
-	got, err := c.Resolve("box")
+	got, err := c.FleetTarget("home")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if want := (Target{"alex", "192.168.56.11", 4022}); got != want {
-		t.Errorf("Resolve(box) = %+v, want %+v", got, want)
+		t.Errorf("FleetTarget(home) = %+v, want %+v", got, want)
 	}
-
-	got, err = c.Resolve("other@host:22")
+	got, err = c.FleetTarget("work")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := (Target{"other", "host", 22}); got != want {
-		t.Errorf("Resolve(address) = %+v, want %+v", got, want)
+	if got.Host != "prod.example.com" {
+		t.Errorf("FleetTarget(work) = %+v, want the hub host with the defaults filled in", got)
 	}
-	if _, err := c.Resolve("@bad"); err == nil {
-		t.Error("Resolve(@bad) should fail")
+	_, err = c.FleetTarget("nowhere")
+	if err == nil {
+		t.Fatal("FleetTarget of an unknown fleet must fail")
+	}
+	if !strings.Contains(err.Error(), "home, work") {
+		t.Errorf("error = %v, want it to name the fleets this commander knows", err)
 	}
 }
 
-func TestCommanderConfigResolveBadEntry(t *testing.T) {
-	c := CommanderConfig{Commander: Commander{Machines: map[string]string{"box": "alex@box:notaport"}}}
-	_, err := c.Resolve("box")
+func TestFleetTargetBadHub(t *testing.T) {
+	c := CommanderConfig{Commander: Commander{Fleets: map[string]Fleet{
+		"home": {Hub: "alex@box:notaport"},
+	}}}
+	_, err := c.FleetTarget("home")
 	if err == nil {
-		t.Fatal("want an error for a broken machines entry")
+		t.Fatal("want an error for a broken hub address")
 	}
-	if !strings.Contains(err.Error(), "commander config") {
-		t.Errorf("error = %v, want it to blame the commander config", err)
+	if !strings.Contains(err.Error(), "commander.fleets.home.hub") {
+		t.Errorf("error = %v, want it to name the key that is wrong", err)
 	}
 }
 

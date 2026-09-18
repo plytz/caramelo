@@ -1,0 +1,1 @@
+no fleets: record one with `caramelo fleet add NAME user@host`, or set a box up with `caramelo hub setup --target user@host`

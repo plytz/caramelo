@@ -15,7 +15,7 @@ import (
 
 func testRecord(machine string) Record {
 	return Record{
-		Machine:     machine,
+		Fleet:       machine,
 		MachineName: "worker1",
 		Endpoint:    "192.168.56.11:4021",
 		MachineKey:  "0000000000000000000000000000000000000000000=",

@@ -49,21 +49,22 @@ var manualAgentNotes = []string{
 	"Progress and diagnostics go to standard error. With --progress json each line on standard error is one JSON event with the same shape as `caramelo events --json`.",
 	"Exit codes are stable: 0 is success, 1 is a failure the command reports, 2 is a usage error (unknown command, bad flag, missing argument).",
 	"No command needs a terminal. Anything a person is asked interactively can be answered with a flag, and when standard input is not a terminal the command fails at once naming that flag instead of waiting.",
-	"The machine a command talks to is picked by --machine (CARAMELO_MACHINE is its default), then a local caramelod socket if there is one, then the commander config's commander.default_machine.",
+	"The fleet a command talks to is picked by --fleet (CARAMELO_FLEET is its default), then a local caramelod socket if there is one, then the fleet recorded for the app of this checkout, then commander.default_fleet, then the only fleet there is; with several fleets and none of those, the command refuses and names them. --machine user@host reaches a box that is in no fleet yet.",
 	"The app and the environment default to the git checkout the command runs in; --app and --env (or CARAMELO_APP and CARAMELO_ENV) name them explicitly.",
-	"Names in the manual are placeholders: feat-x is an environment, shop is an app, box is a machine.",
+	"Names in the manual are placeholders: feat-x is an environment, shop is an app, box is a machine, home is a fleet.",
 }
 
 var manualEnvironment = []manualFlag{
-	{Name: "CARAMELO_MACHINE", Type: "string", Usage: "the machine to talk to, as --machine"},
+	{Name: "CARAMELO_FLEET", Type: "string", Usage: "the fleet to talk to, as --fleet"},
+	{Name: "CARAMELO_MACHINE", Type: "string", Usage: "a raw ssh target to talk to, as --machine"},
 	{Name: "CARAMELO_APP", Type: "string", Usage: "the app, as --app on the commands that take one"},
 	{Name: "CARAMELO_ENV", Type: "string", Usage: "the environment, as --env on the commands that take one"},
 	{Name: "CARAMELO_SSH", Type: "string", Usage: "the ssh program used to reach a user@host machine (default: ssh)"},
 	{Name: "CARAMELO_SSH_OPTS", Type: "string", Usage: "extra arguments for that ssh, split like shell words"},
 	{Name: "CARAMELO_DEBUG", Type: "string", Usage: "when set, say on standard error which transport was chosen and why"},
 	{Name: "CARAMELO_CONFIG_DIR", Type: "path", Usage: "directory holding a machine's config.yaml, as --config-dir (default: /etc/caramelo)"},
-	{Name: "XDG_CONFIG_HOME", Type: "path", Usage: "absolute path under which the commander config and keys live, in caramelo/ (default: the platform's user config dir)"},
-	{Name: "XDG_CACHE_HOME", Type: "path", Usage: "absolute path under which ssh control sockets live, in caramelo/ (default: the platform's user cache dir)"},
+	{Name: "XDG_CONFIG_HOME", Type: "path", Usage: "absolute path under which the commander config, its keys and its tunnel records live, in caramelo/ (default: ~/.config on every platform)"},
+	{Name: "XDG_CACHE_HOME", Type: "path", Usage: "absolute path under which ssh control sockets live, in caramelo/ (default: ~/.cache on every platform)"},
 	{Name: "XDG_RUNTIME_DIR", Type: "path", Usage: "where the transparent-mode service's control socket lives, in caramelo/ (default: the cache dir)"},
 	{Name: "SUDO_USER", Type: "string", Usage: "set by sudo: on a machine that has no config.yaml of its own, the commander config and cache read are that user's, not root's"},
 }

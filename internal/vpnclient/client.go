@@ -70,7 +70,7 @@ func NewWith(opts Options) (Client, error) {
 func (c *client) Up(ctx context.Context, req UpRequest) (*State, error) {
 	machine := strings.TrimSpace(req.Machine)
 	if machine == "" {
-		return nil, errors.New("no machine: pass --machine NAME (or set commander.default_machine in the commander config)")
+		return nil, errors.New("no fleet: pass --fleet NAME (or CARAMELO_FLEET), or set commander.default_fleet in the commander config")
 	}
 	kp, created, err := c.opts.Keys.Ensure(machine)
 	if err != nil {
@@ -244,7 +244,7 @@ func (c *client) state(ctx context.Context, rec Record) *State {
 	}
 	return &State{
 		Mode:          mode,
-		Machine:       rec.Machine,
+		Machine:       rec.Fleet,
 		Endpoint:      rec.Endpoint,
 		PublicKey:     rec.PublicKey,
 		PeerName:      rec.PeerName,
@@ -347,7 +347,7 @@ func RecordFrom(machine, peerName, publicKey string, st *api.Status, peer *state
 		return Record{}, fmt.Errorf("%s reported no usable public key", machine)
 	}
 	return Record{
-		Machine:     machine,
+		Fleet:       machine,
 		MachineName: st.Hostname,
 		Endpoint:    endpoint,
 		MachineKey:  vs.PublicKey,
@@ -426,17 +426,21 @@ func listenPort(vs *api.VPNStatus) int {
 	return vpn.DefaultListenPort
 }
 
-var resolveMachineHost = func(machine string) (string, error) {
+var resolveMachineHost = func(fleet string) (string, error) {
 	cfg, err := remote.LoadCommanderConfig()
 	if err != nil {
 		return "", err
 	}
-	target, err := cfg.Resolve(machine)
-	if err != nil {
-		return "", err
+	target, ferr := cfg.FleetTarget(fleet)
+	if ferr != nil {
+		raw, perr := remote.ParseTarget(fleet)
+		if perr != nil {
+			return "", ferr
+		}
+		target = raw
 	}
 	if target.Host == "" {
-		return "", fmt.Errorf("machine %q has no host", machine)
+		return "", fmt.Errorf("fleet %q has no hub address", fleet)
 	}
 	return target.Host, nil
 }

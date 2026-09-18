@@ -21,17 +21,17 @@ type TunnelOptions struct {
 }
 
 func InstallTunnelDialer(opts TunnelOptions) {
-	remote.TunnelDialer = func(ctx context.Context, t remote.Target) (remote.Dialer, error) {
-		return TunnelDialer(ctx, t, opts)
+	remote.TunnelDialer = func(ctx context.Context, fleet string, t remote.Target) (remote.Dialer, error) {
+		return TunnelDialer(ctx, fleet, t, opts)
 	}
 }
 
-func TunnelDialer(ctx context.Context, t remote.Target, opts TunnelOptions) (remote.Dialer, error) {
+func TunnelDialer(ctx context.Context, fleet string, t remote.Target, opts TunnelOptions) (remote.Dialer, error) {
 	records := opts.Records
 	if records == nil {
 		records = &FileRecordStore{}
 	}
-	rec, err := findRecord(records, t.Host)
+	rec, err := findRecord(records, fleet, t.Host)
 	if err != nil {
 		return nil, err
 	}
@@ -50,20 +50,29 @@ func dialerFor(ctx context.Context, rec Record, opts TunnelOptions) (Dialer, err
 	}
 	dev, err := pool.get(rec, opts.Keys, opts.Log)
 	if err != nil {
-		return nil, fmt.Errorf("bring the tunnel to %s up: %w", rec.Machine, err)
+		return nil, fmt.Errorf("bring the tunnel to %s up: %w", rec.Fleet, err)
 	}
 	return &userspaceDialer{dev: dev}, nil
 }
 
-func findRecord(records RecordStore, host string) (Record, error) {
-	host = strings.TrimSpace(host)
+func findRecord(records RecordStore, names ...string) (Record, error) {
+	var host string
+	for _, name := range names {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
+		}
+		if host == "" {
+			host = name
+		}
+		if rec, err := records.Load(name); err == nil && rec.Valid() {
+			return rec, nil
+		} else if err != nil && !errors.Is(err, ErrNoKey) {
+			return Record{}, err
+		}
+	}
 	if host == "" {
 		return Record{}, remote.ErrNoTunnel
-	}
-	if rec, err := records.Load(host); err == nil && rec.Valid() {
-		return rec, nil
-	} else if err != nil && !errors.Is(err, ErrNoKey) {
-		return Record{}, err
 	}
 	all, err := records.List()
 	if err != nil {
@@ -76,10 +85,10 @@ func findRecord(records RecordStore, host string) (Record, error) {
 			continue
 		}
 		switch host {
-		case rec.Host(), rec.MachineName, rec.Machine:
+		case rec.Host(), rec.MachineName, rec.Fleet:
 			return rec, nil
 		}
-		if base != "" && (base == vpn.Normalize(rec.MachineName) || base == vpn.Normalize(rec.Machine)) {
+		if base != "" && (base == vpn.Normalize(rec.MachineName) || base == vpn.Normalize(rec.Fleet)) {
 			return rec, nil
 		}
 		if rec.MachineIP.String() == host {
@@ -117,7 +126,7 @@ func DialTarget(ctx context.Context, host string, port int, opts TunnelOptions) 
 	if err != nil {
 		return nil, err
 	}
-	return &SSHTarget{Dialer: dialer, Address: address, Machine: rec.Machine}, nil
+	return &SSHTarget{Dialer: dialer, Address: address, Machine: rec.Fleet}, nil
 }
 
 func OneOff(rec Record, private string, logw io.Writer) (Dialer, error) {
