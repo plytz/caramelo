@@ -190,6 +190,9 @@ func TestTheContextOnAMemberAndItsHub(t *testing.T) {
 	if s.Hub.Endpoint != cfg.Member.Hub.Endpoint {
 		t.Errorf("context says the member dials %q, its config.yaml says %q", s.Hub.Endpoint, cfg.Member.Hub.Endpoint)
 	}
+	if s.Hub.Name != hubCtx.Name {
+		t.Errorf("the member calls its hub %q, the hub answers to %q", s.Hub.Name, hubCtx.Name)
+	}
 	if want := fmt.Sprintf(":%d", itest.VPNPort); !strings.HasSuffix(s.Hub.Endpoint, want) {
 		t.Errorf("the member dials %q, want the tunnel port %s", s.Hub.Endpoint, want)
 	}
@@ -219,7 +222,7 @@ func TestTheContextOnAMemberAndItsHub(t *testing.T) {
 	}
 
 	text := itest.ContextTextOn(t, box, itest.CarameloBinary)
-	for _, want := range []string{name + ", " + place.RoleMember, "of fleet " + s.Fleet, "(hub " + s.Hub.Endpoint + ")"} {
+	for _, want := range []string{name + ", " + place.RoleMember, "of fleet " + s.Fleet, "(hub " + s.Hub.Label() + ")"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("caramelo context on %s never says %q:\n%s", box.Alias, want, text)
 		}
