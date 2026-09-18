@@ -285,7 +285,6 @@ func (forwardService) AddKey(ctx context.Context, name, options, line string) (*
 func (forwardService) RemoveKey(context.Context, string) error { return nil }
 
 func TestForwardOverTheSocketEndToEnd(t *testing.T) {
-	initializedCommander(t)
 	noCommanderConfig(t)
 	dir := t.TempDir()
 	cfg := serverconfig.Default()
