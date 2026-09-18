@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/plytz/caramelo/internal/remote"
 )
 
 type FileKeyStore struct {
@@ -22,13 +24,21 @@ func (s *FileKeyStore) Path(machine string) string {
 	path, err := KeyPath(machine)
 	if err != nil {
 
-		return filepath.Join("caramelo", KeyDir, KeyFileName(machine))
+		return filepath.Join(remote.CommanderDirName, KeyDir, KeyFileName(machine))
 	}
 	return path
 }
 
 func (s *FileKeyStore) Ensure(machine string) (KeyPair, bool, error) {
-	kp, err := s.Load(machine)
+	return ensureKeyFile(s.Path(machine), machine)
+}
+
+func (s *FileKeyStore) Load(machine string) (KeyPair, error) {
+	return loadKeyFile(s.Path(machine), machine)
+}
+
+func ensureKeyFile(path, owner string) (KeyPair, bool, error) {
+	kp, err := loadKeyFile(path, owner)
 	switch {
 	case err == nil:
 		return kp, false, nil
@@ -39,14 +49,13 @@ func (s *FileKeyStore) Ensure(machine string) (KeyPair, bool, error) {
 	if err != nil {
 		return KeyPair{}, false, err
 	}
-	path := s.Path(machine)
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return KeyPair{}, false, fmt.Errorf("create %s: %w", filepath.Dir(path), err)
 	}
 
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if errors.Is(err, fs.ErrExist) {
-		kp, err := s.Load(machine)
+		kp, err := loadKeyFile(path, owner)
 		return kp, false, err
 	}
 	if err != nil {
@@ -62,18 +71,17 @@ func (s *FileKeyStore) Ensure(machine string) (KeyPair, bool, error) {
 	return kp, true, nil
 }
 
-func (s *FileKeyStore) Load(machine string) (KeyPair, error) {
-	path := s.Path(machine)
+func loadKeyFile(path, owner string) (KeyPair, error) {
 	b, err := os.ReadFile(path)
 	if errors.Is(err, fs.ErrNotExist) {
-		return KeyPair{}, fmt.Errorf("%s: %w", machine, ErrNoKey)
+		return KeyPair{}, fmt.Errorf("%s: %w", owner, ErrNoKey)
 	}
 	if err != nil {
 		return KeyPair{}, fmt.Errorf("read %s: %w", path, err)
 	}
 	private := strings.TrimSpace(string(b))
 	if private == "" {
-		return KeyPair{}, fmt.Errorf("%s is empty; remove it and run 'caramelo vpn up' again", path)
+		return KeyPair{}, fmt.Errorf("%s is empty; remove it so caramelo can generate it again", path)
 	}
 	public, err := PublicKey(private)
 	if err != nil {

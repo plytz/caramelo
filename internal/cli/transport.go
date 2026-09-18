@@ -22,8 +22,6 @@ import (
 
 func init() { forward = forwardImpl }
 
-var systemConfigDir = serverconfig.DefaultConfigDir
-
 const dialTimeout = 10 * time.Second
 
 type transport struct {
@@ -90,7 +88,7 @@ func resolveTransport(ctx context.Context, a *app) (transport, error) {
 		return transport{}, fmt.Errorf(
 			"no local caramelod (no socket at %s) and no machine configured; "+
 				"run 'sudo caramelo hub setup' on this machine, or point at one with "+
-				"--machine <user@host> (or CARAMELO_MACHINE, or default_machine in %s)",
+				"--machine <user@host> (or CARAMELO_MACHINE, or commander.default_machine in %s)",
 			socketPath, path)
 	}
 	if err != nil {
@@ -104,7 +102,7 @@ func resolveTransport(ctx context.Context, a *app) (transport, error) {
 
 func daemonSocket() (path, user string) {
 	def := serverconfig.Default()
-	cfg, err := serverconfig.Load(systemConfigDir)
+	cfg, err := serverconfig.Load(serverconfig.ConfigDir())
 	if err != nil {
 		return def.SocketPath(), def.User
 	}

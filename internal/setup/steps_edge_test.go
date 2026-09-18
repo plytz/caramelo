@@ -25,7 +25,7 @@ func edgeInstalled(t *testing.T, env *Env, run *testutil.FakeRunner) {
 	t.Helper()
 	cfg := env.Config
 	for path, content := range map[string]string{
-		EdgeSocketUnitPath:  EdgeSocketUnitContent(cfg),
+		EdgeSocketUnitPath:  EdgeSocketUnitContent(cfg, false),
 		EdgeServiceUnitPath: EdgeServiceUnitContent(cfg, env.ConfigDir),
 		EdgeSysctlPath:      EdgeSysctlContent,
 	} {
@@ -190,7 +190,7 @@ func TestEdgeStepApplyInstallsAndStarts(t *testing.T) {
 func TestEdgeSocketUnitWithoutHTTP3(t *testing.T) {
 	cfg := serverconfig.Default()
 	cfg.Edge, cfg.HTTP3 = true, false
-	unit := EdgeSocketUnitContent(cfg)
+	unit := EdgeSocketUnitContent(cfg, false)
 	if strings.Contains(unit, "ListenDatagram") {
 		t.Errorf("--no-http3 still binds udp 443:\n%s", unit)
 	}

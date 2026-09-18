@@ -64,12 +64,12 @@ func Select(ctx context.Context, s Selection) (Choice, error) {
 		return socket("local daemon socket"), nil
 	}
 
-	if s.Config.DefaultMachine != "" {
-		target, err := s.Config.Resolve(s.Config.DefaultMachine)
+	if s.Config.Commander.DefaultMachine != "" {
+		target, err := s.Config.Resolve(s.Config.Commander.DefaultMachine)
 		if err != nil {
 			return Choice{}, err
 		}
-		return s.remote(ctx, target, "default_machine in commander config")
+		return s.remote(ctx, target, "commander.default_machine in the commander config")
 	}
 
 	return Choice{}, ErrNoMachine

@@ -19,6 +19,7 @@ func tempServerConfig(t *testing.T) (string, serverconfig.Config) {
 	t.Helper()
 	dir := t.TempDir()
 	cfg := serverconfig.Default()
+	cfg.Name, cfg.Hub.Fleet = "box", "home"
 	cfg.StateDir = filepath.Join(dir, "state")
 	cfg.DataDir = filepath.Join(dir, "data")
 	cfg.RunDir = filepath.Join(testutil.ShortDir(t), "run")
@@ -212,6 +213,7 @@ func TestUninstallFallsBackToStdoutForTheReason(t *testing.T) {
 func TestUninstallTurnsSwapOffBeforeItRemovesTheSwapfile(t *testing.T) {
 	dir := t.TempDir()
 	cfg := serverconfig.Default()
+	cfg.Name, cfg.Hub.Fleet = "box", "home"
 	cfg.StateDir = filepath.Join(dir, "state")
 	swapfile := cfg.SwapFilePath()
 	if err := os.WriteFile(swapfile, []byte("swap"), 0o600); err != nil {
@@ -298,6 +300,7 @@ func TestPurgeToleratesWhatWasNeverInstalled(t *testing.T) {
 	}}
 	dir := t.TempDir()
 	cfg := serverconfig.Default()
+	cfg.Name, cfg.Hub.Fleet = "box", "home"
 	cfg.StateDir = filepath.Join(dir, "state")
 	cfg.DataDir = filepath.Join(dir, "data")
 	cfg.RunDir = filepath.Join(testutil.ShortDir(t), "run")
@@ -391,6 +394,7 @@ func TestPurgeSkipsThePackagesWhenNoneAreInstalled(t *testing.T) {
 func TestUninstallRemovesOnlyTheFilesThatAreThere(t *testing.T) {
 	dir := t.TempDir()
 	cfg := serverconfig.Default()
+	cfg.Name, cfg.Hub.Fleet = "box", "home"
 	cfg.StateDir = filepath.Join(dir, "state")
 	stub := &scriptedRunner{results: map[string]runner.Result{}}
 	u := &uninstaller{cfg: cfg, configDir: dir, exec: stub}

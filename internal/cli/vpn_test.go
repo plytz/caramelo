@@ -96,7 +96,7 @@ func TestVPNUsesTheDefaultMachine(t *testing.T) {
 	if err := os.MkdirAll(cfgDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	cfg := "default_machine: worker1\nmachines:\n  worker1: caramelo@192.168.56.11:4022\n"
+	cfg := "name: laptop\nrole: commander\ncommander:\n  default_machine: worker1\n  machines:\n    worker1: caramelo@192.168.56.11:4022\n"
 	if err := os.WriteFile(filepath.Join(cfgDir, "config.yaml"), []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}

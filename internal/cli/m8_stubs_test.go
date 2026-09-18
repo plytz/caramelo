@@ -91,6 +91,7 @@ func TestM8StubFlags(t *testing.T) {
 }
 
 func TestTheTwoLocalFleetCommandsRefuseBeforeTheyTouchAnything(t *testing.T) {
+	initializedCommander(t)
 	for _, tc := range []struct {
 		args []string
 		code int

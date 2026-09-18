@@ -85,9 +85,9 @@ ProtectHome=true
 WantedBy=multi-user.target
 `
 
-func EdgeSocketUnitContent(cfg serverconfig.Config) string {
+func EdgeSocketUnitContent(cfg serverconfig.Config, private bool) string {
 	host, where := "", "80, 443"
-	if cfg.Fleet.Private {
+	if private {
 		host, where = "127.0.0.1:", "127.0.0.1 only — a private member is served through its hub"
 	}
 	tcp := fmt.Sprintf("ListenStream=%s80\nListenStream=%s443\n", host, host)
@@ -117,7 +117,7 @@ func (s *EdgeStep) Name() string { return "edge" }
 
 func (s *EdgeStep) files(env *Env) []fileSpec {
 	return []fileSpec{
-		{Path: EdgeSocketUnitPath, Content: EdgeSocketUnitContent(env.Config),
+		{Path: EdgeSocketUnitPath, Content: EdgeSocketUnitContent(env.Config, env.PrivateDoor()),
 			Mode: "0644", Owner: "root", Group: "root"},
 		{Path: EdgeServiceUnitPath, Content: EdgeServiceUnitContent(env.Config, env.ConfigDir),
 			Mode: "0644", Owner: "root", Group: "root"},
@@ -289,7 +289,7 @@ func (s *EdgeStep) Apply(ctx context.Context, env *Env) error {
 }
 
 func (s *EdgeStep) firewallNote(env *Env) {
-	ports := firewall.EdgePorts(env.Config)
+	ports := firewall.EdgePorts(env.Config, env.PrivateDoor())
 	if len(ports) == 0 {
 		logf(env, "the edge answers on 127.0.0.1 only: a private member is served through its hub")
 		return

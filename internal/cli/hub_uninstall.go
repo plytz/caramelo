@@ -104,7 +104,7 @@ binary and the Docker packages setup installed. It is not reversible.`,
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&configDir, "config-dir", serverconfig.DefaultConfigDir, "directory holding config.yaml")
+	cmd.Flags().StringVar(&configDir, "config-dir", serverconfig.ConfigDir(), "directory holding config.yaml")
 	cmd.Flags().BoolVar(&purge, "purge", false, "also delete the config, state and data directories, the user and the Docker packages")
 	cmd.Flags().BoolVar(&yes, "yes", false, "do not ask for confirmation")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "report what would be removed, remove nothing")
@@ -287,7 +287,7 @@ var errPurgeNeedsYes = errors.New("--purge deletes every app, image and volume o
 
 func (a *app) confirmPurge(ctx context.Context, cfg serverconfig.Config) (bool, error) {
 	plan := fmt.Sprintf("This deletes %s, %s and %s (every app, image and volume), the %s user and the Docker packages.\n",
-		serverconfig.DefaultConfigDir, cfg.StateDir, cfg.DataDir, cfg.User)
+		serverconfig.ConfigDir(), cfg.StateDir, cfg.DataDir, cfg.User)
 	return a.confirmName(ctx, errPurgeNeedsYes, plan, "Type 'purge' to confirm: ", "purge")
 }
 

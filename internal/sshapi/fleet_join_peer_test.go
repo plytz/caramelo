@@ -173,8 +173,7 @@ func TestAMachineThatNamesNoHubForgetsItWasRemoved(t *testing.T) {
 	}
 
 	memberCfg := serverconfig.Config{
-		Fleet: serverconfig.Fleet{Role: "member", Name: "m1",
-			Hub: serverconfig.FleetHub{Name: "hub1", PublicKey: "k", Endpoint: "hub:4021", Address: "10.86.0.1"}},
+		Name: "m1", Role: "member", Member: serverconfig.Member{Fleet: "hub1", Hub: serverconfig.MemberHub{PublicKey: "k", Endpoint: "hub:4021", Address: "10.86.0.1"}},
 	}
 	member := &Daemon{Store: store, Config: memberCfg}
 	if !member.leftFleet(ctx) {
@@ -207,9 +206,8 @@ func TestAMemberIsToldBeforeItsPeerIsDropped(t *testing.T) {
 	d := &Daemon{
 		Store: store, Device: dev, Forwarder: fwd,
 		Resolver: &fakeResolver{machine: map[string]api.Location{"m1": remote("m1")}},
-		Config: serverconfig.Config{Fleet: serverconfig.Fleet{
-			Role: "hub", Name: "hub1", Range: "10.80.0.0/12"}},
-		Now: func() time.Time { return time.Unix(1, 0) },
+		Config:   serverconfig.Config{Name: "hub1", Role: "hub", Hub: serverconfig.Hub{Fleet: "hub1", Range: "10.80.0.0/12"}},
+		Now:      func() time.Time { return time.Unix(1, 0) },
 	}
 
 	if err := d.MachineRemove(ctx, api.MachineRemoveRequest{Name: "m1", Force: true},
@@ -231,9 +229,7 @@ func TestAToldMemberKeepsThePeerLongEnoughToAnswer(t *testing.T) {
 	dev.machines = map[string]bool{"hub1": true}
 	member := &Daemon{
 		Store: store, Device: dev, KnownMachines: machines("hub1"),
-		Config: serverconfig.Config{Fleet: serverconfig.Fleet{
-			Role: "member", Name: "m1",
-			Hub: serverconfig.FleetHub{Name: "hub1", PublicKey: "k", Endpoint: "hub:4021", Address: "10.86.0.1"}}},
+		Config: serverconfig.Config{Name: "m1", Role: "member", Member: serverconfig.Member{Fleet: "hub1", Hub: serverconfig.MemberHub{PublicKey: "k", Endpoint: "hub:4021", Address: "10.86.0.1"}}},
 	}
 	told := WithSession(ctx, api.Session{Transport: "tunnel", Identity: "hub1", Peer: "hub1"})
 	if err := member.MachineRemoved(told); err != nil {
@@ -271,9 +267,7 @@ func TestARemovedMemberListsItselfAndNobodyElse(t *testing.T) {
 	dev.machines = map[string]bool{"hub1": true}
 	member := &Daemon{
 		Store: store, Device: dev, KnownMachines: machines("hub1"),
-		Config: serverconfig.Config{Fleet: serverconfig.Fleet{
-			Role: "member", Name: "m1", Subnet: "10.80.0.0/16",
-			Hub: serverconfig.FleetHub{Name: "hub1", PublicKey: "k", Endpoint: "hub:4021", Address: "10.86.0.1"}}},
+		Config: serverconfig.Config{Name: "m1", Role: "member", Member: serverconfig.Member{Fleet: "hub1", Subnet: "10.80.0.0/16", Hub: serverconfig.MemberHub{PublicKey: "k", Endpoint: "hub:4021", Address: "10.86.0.1"}}},
 	}
 	told := WithSession(ctx, api.Session{Transport: "tunnel", Identity: "hub1", Peer: "hub1"})
 	if err := member.MachineRemoved(told); err != nil {
@@ -299,9 +293,7 @@ func TestOnlyAMachinesOwnHubMayRetireIt(t *testing.T) {
 	member := &Daemon{
 		Store:         fleetStore(t),
 		KnownMachines: machines("hub1", "m2"),
-		Config: serverconfig.Config{Fleet: serverconfig.Fleet{
-			Role: "member", Name: "m1",
-			Hub: serverconfig.FleetHub{Name: "hub1", PublicKey: "k", Endpoint: "hub:4021", Address: "10.86.0.1"}}},
+		Config:        serverconfig.Config{Name: "m1", Role: "member", Member: serverconfig.Member{Fleet: "hub1", Hub: serverconfig.MemberHub{PublicKey: "k", Endpoint: "hub:4021", Address: "10.86.0.1"}}},
 	}
 
 	other := WithSession(context.Background(), api.Session{Transport: "tunnel", Identity: "m2", Peer: "m2"})
@@ -469,10 +461,7 @@ func TestTheDoorToTheHubIsShutWhenTheFetchIsDone(t *testing.T) {
 	dev := &doorDevice{}
 	d := &Daemon{Device: dev, Config: serverconfig.Config{
 		SSHPort: 4022,
-		Fleet: serverconfig.Fleet{
-			Role: "member", Name: "m1",
-			Hub: serverconfig.FleetHub{Name: "hub1", PublicKey: "k", Endpoint: "hub:4021", Address: "10.86.0.1"},
-		},
+		Name:    "m1", Role: "member", Member: serverconfig.Member{Fleet: "hub1", Hub: serverconfig.MemberHub{PublicKey: "k", Endpoint: "hub:4021", Address: "10.86.0.1"}},
 	}}
 
 	var inside bool
@@ -538,7 +527,7 @@ func TestForcedRemovalDoesNotDependOnReachingTheMachine(t *testing.T) {
 		Forwarder: &fakeForwarder{
 			err: errors.New("dial tcp 10.81.0.1:4022 in the tunnel: context deadline exceeded"),
 		},
-		Config: serverconfig.Config{Fleet: serverconfig.Fleet{Role: "hub", Name: "hub1"}},
+		Config: serverconfig.Config{Name: "hub1", Role: "hub", Hub: serverconfig.Hub{Fleet: "hub1"}},
 	}
 
 	if err := d.MachineRemove(ctx, api.MachineRemoveRequest{Name: "m2", Force: true}, io.Discard); err != nil {
@@ -570,7 +559,7 @@ func TestARemovalForgetsTheMachineBeforeItsEnvironments(t *testing.T) {
 		Store:    store,
 		Device:   newPeerDevice("m2"),
 		Resolver: &fakeResolver{machine: map[string]api.Location{"m2": remote("m2")}},
-		Config:   serverconfig.Config{Fleet: serverconfig.Fleet{Role: "hub", Name: "hub1"}},
+		Config:   serverconfig.Config{Name: "hub1", Role: "hub", Hub: serverconfig.Hub{Fleet: "hub1"}},
 	}
 	d.KnownMachines = storeMachines{store}
 
@@ -613,4 +602,36 @@ type forwarderFunc func(ctx context.Context, loc api.Location, argv []string,
 func (f forwarderFunc) Forward(ctx context.Context, loc api.Location, argv []string,
 	stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 	return f(ctx, loc, argv, stdin, stdout, stderr)
+}
+
+func TestAHubRefusesAJoinThatClaimsAnotherFleet(t *testing.T) {
+	hub := &Daemon{
+		Store:  fleetStore(t),
+		Config: serverconfig.Config{Name: "box", Role: "hub", Hub: serverconfig.Hub{Fleet: "home"}},
+	}
+	_, err := hub.MachineRedeem(context.Background(), api.RedeemRequest{
+		Secret: "s3cr3t", Fleet: "work", Name: "m1", PublicKey: "k",
+	})
+	if err == nil {
+		t.Fatal("a hub admitted a machine that came for another fleet")
+	}
+	for _, want := range []string{"home", "work"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error %q, want it to name %q", err, want)
+		}
+	}
+}
+
+func TestAMemberRefusesToHandOutJoinTokens(t *testing.T) {
+	member := &Daemon{
+		Store: fleetStore(t),
+		Config: serverconfig.Config{Name: "m1", Role: "member", Member: serverconfig.Member{
+			Fleet: "home",
+			Hub:   serverconfig.MemberHub{PublicKey: "k", Endpoint: "hub:4021", Address: "10.86.0.1"},
+		}},
+	}
+	_, err := member.MachineToken(context.Background(), api.MachineTokenRequest{})
+	if err == nil || !strings.Contains(err.Error(), "home") {
+		t.Fatalf("MachineToken on a member = %v, want it refused naming the fleet", err)
+	}
 }

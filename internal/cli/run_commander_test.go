@@ -147,8 +147,10 @@ func withSSHMachine(t *testing.T) {
 	t.Helper()
 	useSystemConfigDir(t, t.TempDir())
 	useCommanderConfig(t, remote.CommanderConfig{
-		DefaultMachine: "box",
-		Machines:       map[string]string{"box": "caramelo@box:4022"},
+		Commander: remote.Commander{
+			DefaultMachine: "box",
+			Machines:       map[string]string{"box": "caramelo@box:4022"},
+		},
 	})
 }
 

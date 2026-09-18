@@ -130,9 +130,13 @@ func (a *app) memberJoinCmd() *cobra.Command {
 	cmd := localCmd(&cobra.Command{
 		Use:   "join HUB",
 		Short: "Join this machine to a hub (run on the machine, as root)",
-		Long: `join makes this box a member of a fleet: it writes the hub into
-/etc/caramelo/config.yaml, peers with it, announces what this machine is and
-what it holds, and from then on dials out and keeps the tunnel alive.
+		Long: `join makes this box a member of a fleet: it writes the fleet's name and
+the hub's endpoint, address and key under member: in /etc/caramelo/config.yaml,
+peers with it, announces what this machine is and what it holds, and from then on
+dials out and keeps the tunnel alive.
+
+A machine belongs to one fleet: joining the same fleet again changes nothing, and
+a token for another fleet is refused until 'caramelo member leave' has run here.
 
 HUB is the hub's endpoint — a hostname, optionally with the UDP port. Run it on
 the machine that is joining, as root, with a token from 'caramelo member token'
@@ -158,7 +162,7 @@ because the secrets for it live there.`,
 	f.StringVar(&token, "token", "", "the one-time token from `caramelo member token` on the hub, or - to read it from standard input")
 	f.StringVar(&name, "name", "", "what to call this machine in the fleet (default: its hostname)")
 	f.BoolVar(&private, "private", false, "join with no public listener: the hub is this machine's only door")
-	f.StringVar(&configDir, "config-dir", serverconfig.DefaultConfigDir, "directory holding config.yaml")
+	f.StringVar(&configDir, "config-dir", serverconfig.ConfigDir(), "directory holding config.yaml")
 	return cmd
 }
 
@@ -168,9 +172,10 @@ func (a *app) memberLeaveCmd() *cobra.Command {
 	cmd := localCmd(&cobra.Command{
 		Use:   "leave",
 		Short: "Leave the fleet this machine joined (run on the machine, as root)",
-		Long: `leave takes the fleet block out of this machine's configuration and
-restarts caramelod, which comes back a machine of one: its environments, its
-ports, its addresses and its edge exactly as they were, obeying nobody.
+		Long: `leave takes the member block out of this machine's configuration and
+restarts caramelod, which comes back a machine of one, the hub of a fleet named
+after itself: its environments, its ports, its addresses and its edge exactly as
+they were, obeying nobody.
 
 It is the mirror of 'caramelo member join' and it is run in the same place, on
 the machine itself, as root. Removing a machine from the hub's side is
@@ -184,7 +189,7 @@ The subnet stays: this machine's environments hold addresses in it.`,
 		},
 	})
 	f := cmd.Flags()
-	f.StringVar(&configDir, "config-dir", serverconfig.DefaultConfigDir, "directory holding config.yaml")
+	f.StringVar(&configDir, "config-dir", serverconfig.ConfigDir(), "directory holding config.yaml")
 	f.BoolVar(&force, "force", false, "do not warn that the hub may still hold this machine")
 	return cmd
 }

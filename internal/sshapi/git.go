@@ -183,7 +183,7 @@ func (d *Daemon) syncMembers(ctx context.Context, app string, errw io.Writer) {
 		fmt.Fprintf(errw, "caramelo: warning: read the directory of %s: %v\n", app, err)
 		return
 	}
-	self := d.fleetName()
+	self := d.machineName()
 	for _, r := range rows {
 		if r.Machine == "" || r.Machine == self {
 			continue

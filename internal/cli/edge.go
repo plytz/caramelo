@@ -44,7 +44,7 @@ Use 'caramelo edge status' to ask a machine what its edge is doing.`,
 				return runEdgeProcess(cmd.Context(), a, configDir)
 			},
 		}
-		cmd.Flags().StringVar(&configDir, "config-dir", serverconfig.DefaultConfigDir,
+		cmd.Flags().StringVar(&configDir, "config-dir", serverconfig.ConfigDir(),
 			"directory holding config.yaml")
 		cmd.AddCommand(
 			a.edgeStatusCmd(),
@@ -352,7 +352,7 @@ firewall and says so instead.`,
 		},
 	}
 	f := cmd.Flags()
-	f.StringVar(&configDir, "config-dir", serverconfig.DefaultConfigDir, "directory holding config.yaml")
+	f.StringVar(&configDir, "config-dir", serverconfig.ConfigDir(), "directory holding config.yaml")
 	f.StringVar(&acmeEmail, "acme-email", "", "address to register with the certificate authority")
 	f.StringVar(&acmeCA, "acme-ca", "", "ACME directory URL (default: Let's Encrypt production)")
 	f.StringVar(&tls, "tls", "", "where certificates come from: "+tlsValuesHelp())
@@ -378,7 +378,7 @@ Certificates, the route table and every environment stay exactly as they are:
 			return a.runEdgeSetup(cmd.Context(), cfg, configDir)
 		},
 	}
-	cmd.Flags().StringVar(&configDir, "config-dir", serverconfig.DefaultConfigDir,
+	cmd.Flags().StringVar(&configDir, "config-dir", serverconfig.ConfigDir(),
 		"directory holding config.yaml")
 	return cmd
 }

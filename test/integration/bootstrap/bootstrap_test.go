@@ -53,7 +53,7 @@ func TestBootstrap(t *testing.T) {
 	}
 
 	cfg := commanderConfig(t)
-	if cfg.DefaultMachine != machineName || cfg.Machines[machineName] != first.Machine.Address {
+	if cfg.Commander.DefaultMachine != machineName || cfg.Commander.Machines[machineName] != first.Machine.Address {
 		t.Errorf("commander config = %+v, want default %s -> %s", cfg, machineName, first.Machine.Address)
 	}
 }
@@ -272,5 +272,66 @@ func explainNotIdempotent(t *testing.T, m *itest.Machine) {
 		if r.Status == setuppkg.StatusWouldChange {
 			t.Logf("still not done: step %s: %s", r.Step, r.Detail)
 		}
+	}
+}
+
+func TestCommanderInitWroteEveryFileACommanderNeeds(t *testing.T) {
+	begin(t)
+	if initErr != nil {
+		t.Fatalf("commander init failed: %v\noutput:\n%s", initErr, initRaw)
+	}
+	dir := commanderHome + "/.config/caramelo"
+	for _, want := range []struct{ path, mode string }{
+		{dir, "700"},
+		{dir + "/config.yaml", "600"},
+		{dir + "/" + vpnclient.IdentityKeyFile, "600"},
+		{peerKeyDir, "700"},
+		{commanderHome + "/.cache/caramelo", "700"},
+	} {
+		res, err := commander.Run(context.Background(), "stat -c %a "+itest.ShellQuote(want.path))
+		if err != nil || res.ExitCode != 0 {
+			t.Errorf("%s: %v (exit %d) %s", want.path, err, res.ExitCode, res.Stderr)
+			continue
+		}
+		if got := strings.TrimSpace(res.Stdout); got != want.mode {
+			t.Errorf("%s mode = %s, want %s", want.path, got, want.mode)
+		}
+	}
+	if cfg := commanderConfig(t); cfg.Name != commanderName || cfg.Role != remote.RoleCommander {
+		t.Errorf("commander config = %+v, want %s as a %s", cfg, commanderName, remote.RoleCommander)
+	}
+
+	res := commander.MustRun(t, commanderBin+" commander init --json")
+	var again struct {
+		Name    string `json:"name"`
+		Changed bool   `json:"changed"`
+	}
+	if err := json.Unmarshal([]byte(strings.TrimSpace(res.Stdout)), &again); err != nil {
+		t.Fatalf("commander init --json: %v\nstdout: %q", err, res.Stdout)
+	}
+	if again.Changed || again.Name != commanderName {
+		t.Errorf("a second commander init reported %+v, want %s unchanged", again, commanderName)
+	}
+}
+
+func TestAFreshBoxRefusesToSetUpAnotherMachine(t *testing.T) {
+	begin(t)
+	target, err := itest.SSHTarget(context.Background(), machine)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fresh := "/tmp/fresh-box"
+	commander.MustRun(t, "rm -rf "+fresh+" && mkdir -p "+fresh)
+	cmd := fmt.Sprintf("env HOME=%s XDG_CONFIG_HOME=%s/.config %s hub setup --target %s --yes",
+		fresh, fresh, commanderBin, target)
+	res, err := commander.Run(context.Background(), cmd)
+	if err != nil && res.ExitCode == 0 {
+		t.Fatalf("%s: %v", cmd, err)
+	}
+	if res.ExitCode != 2 {
+		t.Errorf("exit = %d, want 2\nstdout:\n%sstderr:\n%s", res.ExitCode, res.Stdout, res.Stderr)
+	}
+	if !strings.Contains(res.Stderr, "caramelo commander init") {
+		t.Errorf("stderr = %q, want it to name 'caramelo commander init'", res.Stderr)
 	}
 }

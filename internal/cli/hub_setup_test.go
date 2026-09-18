@@ -42,6 +42,7 @@ func TestServerSetupRefusesWithoutAnAnswer(t *testing.T) {
 func TestResolveSetupConfigLayersDefaultsFileAndFlags(t *testing.T) {
 	dir := t.TempDir()
 	saved := serverconfig.Default()
+	saved.Name, saved.Hub.Fleet = "box", "home"
 	saved.SSHPort = 5022
 	saved.DataDir = "/srv/caramelo"
 	if err := serverconfig.Save(dir, saved, 0o640); err != nil {
@@ -56,9 +57,14 @@ func TestResolveSetupConfigLayersDefaultsFileAndFlags(t *testing.T) {
 	flags := serverconfig.Default()
 	flags.DataDir = "/mnt/big"
 
-	got, err := resolveSetupConfig(cmd, dir, flags)
+	flags.Name = "renamed-by-the-hostname"
+	got, err := resolveSetupConfig(cmd, dir, flags, "")
 	if err != nil {
 		t.Fatalf("resolveSetupConfig() error: %v", err)
+	}
+	if got.Name != "box" || got.Hub.Fleet != "home" {
+		t.Errorf("machine %q of fleet %q, want box of home: a second setup renames nothing",
+			got.Name, got.Hub.Fleet)
 	}
 	if got.SSHPort != 5022 {
 		t.Errorf("ssh port = %d, want the one the machine already uses", got.SSHPort)
@@ -76,14 +82,15 @@ func TestResolveSetupConfigRejectsABadPort(t *testing.T) {
 	}
 	flags := serverconfig.Default()
 	flags.SSHPort = 99999
-	if _, err := resolveSetupConfig(cmd, t.TempDir(), flags); err == nil {
+	flags.Name = "box"
+	if _, err := resolveSetupConfig(cmd, t.TempDir(), flags, ""); err == nil {
 		t.Fatal("resolveSetupConfig() accepted a port out of range")
 	}
 }
 
 func TestSetupPlanNamesWhatWillChange(t *testing.T) {
 	env := &setup.Env{
-		Config: serverconfig.Default(), ConfigDir: serverconfig.DefaultConfigDir,
+		Config: namedHub("box"), ConfigDir: serverconfig.DefaultConfigDir,
 		Opts: setup.Options{InstallPackages: true, AuthorizedKeysFile: "/root/keys.pub"},
 	}
 	plan := setupPlan(env)
@@ -256,7 +263,7 @@ func TestSetupStepsAreTheWholePlanInOrder(t *testing.T) {
 
 func TestResolveSetupConfigKeepsTheNetworkAMachineAlreadyHas(t *testing.T) {
 	dir := t.TempDir()
-	existing := serverconfig.Default()
+	existing := namedHub("box")
 	existing.VPNSubnet = "10.99.0.0/16"
 	existing.VPNListen = "0.0.0.0:4123"
 	existing.APIListen = serverconfig.APIListenVPN
@@ -272,7 +279,7 @@ func TestResolveSetupConfigKeepsTheNetworkAMachineAlreadyHas(t *testing.T) {
 	flags := serverconfig.Default()
 	flags.APIListen = serverconfig.APIListenBoth
 
-	got, err := resolveSetupConfig(cmd, dir, flags)
+	got, err := resolveSetupConfig(cmd, dir, flags, "")
 	if err != nil {
 		t.Fatalf("resolveSetupConfig() error: %v", err)
 	}
@@ -287,7 +294,7 @@ func TestResolveSetupConfigKeepsTheNetworkAMachineAlreadyHas(t *testing.T) {
 
 func TestResolveSetupConfigKeepsTheSwapAMachineAlreadyHas(t *testing.T) {
 	dir := t.TempDir()
-	existing := serverconfig.Default()
+	existing := namedHub("box")
 	existing.Swap = serverconfig.Swap{Backend: serverconfig.SwapOff, Swappiness: 10}
 	if err := serverconfig.Save(dir, existing, 0o640); err != nil {
 		t.Fatal(err)
@@ -301,7 +308,7 @@ func TestResolveSetupConfigKeepsTheSwapAMachineAlreadyHas(t *testing.T) {
 	flags := serverconfig.Default()
 	flags.APIListen = serverconfig.APIListenBoth
 
-	got, err := resolveSetupConfig(cmd, dir, flags)
+	got, err := resolveSetupConfig(cmd, dir, flags, "")
 	if err != nil {
 		t.Fatalf("resolveSetupConfig() error: %v", err)
 	}
@@ -377,7 +384,8 @@ func TestResolveSetupConfigRejectsABadNetwork(t *testing.T) {
 		case "--api-listen":
 			flags.APIListen = args[1]
 		}
-		if _, err := resolveSetupConfig(cmd, t.TempDir(), flags); err == nil {
+		flags.Name = "box"
+		if _, err := resolveSetupConfig(cmd, t.TempDir(), flags, ""); err == nil {
 			t.Errorf("resolveSetupConfig accepted %v", args)
 		}
 	}
@@ -431,32 +439,93 @@ func TestSetupPeerFlagForms(t *testing.T) {
 	}
 }
 
-func TestASecondSetupKeepsTheFleetBlock(t *testing.T) {
-	dir := t.TempDir()
-	existing := serverconfig.Default()
-	existing.VPNSubnet = "10.87.0.0/16"
-	existing.Fleet = serverconfig.Fleet{
-		Role: serverconfig.RoleMember, Name: "m1", Subnet: "10.87.0.0/16",
-		Hub: serverconfig.FleetHub{
-			Name: "hub", Endpoint: "192.168.56.11:4021", Address: "10.86.0.1",
+func namedHub(name string) serverconfig.Config {
+	c := serverconfig.Default()
+	c.Name, c.Hub.Fleet = name, name
+	return c
+}
+
+func aMemberConfig(t *testing.T, dir string) serverconfig.Config {
+	t.Helper()
+	c := serverconfig.Default()
+	c.VPNSubnet = "10.87.0.0/16"
+	c.Name, c.Role, c.Hub = "m1", serverconfig.RoleMember, serverconfig.Hub{}
+	c.Member = serverconfig.Member{
+		Fleet: "home", Subnet: "10.87.0.0/16",
+		Hub: serverconfig.MemberHub{
+			Endpoint: "hub.example.com:4021", Address: "10.86.0.1",
 			PublicKey: "0000000000000000000000000000000000000000000=",
 		},
 	}
-	if err := serverconfig.Save(dir, existing, 0o640); err != nil {
+	if err := serverconfig.Save(dir, c, 0o640); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
+	return c
+}
+
+func TestASecondSetupKeepsTheMemberBlock(t *testing.T) {
+	dir := t.TempDir()
+	existing := aMemberConfig(t, dir)
 	cmd := (&app{}).hubSetupCmd()
 	if err := cmd.Flags().Set("data-dir", "/mnt/other"); err != nil {
 		t.Fatal(err)
 	}
-	got, err := resolveSetupConfig(cmd, dir, serverconfig.Config{DataDir: "/mnt/other"})
+	got, err := resolveSetupConfig(cmd, dir, serverconfig.Config{DataDir: "/mnt/other"}, "")
 	if err != nil {
 		t.Fatalf("resolveSetupConfig: %v", err)
 	}
-	if got.Fleet != existing.Fleet {
-		t.Errorf("the fleet block became %+v, want %+v", got.Fleet, existing.Fleet)
+	if got.Member != existing.Member || got.Role != existing.Role || !got.Hub.Empty() {
+		t.Errorf("the member became %+v (role %q, hub %+v), want %+v",
+			got.Member, got.Role, got.Hub, existing.Member)
 	}
 	if got.DataDir != "/mnt/other" {
 		t.Errorf("data-dir = %q, want the flag's value", got.DataDir)
+	}
+}
+
+func TestSetupRefusesToRenameTheFleetOfAMember(t *testing.T) {
+	dir := t.TempDir()
+	aMemberConfig(t, dir)
+	cmd := (&app{}).hubSetupCmd()
+	if err := cmd.Flags().Set("fleet", "work"); err != nil {
+		t.Fatal(err)
+	}
+	_, err := resolveSetupConfig(cmd, dir, serverconfig.Config{}, "work")
+	if err == nil {
+		t.Fatal("--fleet renamed the fleet a member belongs to")
+	}
+	for _, want := range []string{"home", "member leave"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error %q, want it to mention %q", err, want)
+		}
+	}
+}
+
+func TestSetupNamesTheMachineAndItsFleet(t *testing.T) {
+	dir := t.TempDir()
+	cmd := (&app{}).hubSetupCmd()
+	for flag, value := range map[string]string{"name": "box", "fleet": "home"} {
+		if err := cmd.Flags().Set(flag, value); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := resolveSetupConfig(cmd, dir, serverconfig.Config{Name: "box"}, "home")
+	if err != nil {
+		t.Fatalf("resolveSetupConfig: %v", err)
+	}
+	if got.Name != "box" || got.Role != serverconfig.RoleHub || got.Hub.Fleet != "home" {
+		t.Errorf("config = %q %q %q, want box, hub, home", got.Name, got.Role, got.Hub.Fleet)
+	}
+
+	plain := (&app{}).hubSetupCmd()
+	if err := plain.Flags().Set("name", "box"); err != nil {
+		t.Fatal(err)
+	}
+	fell, err := resolveSetupConfig(plain, t.TempDir(), serverconfig.Config{Name: "box"}, "")
+	if err != nil {
+		t.Fatalf("resolveSetupConfig: %v", err)
+	}
+	if fell.Hub.Fleet != "box" {
+		t.Errorf("fleet = %q, want the machine's own name when --fleet is not given", fell.Hub.Fleet)
 	}
 }

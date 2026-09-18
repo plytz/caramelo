@@ -39,7 +39,7 @@ func GaugeWith(ctx context.Context, run runner.Runner, cfg serverconfig.Config, 
 	}
 	configDir := opts.ConfigDir
 	if configDir == "" {
-		configDir = serverconfig.DefaultConfigDir
+		configDir = serverconfig.ConfigDir()
 	}
 
 	r := &Record{

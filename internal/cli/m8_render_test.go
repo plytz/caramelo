@@ -77,6 +77,7 @@ func machineTokenFixture() *api.MachineTokenResult {
 	return &api.MachineTokenResult{
 		Token:     "0f1e2d3c4b5a69788796a5b4c3d2e1f0",
 		Hub:       "hub",
+		Fleet:     "home",
 		Endpoint:  "hub.example.com:4021",
 		PublicKey: "aGVsbG8gaHViIGtleQ==",
 		ExpiresAt: fleetNow().Add(time.Hour),
@@ -497,7 +498,7 @@ func plainOf(t *testing.T, v *ui.View) string {
 
 func TestMachineAddPointsTheTicketAtTheHubItIsTalkingTo(t *testing.T) {
 	ticket := fleet.Ticket{
-		Hub: "hub", Endpoint: "10.0.2.15:4021", PublicKey: "k", Address: "10.86.0.1",
+		Hub: "hub", Fleet: "home", Endpoint: "10.0.2.15:4021", PublicKey: "k", Address: "10.86.0.1",
 		Peer: "10.86.0.9", Range: fleet.FleetRange, Secret: "s3cret",
 	}
 	blob, err := ticket.Encode()

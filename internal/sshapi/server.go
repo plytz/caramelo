@@ -302,6 +302,8 @@ func refusedOverAPI(args []string) (why string, refused bool) {
 	switch word {
 	case "hub":
 		return "hub commands are not available over the API", true
+	case "commander":
+		return "commander commands are not available over the API: a commander is the machine a person types on", true
 	case "edge":
 
 		for _, a := range rest {

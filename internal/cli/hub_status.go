@@ -102,7 +102,7 @@ daemon is down. It exits 1 when caramelod is not active.`,
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&configDir, "config-dir", serverconfig.DefaultConfigDir, "directory holding config.yaml")
+	cmd.Flags().StringVar(&configDir, "config-dir", serverconfig.ConfigDir(), "directory holding config.yaml")
 	return cmd
 }
 

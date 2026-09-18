@@ -144,7 +144,7 @@ func (d *Daemon) configDir() string {
 	if d.ConfigDir != "" {
 		return d.ConfigDir
 	}
-	return serverconfig.DefaultConfigDir
+	return serverconfig.ConfigDir()
 }
 
 type dockerInfo struct {

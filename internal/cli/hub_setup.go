@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/plytz/caramelo/internal/config"
+	"github.com/plytz/caramelo/internal/remote"
 	"github.com/plytz/caramelo/internal/runner"
 	"github.com/plytz/caramelo/internal/serverconfig"
 	"github.com/plytz/caramelo/internal/setup"
@@ -32,6 +33,7 @@ func (a *app) hubSetupCmd() *cobra.Command {
 		targetBinary  string
 		targetRelease string
 		name          string
+		fleetName     string
 		peer          string
 		noHTTP3       bool
 		swap          string
@@ -89,28 +91,35 @@ the machine is recorded in the commander config and the API is checked from here
 				}
 				opts.Join.Token = t
 			}
-			if cfg.Fleet.Private {
+			if opts.Private {
 
 				cfg.Edge = true
 			}
-			if cfg.Fleet.Private && cmd.Flags().Changed("edge") && opts.Join.Empty() {
+			if opts.Private && cmd.Flags().Changed("edge") && opts.Join.Empty() {
 
 				return &usageError{errors.New(
 					"--edge and --private ask for opposite things: an edge on 80 and 443 is exactly " +
 						"the public listener --private says this machine will not have")}
 			}
 			if target != "" {
+				cfg.Name = strOr(machineNameSlug(name), defaultMachineName(target))
+				cfg.Hub.Fleet = strOr(machineNameSlug(fleetName), cfg.Name)
 				return a.runBootstrap(cmd, bootstrapFlags{
 					target: target, name: name, cfg: cfg, configDir: configDir,
 					authorizedKeys: opts.AuthorizedKeysFile, yes: opts.Yes, dryRun: dryRun,
 					peer: spec, binary: targetBinary, release: targetRelease,
 				})
 			}
-			resolved, err := resolveSetupConfig(cmd, configDir, cfg)
+			machineName, err := commanderMachineName(name)
 			if err != nil {
 				return err
 			}
-			if resolved.Fleet.Private {
+			cfg.Name = machineName
+			resolved, err := resolveSetupConfig(cmd, configDir, cfg, fleetName)
+			if err != nil {
+				return err
+			}
+			if opts.Private || resolved.Member.Private {
 				resolved.Edge = true
 			}
 			binary, err := os.Executable()
@@ -141,7 +150,7 @@ the machine is recorded in the commander config and the API is checked from here
 	}
 
 	f := cmd.Flags()
-	f.StringVar(&configDir, "config-dir", serverconfig.DefaultConfigDir, "directory for config.yaml")
+	f.StringVar(&configDir, "config-dir", serverconfig.ConfigDir(), "directory for config.yaml")
 	f.StringVar(&cfg.StateDir, "state-dir", cfg.StateDir, "directory for the daemon's state and the user's home")
 	f.StringVar(&cfg.DataDir, "data-dir", cfg.DataDir, "directory for apps and Docker images (the big one)")
 	f.StringVar(&cfg.User, "user", cfg.User, "system user everything runs as")
@@ -169,14 +178,15 @@ the machine is recorded in the commander config and the API is checked from here
 	f.BoolVar(&dryRun, "dry-run", false, "report what would change, change nothing")
 	f.BoolVar(&noPkgs, "no-packages", false, "assume Docker is already installed")
 	f.StringVar(&target, "target", "", "set up another machine from here: [user@]host[:port] for ssh (default user: yours, port 22)")
-	f.StringVar(&name, "name", "", "name to record the --target machine under in the commander config (default: its host)")
+	f.StringVar(&name, "name", "", "what to call this machine (default: this commander's name, else its hostname); with --target, what to call that one")
+	f.StringVar(&fleetName, "fleet", "", "name of the fleet this machine hubs (default: the machine's name)")
 	f.StringVar(&targetBinary, "binary", "", "the caramelo binary to ship to --target (default: this one; caramelo-<os>-<arch> beside it; or, when this binary is itself a release, that release downloaded for the target)")
 	f.StringVar(&targetRelease, "release", "",
 		"ship this release of caramelo to the target instead of this binary: a tag such as v0.0.1, downloaded from GitHub for the target's platform")
 
 	f.StringVar(&opts.Join.Token, "join-token", "", "join a fleet in this run: the ticket from `caramelo member token` on the hub, or - to read it from standard input")
 	f.StringVar(&opts.Join.Name, "join-name", "", "what to call this machine in the fleet (default: its hostname)")
-	f.BoolVar(&cfg.Fleet.Private, "private", false,
+	f.BoolVar(&opts.Private, "private", false,
 		"a member with no public listener at all: 80 and 443 on loopback, everything served through the hub")
 	return cmd
 }
@@ -200,14 +210,18 @@ func parseSwapFlag(v string) (serverconfig.Swap, error) {
 	return s, nil
 }
 
-func resolveSetupConfig(cmd *cobra.Command, configDir string, flags serverconfig.Config) (serverconfig.Config, error) {
+func resolveSetupConfig(cmd *cobra.Command, configDir string, flags serverconfig.Config, fleetName string) (serverconfig.Config, error) {
 	cfg := serverconfig.Default()
+	cfg.Name = flags.Name
 	if serverconfig.Exists(configDir) {
 		existing, err := serverconfig.Load(configDir)
 		if err != nil {
 			return cfg, fmt.Errorf("read the existing configuration: %w", err)
 		}
 		cfg = existing
+	}
+	if err := setRole(cmd, &cfg, flags.Name, fleetName); err != nil {
+		return cfg, err
 	}
 	for name, apply := range map[string]func(){
 		"state-dir": func() { cfg.StateDir = flags.StateDir },
@@ -228,8 +242,6 @@ func resolveSetupConfig(cmd *cobra.Command, configDir string, flags serverconfig
 		"no-http3":   func() { cfg.HTTP3 = flags.HTTP3 },
 
 		"swap": func() { cfg.Swap = flags.Swap },
-
-		"private": func() { cfg.Fleet.Private = flags.Fleet.Private },
 	} {
 		if cmd.Flags().Changed(name) {
 			apply()
@@ -361,4 +373,46 @@ func isTerminal(r io.Reader) bool {
 		return false
 	}
 	return info.Mode()&os.ModeCharDevice != 0
+}
+
+func setRole(cmd *cobra.Command, cfg *serverconfig.Config, name, fleetName string) error {
+	if cfg.IsMember() {
+		for _, flag := range []string{"name", "fleet"} {
+			if cmd.Flags().Changed(flag) {
+				return &usageError{fmt.Errorf(
+					"--%s: this machine is a member of the fleet %s, and what a member is called and which "+
+						"fleet it is in are the hub's to set: run `caramelo member leave` here first",
+					flag, cfg.FleetName())}
+			}
+		}
+		return nil
+	}
+	cfg.Role = serverconfig.RoleHub
+	if cmd.Flags().Changed("name") || cfg.Name == "" {
+		cfg.Name = name
+	}
+	if cmd.Flags().Changed("fleet") || cfg.Hub.Fleet == "" {
+		cfg.Hub.Fleet = strOr(fleetName, cfg.Name)
+	}
+	return nil
+}
+
+const unnamedMachine = "caramelo"
+
+func commanderMachineName(flag string) (string, error) {
+	cfg, err := remote.LoadCommanderConfig()
+	if err != nil {
+		return "", err
+	}
+	return thisMachineName(strOr(flag, cfg.Name)), nil
+}
+
+func thisMachineName(flag string) string {
+	host, _ := os.Hostname()
+	for _, s := range []string{flag, host} {
+		if n := machineNameSlug(s); n != "" {
+			return n
+		}
+	}
+	return unnamedMachine
 }

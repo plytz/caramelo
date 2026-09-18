@@ -105,9 +105,7 @@ func TestAMemberCopiesImagesFromItsHubAndNobodyElse(t *testing.T) {
 		Now:       func() time.Time { return now },
 		Forwarder: &fakeForwarder{out: string(list)},
 		Config: serverconfig.Config{SSHPort: serverconfig.DefaultSSHPort,
-			Fleet: serverconfig.Fleet{
-				Role: "member", Name: "m2",
-				Hub: serverconfig.FleetHub{Name: "hub1", PublicKey: "k", Endpoint: "hub:4021", Address: "10.86.0.1"}}},
+			Name: "m2", Role: "member", Member: serverconfig.Member{Fleet: "hub1", Hub: serverconfig.MemberHub{PublicKey: "k", Endpoint: "hub:4021", Address: "10.86.0.1"}}},
 	}
 
 	sources, err := member.imageSources(ctx)
@@ -147,7 +145,7 @@ func TestAHubCopiesImagesFromAnyMemberItHasHeardFrom(t *testing.T) {
 	hub := &Daemon{
 		Store:  store,
 		Now:    func() time.Time { return now },
-		Config: serverconfig.Config{Fleet: serverconfig.Fleet{Role: "hub", Name: "hub1"}},
+		Config: serverconfig.Config{Name: "hub1", Role: "hub", Hub: serverconfig.Hub{Fleet: "hub1"}},
 	}
 
 	sources, err := hub.imageSources(ctx)
