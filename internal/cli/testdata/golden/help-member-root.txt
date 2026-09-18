@@ -1,5 +1,5 @@
-worker, member of fleet home (hub box.example.com:4021) · /etc/caramelo/config.yaml ·
-  caramelod socket /run/caramelo/caramelod.sock · edge off
+worker, member of fleet home (hub box at box.example.com:4021) ·
+  /etc/caramelo/config.yaml · caramelod socket /run/caramelo/caramelod.sock · edge off
 
 caramelo builds, tests, runs, deploys and operates applications from a single
 caramelo.yaml, on machines it sets up itself: isolated environments for every

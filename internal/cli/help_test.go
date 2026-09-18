@@ -298,6 +298,23 @@ func TestTheHeaderWrapsOnItsOwnSeparators(t *testing.T) {
 	}
 }
 
+func TestTheHeaderNeverGrowsPastThreeLines(t *testing.T) {
+	long := strings.Repeat("x", 70)
+	parts := []string{"box, hub of fleet home", long, long, long, long, "edge on"}
+	lines := headerLines(parts)
+	if len(lines) != headerMaxLines {
+		t.Fatalf("lines = %d, want %d:\n%s", len(lines), headerMaxLines, strings.Join(lines, "\n"))
+	}
+	for _, part := range parts {
+		if !strings.Contains(strings.Join(lines, "\n"), part) {
+			t.Errorf("%q is missing from the header:\n%s", part, strings.Join(lines, "\n"))
+		}
+	}
+	if !strings.HasSuffix(lines[headerMaxLines-1], "edge on") {
+		t.Errorf("the last line does not end on the last part: %q", lines[headerMaxLines-1])
+	}
+}
+
 func TestAPlaceThatCannotBeReadHidesNothing(t *testing.T) {
 	var out bytes.Buffer
 	a := &app{stdout: &out, stderr: &out}

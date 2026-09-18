@@ -99,6 +99,7 @@ var forward = func(ctx context.Context, a *app) (int, error) {
 }
 
 func (a *app) forwardIfCommander(cmd *cobra.Command) error {
+	a.typedTargetWins(cmd)
 	if !isCommander(cmd) || a.service != nil || cmd.HasSubCommands() {
 		return nil
 	}
@@ -111,6 +112,21 @@ func (a *app) forwardIfCommander(cmd *cobra.Command) error {
 		a.rememberAppFleet(cmd.Context())
 	}
 	return &exitError{code}
+}
+
+func (a *app) typedTargetWins(cmd *cobra.Command) {
+	machineTyped, fleetTyped := flagTyped(cmd, "machine"), flagTyped(cmd, "fleet")
+	switch {
+	case machineTyped && !fleetTyped:
+		a.fleet = ""
+	case fleetTyped && !machineTyped:
+		a.machine = ""
+	}
+}
+
+func flagTyped(cmd *cobra.Command, name string) bool {
+	f := cmd.Flags().Lookup(name)
+	return f != nil && f.Changed
 }
 
 func appOfCommand(cmd *cobra.Command) func() string {

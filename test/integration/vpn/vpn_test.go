@@ -407,7 +407,8 @@ func (s *suite) transparentModeOnTheCommander(t *testing.T) {
 			host, s.commander.Alias, res.ExitCode, res.Stdout, res.Stderr)
 	}
 
-	itest.RunGoss(t, s.commander, itest.MustGossSpec(t, "vpn.yaml"))
+	itest.RunGossWith(t, s.commander, itest.MustGossSpec(t, "vpn.yaml"),
+		map[string]string{"machine": s.boxIP})
 
 	t.Run("http and udp to the environment's services", func(t *testing.T) {
 		urls := s.envURLs(t, envName)

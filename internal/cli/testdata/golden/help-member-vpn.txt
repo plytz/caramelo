@@ -1,5 +1,5 @@
-worker, member of fleet home (hub box.example.com:4021) · /etc/caramelo/config.yaml ·
-  caramelod socket /run/caramelo/caramelod.sock · edge off
+worker, member of fleet home (hub box at box.example.com:4021) ·
+  /etc/caramelo/config.yaml · caramelod socket /run/caramelo/caramelod.sock · edge off
 
 Every Caramelo machine is a private network: the box, each of its
 environments and each authorized peer has an address on it, and nothing else on

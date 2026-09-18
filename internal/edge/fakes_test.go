@@ -318,15 +318,17 @@ func (r *replica) target(state TargetState) Target {
 	return Target{Replica: r.index, Port: r.port, State: state}
 }
 
+const refusedPort = 1
+
 func deadPort(t *testing.T) int {
 	t.Helper()
-	l, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("listen: %v", err)
+	addr := net.JoinHostPort(TargetHost, strconv.Itoa(refusedPort))
+	c, err := net.DialTimeout("tcp", addr, time.Second)
+	if err == nil {
+		c.Close()
+		t.Fatalf("%s answers; this test needs an address nothing listens on", addr)
 	}
-	port := l.Addr().(*net.TCPAddr).Port
-	l.Close()
-	return port
+	return refusedPort
 }
 
 func route(host string, targets ...Target) Route {

@@ -23,6 +23,32 @@ func TestASavedCommanderConfigCarriesItsNameRoleAndBlock(t *testing.T) {
 	}
 }
 
+func TestTheRetiredTopLevelKeysAreRefusedByName(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		body string
+	}{
+		{"default_machine", "default_machine: box\n"},
+		{"machines", "machines:\n  box: alex@box:4022\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), CommanderConfigFile)
+			if err := os.WriteFile(path, []byte(tc.body), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			_, err := LoadCommanderConfigFrom(path)
+			if err == nil {
+				t.Fatalf("%s loaded; want a refusal naming it and the fleets that replace it", tc.name)
+			}
+			for _, want := range []string{tc.name, "retired", "fleets"} {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("error = %v, want it to name %s", err, want)
+				}
+			}
+		})
+	}
+}
+
 func TestOnlyACommanderRoleLoadsFromTheCommanderConfig(t *testing.T) {
 	path := filepath.Join(t.TempDir(), CommanderConfigFile)
 	if err := os.WriteFile(path, []byte("name: box\nrole: hub\n"), 0o600); err != nil {
