@@ -38,7 +38,8 @@ func memberConfig(t *testing.T) Config {
 	c.Member = Member{
 		Fleet:  "home",
 		Subnet: "10.87.0.0/16",
-		Hub:    MemberHub{Endpoint: "hub.example.com:4021", Address: "10.86.0.1", PublicKey: aKey(t)},
+		Hub: MemberHub{
+			Name: "box", Endpoint: "hub.example.com:4021", Address: "10.86.0.1", PublicKey: aKey(t)},
 	}
 	return c
 }
@@ -102,6 +103,9 @@ func TestAMemberRoundTripsAndKnowsWhereItsHubIs(t *testing.T) {
 	if got, err := back.FleetSubnetPrefix(); err != nil || got.String() != "10.87.0.0/16" {
 		t.Errorf("subnet = %v (%v), want 10.87.0.0/16", got, err)
 	}
+	if back.HubName() != "box" {
+		t.Errorf("hub name = %q, want box: a member calls its hub by the name the hub answers to", back.HubName())
+	}
 	ip, err := back.HubAddress()
 	if err != nil || ip.String() != "10.86.0.1" {
 		t.Errorf("hub address = %v (%v), want 10.86.0.1", ip, err)
@@ -121,11 +125,14 @@ func TestAMemberRoundTripsAndKnowsWhereItsHubIs(t *testing.T) {
 	if strings.Contains(string(b), "hub:\n    fleet") {
 		t.Errorf("a member wrote a hub block of its own:\n%s", b)
 	}
+	if !strings.Contains(string(b), "        name: box\n") {
+		t.Errorf("a member's file does not name the hub it joined:\n%s", b)
+	}
 }
 
 func TestValidateRefusesAMachineThatCannotBeTrue(t *testing.T) {
 	key := aKey(t)
-	hub := MemberHub{Endpoint: "hub.example.com:4021", Address: "10.86.0.1", PublicKey: key}
+	hub := MemberHub{Name: "box", Endpoint: "hub.example.com:4021", Address: "10.86.0.1", PublicKey: key}
 	cases := map[string]struct {
 		change func(*Config)
 		want   string
@@ -161,6 +168,22 @@ func TestValidateRefusesAMachineThatCannotBeTrue(t *testing.T) {
 				c.Role, c.Hub, c.Member = RoleMember, Hub{}, Member{Hub: hub}
 			},
 			want: "member.fleet must name the fleet",
+		},
+		"a member that does not name its hub": {
+			change: func(c *Config) {
+				c.Role, c.Hub = RoleMember, Hub{}
+				c.Member = Member{Fleet: "home", Hub: MemberHub{
+					Endpoint: "h:4021", Address: "10.86.0.1", PublicKey: key}}
+			},
+			want: "member.hub.name must name the machine this one joined",
+		},
+		"a hub name that is not a slug": {
+			change: func(c *Config) {
+				c.Role, c.Hub = RoleMember, Hub{}
+				c.Member = Member{Fleet: "home", Hub: MemberHub{
+					Name: "Box Two", Endpoint: "h:4021", Address: "10.86.0.1", PublicKey: key}}
+			},
+			want: `member.hub.name "Box Two"`,
 		},
 		"a member with no hub": {
 			change: func(c *Config) {
