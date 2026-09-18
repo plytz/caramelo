@@ -258,7 +258,7 @@ func explainNotIdempotent(t *testing.T, m *itest.Machine) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), m.Budget().For(2*time.Minute))
 	defer cancel()
-	res, err := m.Run(ctx, "sudo -n "+itest.CarameloBinary+" server setup --yes --json --dry-run")
+	res, err := m.Run(ctx, "sudo -n "+itest.CarameloBinary+" hub setup --yes --json --dry-run")
 	if err != nil {
 		t.Logf("dry run to explain the difference: %v", err)
 		return

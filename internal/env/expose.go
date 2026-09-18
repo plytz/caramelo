@@ -35,7 +35,7 @@ func PublicURL(host string) string {
 
 func errNoEdge() error {
 	return errors.New("this machine has no edge: nothing is served on ports 80 and 443 " +
-		"(run `caramelo server setup --edge`, or `caramelo edge enable`)")
+		"(run `caramelo hub setup --edge`, or `caramelo edge enable`)")
 }
 
 func (m *Manager) Expose(ctx context.Context, req ExposeRequest, progress io.Writer) (*ExposeResult, error) {

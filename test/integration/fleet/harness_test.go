@@ -246,22 +246,22 @@ func decodeInto(stdout string, v any) error {
 
 func machineAdd(t *testing.T, target, name string, extra ...string) (capi.MachineAddResult, itest.Result) {
 	t.Helper()
-	args := append([]string{"machine", "add", target, "--name", name, "--json"}, extra...)
+	args := append([]string{"member", "add", target, "--name", name, "--json"}, extra...)
 	res := commander(t, commanderOpts{Dir: repo, Timeout: 20 * time.Minute}, args...)
 	if res.ExitCode != 0 || strings.TrimSpace(res.Stdout) == "" {
 		return capi.MachineAddResult{}, res
 	}
-	return decode[capi.MachineAddResult](t, "machine add "+name, res.Stdout), res
+	return decode[capi.MachineAddResult](t, "member add "+name, res.Stdout), res
 }
 
 func machineToken(t *testing.T, extra ...string) (capi.MachineTokenResult, itest.Result) {
 	t.Helper()
-	args := append([]string{"machine", "token", "--json"}, extra...)
+	args := append([]string{"member", "token", "--json"}, extra...)
 	res := inRepo(t, args...)
 	if res.ExitCode != 0 || strings.TrimSpace(res.Stdout) == "" {
 		return capi.MachineTokenResult{}, res
 	}
-	return decode[capi.MachineTokenResult](t, "machine token", res.Stdout), res
+	return decode[capi.MachineTokenResult](t, "member token", res.Stdout), res
 }
 
 func machineJoinOn(t *testing.T, m *itest.Machine, hubEndpoint, token, name string, extra ...string) itest.Result {
@@ -271,19 +271,19 @@ func machineJoinOn(t *testing.T, m *itest.Machine, hubEndpoint, token, name stri
 	if err := itest.InstallBinaryOn(ctx, m); err != nil {
 		t.Fatalf("install the binary on %s: %v", m.Alias, err)
 	}
-	argv := append([]string{itest.CarameloBinary, "machine", "join", hubEndpoint,
+	argv := append([]string{itest.CarameloBinary, "member", "join", hubEndpoint,
 		"--token", token, "--name", name, "--json"}, extra...)
 	res, err := m.Run(ctx, "sudo -n "+strings.Join(argv, " "))
 	if err != nil {
-		t.Fatalf("machine join on %s: %v", m.Alias, err)
+		t.Fatalf("member join on %s: %v", m.Alias, err)
 	}
 	return res
 }
 
 func machineList(t *testing.T) []cfleet.Machine {
 	t.Helper()
-	res := mustInRepo(t, "machine", "list", "--json")
-	return decode[[]cfleet.Machine](t, "machine list", res.Stdout)
+	res := mustInRepo(t, "member", "list", "--json")
+	return decode[[]cfleet.Machine](t, "member list", res.Stdout)
 }
 
 func machineNamed(t *testing.T, list []cfleet.Machine, name string) cfleet.Machine {
@@ -316,8 +316,8 @@ func machineSummary(list []cfleet.Machine) []string {
 
 func machineShow(t *testing.T, name string) capi.MachineDetail {
 	t.Helper()
-	res := mustInRepo(t, "machine", "show", name, "--json")
-	return decode[capi.MachineDetail](t, "machine show "+name, res.Stdout)
+	res := mustInRepo(t, "member", "show", name, "--json")
+	return decode[capi.MachineDetail](t, "member show "+name, res.Stdout)
 }
 
 func hubName(t *testing.T) string {

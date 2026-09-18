@@ -132,7 +132,7 @@ func TestSummaryEndsWithAProbeCarryingTheMachinePublicKey(t *testing.T) {
 	if _, _, err := (&SummaryStep{}).Check(context.Background(), env); err != nil {
 		t.Fatal(err)
 	}
-	want := "caramelo server probe 203.0.113.9:4021 --key " + pub.Base64()
+	want := "caramelo hub probe 203.0.113.9:4021 --key " + pub.Base64()
 	if !strings.Contains(log.String(), want) {
 		t.Errorf("the summary does not end with %q:\n%s", want, log.String())
 	}

@@ -135,6 +135,39 @@ caramelo events --follow                            # keep streaming
 caramelo events feat-x --since 1h
 caramelo events --follow --json                     # one JSON event per line`,
 
+	"caramelo hub": `
+caramelo hub setup --target you@box
+caramelo hub status
+caramelo hub probe box
+sudo caramelo hub uninstall --yes`,
+
+	"caramelo hub probe": `
+caramelo hub probe box                       # does its udp 4021 answer from here?
+caramelo hub probe 203.0.113.9:4021 --key Nq0Xw2mS8VbZ1YtR7dK3jL5pQ9cF4hG6uI8oP0aB2wE=
+caramelo hub probe box --timeout 3s --json`,
+
+	"caramelo hub setup": `
+caramelo hub setup --target you@box                          # from the commander, over ssh
+caramelo hub setup --target you@box --edge --acme-email ops@example.com
+caramelo hub setup --target you@box --name prod --data-dir /mnt/big
+caramelo hub setup --target you@box --peer agent-7 Nq0Xw2mS8VbZ1YtR7dK3jL5pQ9cF4hG6uI8oP0aB2wE=
+caramelo hub setup --target you@box --release v0.0.1         # ship that release, not this build
+caramelo hub setup --target you@box --dry-run                # say what would change
+sudo caramelo hub setup --yes                                # on the box itself
+sudo caramelo hub setup --yes --open-ports                   # let setup open udp 4021 in this box's own firewall
+sudo caramelo hub setup --yes --swap 8G                      # 8 GiB of swap instead of the default 4 GiB
+sudo caramelo hub setup --yes --swap off                     # no swap on this machine
+caramelo hub setup --target you@box --json --progress json`,
+
+	"caramelo hub status": `
+caramelo hub status
+caramelo hub status --json`,
+
+	"caramelo hub uninstall": `
+sudo caramelo hub uninstall --dry-run
+sudo caramelo hub uninstall --yes
+sudo caramelo hub uninstall --yes --purge        # data and state too`,
+
 	"caramelo key": `
 caramelo key add --name laptop --file ~/.ssh/id_ed25519.pub
 caramelo key list
@@ -159,44 +192,44 @@ caramelo logs feat-x web --tail 100
 caramelo logs feat-x --since 10m --deps             # dependencies too
 caramelo logs feat-x --edge                         # the edge's access log for this env`,
 
-	"caramelo machine": `
-caramelo machine show
-caramelo machine list
-caramelo machine add you@second-box`,
+	"caramelo member": `
+caramelo member show
+caramelo member list
+caramelo member add you@second-box`,
 
-	"caramelo machine add": `
-caramelo machine add you@second-box                 # set it up and join it to this fleet
-caramelo machine add you@second-box --name eu-1
-caramelo machine add you@home-box --private         # no public port at all
-caramelo machine add you@second-box --edge --acme-email ops@example.com
-caramelo machine add you@pi --binary ./caramelo-linux-arm64   # ship a binary for another architecture
-caramelo machine add you@second-box --release v0.0.1   # ship that release instead of this build`,
+	"caramelo member add": `
+caramelo member add you@second-box                 # set it up and join it to this fleet
+caramelo member add you@second-box --name eu-1
+caramelo member add you@home-box --private         # no public port at all
+caramelo member add you@second-box --edge --acme-email ops@example.com
+caramelo member add you@pi --binary ./caramelo-linux-arm64   # ship a binary for another architecture
+caramelo member add you@second-box --release v0.0.1   # ship that release instead of this build`,
 
-	"caramelo machine join": `
-sudo caramelo server setup --yes                    # join needs what setup makes
-sudo caramelo machine join hub.example.com:4021 --token "$(cat token)"
-sudo caramelo machine join hub.example.com:4021 --token - --name eu-1 < token`,
+	"caramelo member join": `
+sudo caramelo hub setup --yes                    # join needs what setup makes
+sudo caramelo member join hub.example.com:4021 --token "$(cat token)"
+sudo caramelo member join hub.example.com:4021 --token - --name eu-1 < token`,
 
-	"caramelo machine leave": `
-sudo caramelo machine leave
-sudo caramelo machine leave --force                 # without the reminder to remove it on the hub too`,
+	"caramelo member leave": `
+sudo caramelo member leave
+sudo caramelo member leave --force                 # without the reminder to remove it on the hub too`,
 
-	"caramelo machine list": `
-caramelo machine list
-caramelo machine list --json`,
+	"caramelo member list": `
+caramelo member list
+caramelo member list --json`,
 
-	"caramelo machine remove": `
-caramelo machine remove eu-1 --yes
-caramelo machine remove eu-1 --yes --force          # destroying the environments it still holds`,
+	"caramelo member remove": `
+caramelo member remove eu-1 --yes
+caramelo member remove eu-1 --yes --force          # destroying the environments it still holds`,
 
-	"caramelo machine show": `
-caramelo machine show                               # this machine
-caramelo machine show eu-1                          # a member of the fleet
-caramelo machine show --json`,
+	"caramelo member show": `
+caramelo member show                               # this machine
+caramelo member show eu-1                          # a member of the fleet
+caramelo member show --json`,
 
-	"caramelo machine token": `
-caramelo machine token                              # a one-time join token, printed once
-caramelo machine token --ttl 1h`,
+	"caramelo member token": `
+caramelo member token                              # a one-time join token, printed once
+caramelo member token --ttl 1h`,
 
 	"caramelo peer": `
 caramelo peer add agent-7 <public key>
@@ -258,39 +291,6 @@ caramelo secrets set --app-scope STRIPE_KEY=sk_live_...
 caramelo secrets set --machine-scope REGISTRY_TOKEN=...
 caramelo secrets set production --from-file .env.production
 printf 'STRIPE_KEY=sk_live_...' | caramelo secrets set --app-scope --stdin   # KEY=value lines or a JSON object`,
-
-	"caramelo server": `
-caramelo server setup --target you@box
-caramelo server status
-caramelo server probe box
-sudo caramelo server uninstall --yes`,
-
-	"caramelo server setup": `
-caramelo server setup --target you@box                          # from the commander, over ssh
-caramelo server setup --target you@box --edge --acme-email ops@example.com
-caramelo server setup --target you@box --name prod --data-dir /mnt/big
-caramelo server setup --target you@box --peer agent-7 Nq0Xw2mS8VbZ1YtR7dK3jL5pQ9cF4hG6uI8oP0aB2wE=
-caramelo server setup --target you@box --release v0.0.1         # ship that release, not this build
-caramelo server setup --target you@box --dry-run                # say what would change
-sudo caramelo server setup --yes                                # on the box itself
-sudo caramelo server setup --yes --open-ports                   # let setup open udp 4021 in this box's own firewall
-sudo caramelo server setup --yes --swap 8G                      # 8 GiB of swap instead of the default 4 GiB
-sudo caramelo server setup --yes --swap off                     # no swap on this machine
-caramelo server setup --target you@box --json --progress json`,
-
-	"caramelo server probe": `
-caramelo server probe box                       # does its udp 4021 answer from here?
-caramelo server probe 203.0.113.9:4021 --key Nq0Xw2mS8VbZ1YtR7dK3jL5pQ9cF4hG6uI8oP0aB2wE=
-caramelo server probe box --timeout 3s --json`,
-
-	"caramelo server status": `
-caramelo server status
-caramelo server status --json`,
-
-	"caramelo server uninstall": `
-sudo caramelo server uninstall --dry-run
-sudo caramelo server uninstall --yes
-sudo caramelo server uninstall --yes --purge        # data and state too`,
 
 	"caramelo status": `
 caramelo status                                     # caramelod, Docker, and how we reached them

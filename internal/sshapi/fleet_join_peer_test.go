@@ -216,7 +216,7 @@ func TestAMemberIsToldBeforeItsPeerIsDropped(t *testing.T) {
 		io.Discard); err != nil {
 		t.Fatalf("MachineRemove: %v", err)
 	}
-	if got := strings.Join(fwd.argv, " "); got != "machine removed --json" {
+	if got := strings.Join(fwd.argv, " "); got != "member removed --json" {
 		t.Fatalf("argv = %q, want the member told over the peer it is about to lose", got)
 	}
 	if _, err := store.FleetMachine(ctx, "m1"); err == nil {
@@ -282,10 +282,10 @@ func TestARemovedMemberListsItselfAndNobodyElse(t *testing.T) {
 
 	rows, err := member.Machines(ctx)
 	if err != nil {
-		t.Fatalf("machine list on a removed member: %v", err)
+		t.Fatalf("member list on a removed member: %v", err)
 	}
 	if len(rows) != 1 {
-		t.Fatalf("machine list = %d rows, want only its own: %+v", len(rows), rows)
+		t.Fatalf("member list = %d rows, want only its own: %+v", len(rows), rows)
 	}
 	if rows[0].Name != "m1" {
 		t.Errorf("the one row is %q, want this machine", rows[0].Name)
@@ -312,7 +312,7 @@ func TestOnlyAMachinesOwnHubMayRetireIt(t *testing.T) {
 
 	commander := WithSession(context.Background(), api.Session{Transport: "tunnel", Identity: "commander"})
 	if err := member.MachineRemoved(commander); err == nil ||
-		!strings.Contains(err.Error(), "machine remove") {
+		!strings.Contains(err.Error(), "member remove") {
 		t.Fatalf("error = %v, want the command a person runs instead", err)
 	}
 }
@@ -542,7 +542,7 @@ func TestForcedRemovalDoesNotDependOnReachingTheMachine(t *testing.T) {
 	}
 
 	if err := d.MachineRemove(ctx, api.MachineRemoveRequest{Name: "m2", Force: true}, io.Discard); err != nil {
-		t.Fatalf("machine remove --force of a machine that will not answer: %v", err)
+		t.Fatalf("member remove --force of a machine that will not answer: %v", err)
 	}
 	if _, err := store.FleetMachine(ctx, "m2"); err == nil {
 		t.Error("the machine is still in the fleet")
@@ -579,7 +579,7 @@ func TestARemovalForgetsTheMachineBeforeItsEnvironments(t *testing.T) {
 		_ io.Reader, _, _ io.Writer) (int, error) {
 		_, err := d.requireMachinePeer(WithSession(ctx, api.Session{
 			Transport: "tunnel", Identity: "m2", Peer: "m2",
-		}), "an announcement", "machine list")
+		}), "an announcement", "member list")
 		select {
 		case announced <- err:
 		default:
@@ -588,7 +588,7 @@ func TestARemovalForgetsTheMachineBeforeItsEnvironments(t *testing.T) {
 	})
 
 	if err := d.MachineRemove(ctx, api.MachineRemoveRequest{Name: "m2", Force: true}, io.Discard); err != nil {
-		t.Fatalf("machine remove --force: %v", err)
+		t.Fatalf("member remove --force: %v", err)
 	}
 	select {
 	case err := <-announced:

@@ -32,7 +32,7 @@ func TestNewRootCmdBuildsTheWholeTree(t *testing.T) {
 	for _, c := range root.Commands() {
 		names[c.Name()] = true
 	}
-	for _, want := range []string{"version", "env", "server", "status"} {
+	for _, want := range []string{"version", "env", "hub", "status"} {
 		if !names[want] {
 			t.Errorf("the tree has no %q command: %v", want, names)
 		}
@@ -210,7 +210,7 @@ func TestForwardSocketReportsAMissingSocket(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "no caramelod socket at "+path) {
 		t.Fatalf("error = %v, want it to name the missing socket", err)
 	}
-	if !strings.Contains(err.Error(), "server setup") || !strings.Contains(err.Error(), "--machine") {
+	if !strings.Contains(err.Error(), "hub setup") || !strings.Contains(err.Error(), "--machine") {
 		t.Errorf("error = %v, want it to name both fixes", err)
 	}
 }

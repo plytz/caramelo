@@ -163,19 +163,19 @@ func (s *fleetService) EnvExpose(_ context.Context, req api.ExposeRequest) (*api
 
 func TestFleetCommandsAskTheDaemon(t *testing.T) {
 	svc := &fleetService{detail: machineDetailFixture()}
-	if code, _, stderr := runWithService(t, svc, "machine", "show", "nx2"); code != ExitOK {
-		t.Fatalf("machine show nx2: exit %d (%s)", code, stderr)
+	if code, _, stderr := runWithService(t, svc, "member", "show", "nx2"); code != ExitOK {
+		t.Fatalf("member show nx2: exit %d (%s)", code, stderr)
 	}
 	if svc.infoName != "nx2" {
-		t.Errorf("machine show asked about %q", svc.infoName)
+		t.Errorf("member show asked about %q", svc.infoName)
 	}
 
 	svc = &fleetService{}
-	if code, _, stderr := runWithService(t, svc, "machine", "remove", "nx3", "--force", "--yes"); code != ExitOK {
-		t.Fatalf("machine remove: exit %d (%s)", code, stderr)
+	if code, _, stderr := runWithService(t, svc, "member", "remove", "nx3", "--force", "--yes"); code != ExitOK {
+		t.Fatalf("member remove: exit %d (%s)", code, stderr)
 	}
 	if svc.removeReq != (api.MachineRemoveRequest{Name: "nx3", Force: true}) {
-		t.Errorf("machine remove asked %+v", svc.removeReq)
+		t.Errorf("member remove asked %+v", svc.removeReq)
 	}
 
 	e := sampleEnv()
@@ -195,12 +195,12 @@ func TestFleetCommandsAskTheDaemon(t *testing.T) {
 
 func TestMachineShowNameJSONIsIndented(t *testing.T) {
 	svc := &fleetService{detail: machineDetailFixture()}
-	code, out, stderr := runWithService(t, svc, "machine", "show", "nx2", "--json")
+	code, out, stderr := runWithService(t, svc, "member", "show", "nx2", "--json")
 	if code != ExitOK {
 		t.Fatalf("exit %d (%s)", code, stderr)
 	}
 	if !strings.Contains(out, "\n  \"machine\": {") {
-		t.Errorf("machine show NAME --json is not indented:\n%s", out)
+		t.Errorf("member show NAME --json is not indented:\n%s", out)
 	}
 	var back api.MachineDetail
 	if err := json.Unmarshal([]byte(out), &back); err != nil {
@@ -213,7 +213,7 @@ func TestMachineShowNameJSONIsIndented(t *testing.T) {
 
 func TestMachineRemoveNeedsYes(t *testing.T) {
 	svc := &fleetService{}
-	code, _, stderr := runWithService(t, svc, "machine", "remove", "nx3")
+	code, _, stderr := runWithService(t, svc, "member", "remove", "nx3")
 	if code != ExitUsage {
 		t.Errorf("exit = %d, want %d (usage)", code, ExitUsage)
 	}
@@ -225,7 +225,7 @@ func TestMachineRemoveNeedsYes(t *testing.T) {
 	}
 
 	var stdout, errBuf bytes.Buffer
-	if code := Run([]string{"machine", "remove", "nx3"}, &stdout, &errBuf); code != ExitUsage {
+	if code := Run([]string{"member", "remove", "nx3"}, &stdout, &errBuf); code != ExitUsage {
 		t.Errorf("on a commander: exit = %d, want %d (usage)", code, ExitUsage)
 	}
 	if !strings.Contains(errBuf.String(), "--yes") {
@@ -418,7 +418,7 @@ func TestFeedLineNamesTheMachine(t *testing.T) {
 
 func TestMachineAddRefusesAnEdgeOnAPrivateMachine(t *testing.T) {
 	var stdout, stderr bytes.Buffer
-	code := Run([]string{"machine", "add", "admin@nx2.local", "--edge", "--private"}, &stdout, &stderr)
+	code := Run([]string{"member", "add", "admin@nx2.local", "--edge", "--private"}, &stdout, &stderr)
 	if code != ExitUsage {
 		t.Errorf("exit = %d, want %d (usage)", code, ExitUsage)
 	}
@@ -429,7 +429,7 @@ func TestMachineAddRefusesAnEdgeOnAPrivateMachine(t *testing.T) {
 
 func TestMachineJoinNeedsAToken(t *testing.T) {
 	var stdout, stderr bytes.Buffer
-	code := Run([]string{"machine", "join", "hub.example.com"}, &stdout, &stderr)
+	code := Run([]string{"member", "join", "hub.example.com"}, &stdout, &stderr)
 	if code != ExitUsage {
 		t.Errorf("exit = %d, want %d (usage)", code, ExitUsage)
 	}
@@ -467,12 +467,12 @@ func TestAMachineOfOneIsARowButNotAFleetLine(t *testing.T) {
 	now := fleetNow()
 	svc := &fleetService{machines: fleetFixture()[:1]}
 	var out, errBuf bytes.Buffer
-	if code := RunWith(context.Background(), []string{"machine", "list"}, &out, &errBuf,
+	if code := RunWith(context.Background(), []string{"member", "list"}, &out, &errBuf,
 		Options{Service: svc, Session: api.Session{Transport: "socket"}}); code != ExitOK {
-		t.Fatalf("machine list: exit %d (%s)", code, errBuf.String())
+		t.Fatalf("member list: exit %d (%s)", code, errBuf.String())
 	}
 	if !strings.Contains(out.String(), "hub") {
-		t.Errorf("machine list on a machine of one says nothing about it:\n%s", out.String())
+		t.Errorf("member list on a machine of one says nothing about it:\n%s", out.String())
 	}
 
 	st := &api.Status{Hostname: "hub", Machine: "hub", Version: "test"}
@@ -526,10 +526,10 @@ func TestTheMachineToMachineVerbsReadTheSessionsStdin(t *testing.T) {
 	body := `{"secret":"s3cret","name":"m1","public_key":"k","arch":"amd64"}`
 	var stdout, stderr bytes.Buffer
 	code := RunWith(withStdin(context.Background(), strings.NewReader(body)),
-		[]string{"machine", "redeem"}, &stdout, &stderr,
+		[]string{"member", "redeem"}, &stdout, &stderr,
 		Options{Service: svc, Session: api.Session{Transport: "tunnel", Identity: "m1", Peer: "m1"}})
 	if code != ExitOK {
-		t.Fatalf("machine redeem: exit %d (%s)", code, stderr.String())
+		t.Fatalf("member redeem: exit %d (%s)", code, stderr.String())
 	}
 	if svc.redeemed.Secret != "s3cret" || svc.redeemed.Name != "m1" {
 		t.Errorf("the daemon was given %+v, want the document on the session's stdin", svc.redeemed)

@@ -14,7 +14,7 @@ import (
 )
 
 func init() {
-	registerServer(func(a *app) *cobra.Command {
+	registerHub(func(a *app) *cobra.Command {
 		var configDir string
 		cmd := &cobra.Command{
 			Use:    "run",

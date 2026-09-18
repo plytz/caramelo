@@ -17,7 +17,7 @@ func TestZZTheFleetSurvivesAReboot(t *testing.T) {
 
 	before := fleetMachines(t)
 	if len(before) != 1 {
-		t.Fatalf("machine list = %d rows on a machine of one, want 1: %+v", len(before), before)
+		t.Fatalf("member list = %d rows on a machine of one, want 1: %+v", len(before), before)
 	}
 	if !before[0].Role.IsHub() {
 		t.Fatalf("a machine nobody joined has role %q, want %q", before[0].Role, cfleet.RoleHub)
@@ -37,7 +37,7 @@ func TestZZTheFleetSurvivesAReboot(t *testing.T) {
 
 	after := fleetMachines(t)
 	if len(after) != len(before) {
-		t.Fatalf("machine list = %d rows after the reboot, want %d", len(after), len(before))
+		t.Fatalf("member list = %d rows after the reboot, want %d", len(after), len(before))
 	}
 	if after[0].Name != before[0].Name {
 		t.Errorf("the machine is called %q after the reboot, was %q", after[0].Name, before[0].Name)
@@ -59,13 +59,13 @@ func TestZZTheFleetSurvivesAReboot(t *testing.T) {
 
 func fleetMachines(t *testing.T) []cfleet.Machine {
 	t.Helper()
-	res := api(t, itest.Scale(time.Minute), "machine", "list", "--json")
+	res := api(t, itest.Scale(time.Minute), "member", "list", "--json")
 	if res.ExitCode != 0 {
-		t.Fatalf("machine list: exit %d\nstdout:%s\nstderr:%s", res.ExitCode, res.Stdout, res.Stderr)
+		t.Fatalf("member list: exit %d\nstdout:%s\nstderr:%s", res.ExitCode, res.Stdout, res.Stderr)
 	}
 	var list []cfleet.Machine
 	if err := json.Unmarshal([]byte(strings.TrimSpace(res.Stdout)), &list); err != nil {
-		t.Fatalf("machine list --json: %v\nstdout: %q", err, res.Stdout)
+		t.Fatalf("member list --json: %v\nstdout: %q", err, res.Stdout)
 	}
 	return list
 }

@@ -256,7 +256,7 @@ func (m *Manager) ensureDepPasswords(ctx context.Context, rec *state.EnvRecord, 
 		if m.Secrets == nil {
 			return nil, fmt.Errorf("env %q is a release environment and dependency %q has no password: "+
 				"this machine has no vault to generate one in "+
-				"(run `caramelo server setup` again to create the vault key)", rec.Name, dep.Name)
+				"(run `caramelo hub setup` again to create the vault key)", rec.Name, dep.Name)
 		}
 		value, err := vault.GeneratePassword()
 		if err != nil {
@@ -316,7 +316,7 @@ func (m *Manager) SetSecretsBefore(ctx context.Context, app, name string, values
 	}
 	if m.Secrets == nil {
 		return errors.New("this machine has no vault, so secrets cannot be set " +
-			"(run `caramelo server setup` again to create the vault key)")
+			"(run `caramelo hub setup` again to create the vault key)")
 	}
 	names := make([]string, 0, len(values))
 	for k := range values {

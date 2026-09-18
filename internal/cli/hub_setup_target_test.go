@@ -40,7 +40,7 @@ func (s *scriptedShell) Run(_ context.Context, c Cmd) (int, error) {
 		_, _ = io.WriteString(c.Stdout, "Linux "+arch+"\n1000\nsudo\nkeys\n")
 	case strings.HasPrefix(c.Line, "d=$(mktemp"):
 		_, _ = io.WriteString(c.Stdout, "/tmp/caramelo-setup.test\n")
-	case strings.Contains(c.Line, "server setup"):
+	case strings.Contains(c.Line, "hub setup"):
 		_, _ = io.WriteString(c.Stderr, "[changed] user: caramelo (uid 999)\n")
 		b, _ := json.Marshal(s.report)
 		_, _ = c.Stdout.Write(append(b, '\n'))
@@ -87,7 +87,7 @@ func greenReport() setup.Report {
 func TestSetupTargetBootstrapsRecordsAndVerifies(t *testing.T) {
 	sh := useScriptedTarget(t, greenReport(), okVerify)
 
-	code, stdout, stderr := run(t, "server", "setup", "--target", "admin@box.example", "--yes", "--json",
+	code, stdout, stderr := run(t, "hub", "setup", "--target", "admin@box.example", "--yes", "--json",
 		"--data-dir", "/mnt/big", "--force", "--name", "prod")
 	if code != ExitOK {
 		t.Fatalf("exit %d\nstderr: %s", code, stderr)
@@ -97,7 +97,7 @@ func TestSetupTargetBootstrapsRecordsAndVerifies(t *testing.T) {
 	}
 	setupLine := ""
 	for _, l := range sh.ran {
-		if strings.Contains(l, "server setup") {
+		if strings.Contains(l, "hub setup") {
 			setupLine = l
 		}
 	}
@@ -144,7 +144,7 @@ func TestSetupTargetHumanOutputAndCustomPort(t *testing.T) {
 	if err := remote.SaveCommanderConfig(remote.CommanderConfig{DefaultMachine: "first", Machines: map[string]string{"first": "caramelo@a:4022"}}); err != nil {
 		t.Fatal(err)
 	}
-	code, stdout, _ := run(t, "server", "setup", "--target", "10.0.0.5:2222", "--yes", "--ssh-port", "5022")
+	code, stdout, _ := run(t, "hub", "setup", "--target", "10.0.0.5:2222", "--yes", "--ssh-port", "5022")
 	if code != ExitOK {
 		t.Fatalf("exit %d", code)
 	}
@@ -169,7 +169,7 @@ func TestSetupTargetDryRunRecordsNothing(t *testing.T) {
 		t.Error("verify must not run on a dry run")
 		return nil, nil
 	})
-	code, stdout, _ := run(t, "server", "setup", "--target", "root@box", "--dry-run")
+	code, stdout, _ := run(t, "hub", "setup", "--target", "root@box", "--dry-run")
 	if code != ExitOK {
 		t.Fatalf("exit %d", code)
 	}
@@ -192,7 +192,7 @@ func TestSetupTargetFailedStepExitsOne(t *testing.T) {
 		t.Error("verify must not run after a failed setup")
 		return nil, nil
 	})
-	code, stdout, _ := run(t, "server", "setup", "--target", "root@box", "--yes", "--json")
+	code, stdout, _ := run(t, "hub", "setup", "--target", "root@box", "--yes", "--json")
 	if code != ExitError {
 		t.Fatalf("exit %d, want %d", code, ExitError)
 	}
@@ -209,7 +209,7 @@ func TestSetupTargetUnreachableAPIIsAnError(t *testing.T) {
 	useScriptedTarget(t, greenReport(), func(string) (json.RawMessage, error) {
 		return nil, context.DeadlineExceeded
 	})
-	code, _, stderr := run(t, "server", "setup", "--target", "root@box", "--yes")
+	code, _, stderr := run(t, "hub", "setup", "--target", "root@box", "--yes")
 	if code != ExitError {
 		t.Fatalf("exit %d, want %d", code, ExitError)
 	}
@@ -227,7 +227,7 @@ func TestSetupTargetUnreachableAPIIsAnError(t *testing.T) {
 
 func TestSetupTargetNeedsYesWithoutATerminal(t *testing.T) {
 	sh := useScriptedTarget(t, greenReport(), okVerify)
-	code, _, stderr := run(t, "server", "setup", "--target", "root@box")
+	code, _, stderr := run(t, "hub", "setup", "--target", "root@box")
 	if code != ExitError || !strings.Contains(stderr, "--yes") {
 		t.Fatalf("exit %d, stderr %q", code, stderr)
 	}
@@ -244,7 +244,7 @@ func TestSetupTargetUsageErrors(t *testing.T) {
 		{"--target", "box", "--yes", "--authorized-keys", filepath.Join(t.TempDir(), "missing.pub")},
 	}
 	for _, args := range cases {
-		code, _, _ := run(t, append([]string{"server", "setup"}, args...)...)
+		code, _, _ := run(t, append([]string{"hub", "setup"}, args...)...)
 		if code != ExitUsage {
 			t.Errorf("%v: exit %d, want %d", args, code, ExitUsage)
 		}
@@ -268,7 +268,7 @@ func TestBootstrapPlanNamesTheTarget(t *testing.T) {
 
 func TestSetupTargetReportNamesThePlatform(t *testing.T) {
 	useScriptedTarget(t, greenReport(), okVerify)
-	code, stdout, stderr := run(t, "server", "setup", "--target", "10.0.0.5", "--yes")
+	code, stdout, stderr := run(t, "hub", "setup", "--target", "10.0.0.5", "--yes")
 	if code != ExitOK {
 		t.Fatalf("exit %d (%s)", code, stderr)
 	}
@@ -286,7 +286,7 @@ func TestSetupTargetReportNamesThePlatform(t *testing.T) {
 
 func TestSetupTargetAdmitsTheCommanderAsAPeer(t *testing.T) {
 	sh := useScriptedTarget(t, greenReport(), okVerify)
-	code, stdout, stderr := run(t, "server", "setup", "--target", "root@box", "--yes", "--json")
+	code, stdout, stderr := run(t, "hub", "setup", "--target", "root@box", "--yes", "--json")
 	if code != ExitOK {
 		t.Fatalf("exit %d\n%s", code, stderr)
 	}
@@ -337,7 +337,7 @@ func TestSetupTargetAdmitsTheCommanderAsAPeer(t *testing.T) {
 
 func TestSetupTargetForwardsAnExplicitPeer(t *testing.T) {
 	sh := useScriptedTarget(t, greenReport(), okVerify)
-	code, stdout, _ := run(t, "server", "setup", "--target", "root@box", "--yes", "--json",
+	code, stdout, _ := run(t, "hub", "setup", "--target", "root@box", "--yes", "--json",
 		"--peer", "agent-7 "+testPeerKey)
 	if code != ExitOK {
 		t.Fatalf("exit %d", code)
@@ -362,7 +362,7 @@ func TestSetupTargetDryRunGeneratesNoKey(t *testing.T) {
 	rep := greenReport()
 	rep.DryRun = true
 	sh := useScriptedTarget(t, rep, func(string) (json.RawMessage, error) { return nil, nil })
-	if code, _, _ := run(t, "server", "setup", "--target", "root@box", "--dry-run"); code != ExitOK {
+	if code, _, _ := run(t, "hub", "setup", "--target", "root@box", "--dry-run"); code != ExitOK {
 		t.Fatalf("exit %d", code)
 	}
 	if strings.Contains(lastSetupLine(sh), "--peer") {
@@ -375,7 +375,7 @@ func TestSetupTargetDryRunGeneratesNoKey(t *testing.T) {
 
 func TestSetupTargetForwardsTheNetworkFlags(t *testing.T) {
 	sh := useScriptedTarget(t, greenReport(), okVerify)
-	code, _, _ := run(t, "server", "setup", "--target", "root@box", "--yes",
+	code, _, _ := run(t, "hub", "setup", "--target", "root@box", "--yes",
 		"--vpn-subnet", "10.99.0.0/16", "--vpn-listen", "0.0.0.0:4123", "--api-listen", "vpn")
 	if code != ExitOK {
 		t.Fatalf("exit %d", code)
@@ -389,7 +389,7 @@ func TestSetupTargetForwardsTheNetworkFlags(t *testing.T) {
 
 func TestSetupTargetForwardsTheEdgeFlags(t *testing.T) {
 	sh := useScriptedTarget(t, greenReport(), okVerify)
-	code, _, _ := run(t, "server", "setup", "--target", "root@box", "--yes",
+	code, _, _ := run(t, "hub", "setup", "--target", "root@box", "--yes",
 		"--edge", "--acme-email", "me@example.com", "--acme-ca", "https://pebble:14000/dir",
 		"--tls", "acme", "--no-http3")
 	if code != ExitOK {
@@ -435,7 +435,7 @@ func TestSetupTargetReportsHowItVerified(t *testing.T) {
 	}
 	t.Cleanup(func() { joinMachine = prev })
 
-	code, stdout, _ := run(t, "server", "setup", "--target", "root@box", "--yes", "--json")
+	code, stdout, _ := run(t, "hub", "setup", "--target", "root@box", "--yes", "--json")
 	if code != ExitOK {
 		t.Fatalf("exit %d", code)
 	}
@@ -461,7 +461,7 @@ func TestSetupTargetJoinsThroughTheBootstrapShell(t *testing.T) {
 	}
 	t.Cleanup(func() { joinMachine = prev })
 
-	if code, _, stderr := run(t, "server", "setup", "--target", "root@box", "--yes"); code != ExitOK {
+	if code, _, stderr := run(t, "hub", "setup", "--target", "root@box", "--yes"); code != ExitOK {
 		t.Fatalf("exit %d\n%s", code, stderr)
 	}
 	if ctl == nil {
@@ -489,7 +489,7 @@ func TestSetupTargetSurvivesANetworkItCannotJoin(t *testing.T) {
 	}
 	t.Cleanup(func() { joinMachine = prev })
 
-	code, _, stderr := run(t, "server", "setup", "--target", "root@box", "--yes")
+	code, _, stderr := run(t, "hub", "setup", "--target", "root@box", "--yes")
 	if code != ExitOK {
 		t.Fatalf("exit %d\n%s", code, stderr)
 	}
@@ -501,7 +501,7 @@ func TestSetupTargetSurvivesANetworkItCannotJoin(t *testing.T) {
 func lastSetupLine(sh *scriptedShell) string {
 	out := ""
 	for _, l := range sh.ran {
-		if strings.Contains(l, "server setup") {
+		if strings.Contains(l, "hub setup") {
 			out = l
 		}
 	}
@@ -541,7 +541,7 @@ func TestSetupTargetRecordsWhatItsHandshakeSaw(t *testing.T) {
 		return json.RawMessage(`{"transport":"tunnel","machine":"` + machine + `"}`), nil
 	})
 
-	code, stdout, stderr := run(t, "server", "setup", "--target", "root@box", "--yes", "--json")
+	code, stdout, stderr := run(t, "hub", "setup", "--target", "root@box", "--yes", "--json")
 	if code != ExitOK {
 		t.Fatalf("exit %d\n%s", code, stderr)
 	}
@@ -553,7 +553,7 @@ func TestSetupTargetRecordsWhatItsHandshakeSaw(t *testing.T) {
 		t.Fatalf("reachability = %+v, want it to record the handshake it performed", res.Reachability)
 	}
 
-	code, stdout, stderr = run(t, "server", "setup", "--target", "root@box", "--yes")
+	code, stdout, stderr = run(t, "hub", "setup", "--target", "root@box", "--yes")
 	if code != ExitOK {
 		t.Fatalf("exit %d\n%s", code, stderr)
 	}
@@ -570,7 +570,7 @@ func TestSetupTargetClaimsNothingWhenItNeverDialled(t *testing.T) {
 	joinMachine = func(context.Context, string, vpnclient.Control) (*vpnclient.State, error) { return nil, nil }
 	t.Cleanup(func() { joinMachine = prev })
 
-	code, stdout, stderr := run(t, "server", "setup", "--target", "root@box", "--yes", "--json")
+	code, stdout, stderr := run(t, "hub", "setup", "--target", "root@box", "--yes", "--json")
 	if code != ExitOK {
 		t.Fatalf("exit %d\n%s", code, stderr)
 	}
@@ -586,7 +586,7 @@ func TestSetupTargetClaimsNothingWhenItNeverDialled(t *testing.T) {
 func TestSetupTargetDoesNotClaimReachedOverSSH(t *testing.T) {
 	useScriptedTarget(t, greenReport(), okVerify)
 
-	code, stdout, stderr := run(t, "server", "setup", "--target", "root@box", "--yes", "--json")
+	code, stdout, stderr := run(t, "hub", "setup", "--target", "root@box", "--yes", "--json")
 	if code != ExitOK {
 		t.Fatalf("exit %d\n%s", code, stderr)
 	}
@@ -611,7 +611,7 @@ func TestSetupTargetUnreachableAPINamesTheFirewallAndTheMachineVerdict(t *testin
 	})
 	joinWithoutAHandshake()
 
-	code, _, stderr := run(t, "server", "setup", "--target", "root@box", "--yes")
+	code, _, stderr := run(t, "hub", "setup", "--target", "root@box", "--yes")
 	if code != ExitError {
 		t.Fatalf("exit %d, want %d", code, ExitError)
 	}
@@ -634,7 +634,7 @@ func TestSetupTargetRepeatsTheMachineOwnVerdictWhenItBlockedAPort(t *testing.T) 
 	})
 	joinWithoutAHandshake()
 
-	code, _, stderr := run(t, "server", "setup", "--target", "root@box", "--yes")
+	code, _, stderr := run(t, "hub", "setup", "--target", "root@box", "--yes")
 	if code != ExitError {
 		t.Fatalf("exit %d, want %d", code, ExitError)
 	}
@@ -662,7 +662,7 @@ func TestSetupTargetNeverCallsAHandshakeSilence(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			useScriptedTarget(t, greenReport(), tc.verify)
-			code, stdout, stderr := run(t, "server", "setup", "--target", "root@box", "--yes", "--json")
+			code, stdout, stderr := run(t, "hub", "setup", "--target", "root@box", "--yes", "--json")
 			if code != tc.exit {
 				t.Fatalf("exit %d, want %d\n%s", code, tc.exit, stderr)
 			}
@@ -690,7 +690,7 @@ func TestSetupTargetDoesNotSendTheOperatorAfterAnOpenPort(t *testing.T) {
 		return nil, context.DeadlineExceeded
 	})
 
-	code, stdout, stderr := run(t, "server", "setup", "--target", "root@box", "--yes")
+	code, stdout, stderr := run(t, "hub", "setup", "--target", "root@box", "--yes")
 	if code != ExitError {
 		t.Fatalf("exit %d, want %d", code, ExitError)
 	}
@@ -707,7 +707,7 @@ func TestSetupTargetDoesNotSendTheOperatorAfterAnOpenPort(t *testing.T) {
 
 func TestSetupArgsForwardsSwap(t *testing.T) {
 	sh := useScriptedTarget(t, greenReport(), okVerify)
-	if code, _, stderr := run(t, "server", "setup", "--target", "root@box", "--yes", "--swap", "8G"); code != ExitOK {
+	if code, _, stderr := run(t, "hub", "setup", "--target", "root@box", "--yes", "--swap", "8G"); code != ExitOK {
 		t.Fatalf("exit %d\n%s", code, stderr)
 	}
 	if !strings.Contains(lastSetupLine(sh), "--swap=8G") {
@@ -717,7 +717,7 @@ func TestSetupArgsForwardsSwap(t *testing.T) {
 
 func TestSetupArgsForwardsOpenPorts(t *testing.T) {
 	sh := useScriptedTarget(t, greenReport(), okVerify)
-	if code, _, stderr := run(t, "server", "setup", "--target", "root@box", "--yes", "--open-ports"); code != ExitOK {
+	if code, _, stderr := run(t, "hub", "setup", "--target", "root@box", "--yes", "--open-ports"); code != ExitOK {
 		t.Fatalf("exit %d\n%s", code, stderr)
 	}
 	if !strings.Contains(lastSetupLine(sh), "--open-ports") {

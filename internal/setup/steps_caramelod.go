@@ -231,11 +231,11 @@ func (s *CaramelodStep) unitSpec(env *Env) fileSpec {
 }
 
 func unitContent(env *Env) string {
-	execStart := serverconfig.BinaryPath + " server run"
+	execStart := serverconfig.BinaryPath + " hub run"
 	if env.ConfigDir != "" && env.ConfigDir != serverconfig.DefaultConfigDir {
 		execStart += " --config-dir " + env.ConfigDir
 	}
-	return "# Installed by caramelo server setup.\n" +
+	return "# Installed by caramelo hub setup.\n" +
 		"[Unit]\n" +
 		"Description=Caramelo control plane\n" +
 		"Documentation=https://github.com/plytz/caramelo\n" +

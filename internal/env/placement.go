@@ -60,7 +60,7 @@ func (m *Manager) PlaceEnv(ctx context.Context, req CreateRequest, cfg *config.A
 		}
 		if pin != "" && !m.isSelf(pin) {
 			return fleet.Decision{}, fmt.Errorf("this machine is not part of a fleet, so env %q cannot be created on %q: "+
-				"join it to a hub with `caramelo machine join`, or leave the machine out", req.Name, pin)
+				"join it to a hub with `caramelo member join`, or leave the machine out", req.Name, pin)
 		}
 		return fleet.Decision{Machine: m.fw().Machine, Why: "this machine"}, nil
 	}

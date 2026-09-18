@@ -99,7 +99,7 @@ func TestRunShipsAndRunsSetupWithSudo(t *testing.T) {
 	sh := &fakeShell{t: t, answers: []answer{
 		{prefix: "uname -sm", stdout: probeAnswer(PrivilegeSudo, true)},
 		{prefix: "d=$(mktemp", stdout: "/tmp/caramelo-setup.abc123\n"},
-		{prefix: "sudo -n /tmp/caramelo-setup.abc123/caramelo server setup", stdout: reportJSON(t, want), stderr: "[changed] user\n"},
+		{prefix: "sudo -n /tmp/caramelo-setup.abc123/caramelo hub setup", stdout: reportJSON(t, want), stderr: "[changed] user\n"},
 		{prefix: "rm -rf", code: 0},
 	}}
 	var log, remoteErr bytes.Buffer
@@ -150,7 +150,7 @@ func TestRunAsRootWithLocalKeys(t *testing.T) {
 		{prefix: "uname -sm", stdout: probeAnswer(PrivilegeRoot, false)},
 		{prefix: "d=$(mktemp", stdout: "/tmp/caramelo-setup.root1\n"},
 		{prefix: "cat >/tmp/caramelo-setup.root1/authorized_keys"},
-		{prefix: "/tmp/caramelo-setup.root1/caramelo server setup", stdout: reportJSON(t, setup.Report{RunID: "r2"})},
+		{prefix: "/tmp/caramelo-setup.root1/caramelo hub setup", stdout: reportJSON(t, setup.Report{RunID: "r2"})},
 		{prefix: "rm -rf"},
 	}}
 	out, err := Run(context.Background(), sh, Options{Binary: bin, AuthorizedKeys: keys})
@@ -230,7 +230,7 @@ func TestRunFailedStepIsAReportNotAnError(t *testing.T) {
 	sh := &fakeShell{t: t, answers: []answer{
 		{prefix: "uname -sm", stdout: probeAnswer(PrivilegeRoot, true)},
 		{prefix: "d=$(mktemp", stdout: "/tmp/caramelo-setup.y\n"},
-		{prefix: "/tmp/caramelo-setup.y/caramelo server setup", stdout: reportJSON(t, rep), code: 1},
+		{prefix: "/tmp/caramelo-setup.y/caramelo hub setup", stdout: reportJSON(t, rep), code: 1},
 		{prefix: "rm -rf"},
 	}}
 	out, err := Run(context.Background(), sh, Options{Binary: fakeBinary(t)})
@@ -295,7 +295,7 @@ func TestRunAdmitsAPeer(t *testing.T) {
 	sh := &fakeShell{t: t, answers: []answer{
 		{prefix: "uname -sm", stdout: probeAnswer(PrivilegeRoot, true)},
 		{prefix: "d=$(mktemp", stdout: "/tmp/caramelo-setup.abc123\n"},
-		{prefix: "/tmp/caramelo-setup.abc123/caramelo server setup", stdout: reportJSON(t, setup.Report{RunID: "r1"})},
+		{prefix: "/tmp/caramelo-setup.abc123/caramelo hub setup", stdout: reportJSON(t, setup.Report{RunID: "r1"})},
 		{prefix: "rm -rf", code: 0},
 	}}
 	if _, err := Run(context.Background(), sh, Options{Binary: bin, Peer: peer}); err != nil {
@@ -319,7 +319,7 @@ func TestRunRefusesAnUnusablePeer(t *testing.T) {
 		t.Fatal("a peer whose key is not a key was accepted")
 	}
 	for _, line := range sh.ran {
-		if strings.Contains(line, "server setup") {
+		if strings.Contains(line, "hub setup") {
 			t.Errorf("setup ran anyway: %q", line)
 		}
 	}
@@ -578,7 +578,7 @@ func TestRunShipsTheBinaryForTheTarget(t *testing.T) {
 	sh := &fakeShell{t: t, answers: []answer{
 		{prefix: "uname -sm", stdout: "Linux riscv64\n0\nroot\nkeys\n"},
 		{prefix: "d=$(mktemp", stdout: "/tmp/caramelo-setup.abc\n"},
-		{prefix: "/tmp/caramelo-setup.abc/caramelo server setup", stdout: reportJSON(t, want)},
+		{prefix: "/tmp/caramelo-setup.abc/caramelo hub setup", stdout: reportJSON(t, want)},
 		{prefix: "rm -rf", code: 0},
 	}}
 	out, err := Run(context.Background(), sh, Options{})

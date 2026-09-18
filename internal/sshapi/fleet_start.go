@@ -524,7 +524,7 @@ func (d *Daemon) knownMachines(ctx context.Context) ([]fleet.Machine, error) {
 		return nil, err
 	}
 	var out []fleet.Machine
-	if err := d.callJSON(ctx, loc, []string{"machine", "list", "--json"}, nil, &out); err != nil {
+	if err := d.callJSON(ctx, loc, []string{"member", "list", "--json"}, nil, &out); err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -585,7 +585,7 @@ func (d *Daemon) announcer() env.Announcer {
 			return err
 		}
 		var res api.AnnounceResult
-		return d.callJSON(ctx, loc, []string{"machine", "announce", "--json"}, a, &res)
+		return d.callJSON(ctx, loc, []string{"member", "announce", "--json"}, a, &res)
 	})
 }
 
@@ -771,7 +771,7 @@ func (d *Daemon) leaveFleetIn(ctx context.Context, hub string, after time.Durati
 		})
 	}
 	logf("fleet: %s has removed this machine; it is a machine of one again. "+
-		"Run `sudo caramelo machine leave` on it to take the fleet block out of %s",
+		"Run `sudo caramelo member leave` on it to take the fleet block out of %s",
 		hub, serverconfig.Path(d.ConfigDir))
 }
 

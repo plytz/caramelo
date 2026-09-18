@@ -56,7 +56,7 @@ func (a *app) runMachineJoin(ctx context.Context, configDir, hub, token, name st
 			})
 		}
 		return fmt.Errorf(
-			"this machine is already a member of %s; remove it there (`caramelo machine remove %s`) before joining %s",
+			"this machine is already a member of %s; remove it there (`caramelo member remove %s`) before joining %s",
 			cfg.Fleet.Hub.Name, cfg.Fleet.Name, ticket.Hub)
 	}
 	if err := pre.err(); err != nil {
@@ -65,7 +65,7 @@ func (a *app) runMachineJoin(ctx context.Context, configDir, hub, token, name st
 	key, err := vpn.ReadPrivateKey(cfg.VPNKeyPath())
 	if err != nil {
 		return fmt.Errorf("read this machine's WireGuard key at %s: %w "+
-			"(has `caramelo server setup` run here?)", cfg.VPNKeyPath(), err)
+			"(has `caramelo hub setup` run here?)", cfg.VPNKeyPath(), err)
 	}
 	pub, err := key.Public()
 	if err != nil {
@@ -132,7 +132,7 @@ func redeem(ctx context.Context, t fleet.Ticket, req api.RedeemRequest, logw io.
 		Label:    t.Hub + " (" + rec.APIAddr() + ")",
 	}
 	var out, errs strings.Builder
-	code, err := tr.Run(ctx, []string{"machine", "redeem", "--json"}, remote.Streams{
+	code, err := tr.Run(ctx, []string{"member", "redeem", "--json"}, remote.Streams{
 		Stdin: strings.NewReader(string(body)), Stdout: &out, Stderr: &errs,
 	})
 	switch {
@@ -286,7 +286,7 @@ func (a *app) runMachineLeave(ctx context.Context, configDir string, force bool)
 	if !force {
 
 		fmt.Fprintf(a.stderr,
-			"caramelo: leaving the fleet %s. Remove it there too (`caramelo machine remove %s`), "+
+			"caramelo: leaving the fleet %s. Remove it there too (`caramelo member remove %s`), "+
 				"or the hub will keep placing work here.\n", hub, cfg.Fleet.Name)
 	}
 	cfg.Fleet = serverconfig.Fleet{}

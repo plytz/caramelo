@@ -178,22 +178,22 @@ func (d *sshDriver) provision(ctx context.Context) error {
 		return fmt.Errorf("provision %s: %w", m.Alias, err)
 	}
 	cmd := SetupCommandFor(m.Home(), kp.Public)
-	m.lab.logf("[%s] server setup (this takes minutes)", m.Alias)
+	m.lab.logf("[%s] hub setup (this takes minutes)", m.Alias)
 	start := time.Now()
 	res, err := m.Run(setupCtx, cmd)
 	if err != nil {
-		return fmt.Errorf("server setup on %s: %w", m.Alias, err)
+		return fmt.Errorf("hub setup on %s: %w", m.Alias, err)
 	}
 	var report setup.Report
 	if jsonErr := json.Unmarshal([]byte(strings.TrimSpace(res.Stdout)), &report); jsonErr != nil {
-		return fmt.Errorf("server setup on %s: exit %d, stdout is not a report: %w\nstdout:\n%s\nstderr:\n%s",
+		return fmt.Errorf("hub setup on %s: exit %d, stdout is not a report: %w\nstdout:\n%s\nstderr:\n%s",
 			m.Alias, res.ExitCode, jsonErr, res.Stdout, res.Stderr)
 	}
 	if res.ExitCode != 0 || report.Failed != 0 {
-		return fmt.Errorf("server setup on %s: exit %d, %d step(s) failed\n%s",
+		return fmt.Errorf("hub setup on %s: exit %d, %d step(s) failed\n%s",
 			m.Alias, res.ExitCode, report.Failed, res.Stdout)
 	}
-	m.lab.logf("[%s] server setup finished in %s", m.Alias, time.Since(start).Round(time.Second))
+	m.lab.logf("[%s] hub setup finished in %s", m.Alias, time.Since(start).Round(time.Second))
 	if err := WaitForCaramelod(setupCtx, m); err != nil {
 		return err
 	}

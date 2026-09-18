@@ -183,7 +183,7 @@ func TestStatusTakesNoArgs(t *testing.T) {
 
 func TestMachineShowHuman(t *testing.T) {
 	svc := &fakeAPI{record: machineFixture()}
-	code, stdout, stderr := runWithService(t, svc, "machine", "show")
+	code, stdout, stderr := runWithService(t, svc, "member", "show")
 	if code != ExitOK {
 		t.Fatalf("exit = %d, want %d", code, ExitOK)
 	}
@@ -214,7 +214,7 @@ func TestMachineShowHuman(t *testing.T) {
 
 func TestMachineShowJSONIsIndentedAndComplete(t *testing.T) {
 	want := machineFixture()
-	code, stdout, stderr := runWithService(t, &fakeAPI{record: want}, "machine", "show", "--json")
+	code, stdout, stderr := runWithService(t, &fakeAPI{record: want}, "member", "show", "--json")
 	if code != ExitOK {
 		t.Fatalf("exit = %d, want %d", code, ExitOK)
 	}
@@ -245,7 +245,7 @@ func TestMachineShowBareBox(t *testing.T) {
 		Memory:   machine.Memory{TotalBytes: 4 << 30, AvailableBytes: 3 << 30, SwapTotalBytes: 2 << 30},
 		DataDir:  machine.Mount{Path: "/mnt/caramelo"},
 	}
-	code, stdout, _ := runWithService(t, &fakeAPI{record: rec}, "machine", "show")
+	code, stdout, _ := runWithService(t, &fakeAPI{record: rec}, "member", "show")
 	if code != ExitOK {
 		t.Fatalf("exit = %d", code)
 	}
@@ -273,7 +273,7 @@ func TestMachineShowSaysWhenCarameloMadeTheSwap(t *testing.T) {
 		Memory:   machine.Memory{TotalBytes: 4 << 30, AvailableBytes: 3 << 30, SwapTotalBytes: 4 << 30, SwapManaged: true},
 		DataDir:  machine.Mount{Path: "/mnt/caramelo"},
 	}
-	code, stdout, _ := runWithService(t, &fakeAPI{record: rec}, "machine", "show")
+	code, stdout, _ := runWithService(t, &fakeAPI{record: rec}, "member", "show")
 	if code != ExitOK {
 		t.Fatalf("exit = %d", code)
 	}
@@ -285,14 +285,14 @@ func TestMachineShowSaysWhenCarameloMadeTheSwap(t *testing.T) {
 func TestMachineShowWarnings(t *testing.T) {
 	rec := machineFixture()
 	rec.Docker.Warnings = []string{"WARNING: No swap limit support"}
-	_, stdout, _ := runWithService(t, &fakeAPI{record: rec}, "machine", "show")
+	_, stdout, _ := runWithService(t, &fakeAPI{record: rec}, "member", "show")
 	if !strings.Contains(stdout, "! WARNING: No swap limit support") {
 		t.Errorf("stdout = %q", stdout)
 	}
 }
 
 func TestMachineShowServiceError(t *testing.T) {
-	code, _, stderr := runWithService(t, &fakeAPI{err: errors.New("not gauged yet")}, "machine", "show")
+	code, _, stderr := runWithService(t, &fakeAPI{err: errors.New("not gauged yet")}, "member", "show")
 	if code != ExitError {
 		t.Fatalf("exit = %d, want %d", code, ExitError)
 	}
@@ -301,12 +301,12 @@ func TestMachineShowServiceError(t *testing.T) {
 	}
 }
 
-func TestMachineGroupIsRegistered(t *testing.T) {
+func TestMemberGroupIsRegistered(t *testing.T) {
 	code, stdout, _ := run(t)
 	if code != ExitOK {
 		t.Fatalf("exit = %d", code)
 	}
-	for _, want := range []string{"machine", "status"} {
+	for _, want := range []string{"member", "status"} {
 		if !strings.Contains(stdout, want) {
 			t.Errorf("root help does not list %q:\n%s", want, stdout)
 		}
@@ -315,7 +315,7 @@ func TestMachineGroupIsRegistered(t *testing.T) {
 
 func TestCommanderCommandsAreForwardedWhenThereIsNoService(t *testing.T) {
 
-	for _, args := range [][]string{{"status"}, {"machine", "show"}} {
+	for _, args := range [][]string{{"status"}, {"member", "show"}} {
 		code, stdout, _ := run(t, args...)
 		if code == ExitOK {
 			t.Errorf("%v: want a non-zero exit without a daemon", args)

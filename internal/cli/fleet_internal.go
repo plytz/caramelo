@@ -22,7 +22,7 @@ func init() {
 	register(func(a *app) *cobra.Command { return a.imagesCmd() })
 }
 
-func (a *app) machineAnnounceCmd() *cobra.Command {
+func (a *app) memberAnnounceCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:    "announce",
 		Short:  "Tell the hub what this machine is and what it holds (machines only)",
@@ -31,18 +31,18 @@ func (a *app) machineAnnounceCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var ann fleet.Announcement
 			if err := readJSON(a.in(cmd.Context()), &ann); err != nil {
-				return fmt.Errorf("machine announce: %w", err)
+				return fmt.Errorf("member announce: %w", err)
 			}
 			res, err := a.service.MachineAnnounce(cmd.Context(), ann)
 			if err != nil {
-				return fmt.Errorf("machine announce: %w", err)
+				return fmt.Errorf("member announce: %w", err)
 			}
 			return json.NewEncoder(a.stdout).Encode(res)
 		},
 	}
 }
 
-func (a *app) machineRedeemCmd() *cobra.Command {
+func (a *app) memberRedeemCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:    "redeem",
 		Short:  "Redeem a join ticket (the hub's half of a join)",
@@ -51,7 +51,7 @@ func (a *app) machineRedeemCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var req api.RedeemRequest
 			if err := readJSON(a.in(cmd.Context()), &req); err != nil {
-				return fmt.Errorf("machine redeem: %w", err)
+				return fmt.Errorf("member redeem: %w", err)
 			}
 			res, err := a.service.MachineRedeem(cmd.Context(), req)
 			if err != nil {
@@ -62,7 +62,7 @@ func (a *app) machineRedeemCmd() *cobra.Command {
 	}
 }
 
-func (a *app) machineRemovedCmd() *cobra.Command {
+func (a *app) memberRemovedCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:    "removed",
 		Short:  "Stop obeying the hub that has removed this machine (machines only)",

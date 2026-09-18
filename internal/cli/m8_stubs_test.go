@@ -9,8 +9,8 @@ import (
 func TestM8CommandsAreRegistered(t *testing.T) {
 	root := NewRootCmd(&bytes.Buffer{}, &bytes.Buffer{})
 	for _, path := range [][]string{
-		{"machine", "add"}, {"machine", "token"}, {"machine", "join"},
-		{"machine", "list"}, {"machine", "show"}, {"machine", "remove"},
+		{"member", "add"}, {"member", "token"}, {"member", "join"},
+		{"member", "list"}, {"member", "show"}, {"member", "remove"},
 		{"env", "handoff"},
 	} {
 		cmd, _, err := root.Find(path)
@@ -33,12 +33,12 @@ func TestM8LocalAndCommanderCommands(t *testing.T) {
 		path      []string
 		commander bool
 	}{
-		{[]string{"machine", "add"}, false},
-		{[]string{"machine", "join"}, false},
-		{[]string{"machine", "token"}, true},
-		{[]string{"machine", "list"}, true},
-		{[]string{"machine", "show"}, true},
-		{[]string{"machine", "remove"}, true},
+		{[]string{"member", "add"}, false},
+		{[]string{"member", "join"}, false},
+		{[]string{"member", "token"}, true},
+		{[]string{"member", "list"}, true},
+		{[]string{"member", "show"}, true},
+		{[]string{"member", "remove"}, true},
 		{[]string{"env", "handoff"}, true},
 	} {
 		cmd, _, err := root.Find(tc.path)
@@ -50,9 +50,9 @@ func TestM8LocalAndCommanderCommands(t *testing.T) {
 		}
 	}
 
-	cmd, _, err := root.Find([]string{"machine"})
+	cmd, _, err := root.Find([]string{"member"})
 	if err != nil || !isCommander(cmd) {
-		t.Errorf("the machine group stopped being a commander group (%v)", err)
+		t.Errorf("the member group stopped being a commander group (%v)", err)
 	}
 }
 
@@ -62,23 +62,23 @@ func TestM8StubFlags(t *testing.T) {
 		path []string
 		flag string
 	}{
-		{[]string{"machine", "add"}, "name"},
-		{[]string{"machine", "add"}, "edge"},
-		{[]string{"machine", "add"}, "private"},
-		{[]string{"machine", "add"}, "binary"},
-		{[]string{"machine", "token"}, "ttl"},
-		{[]string{"machine", "join"}, "token"},
-		{[]string{"machine", "join"}, "name"},
-		{[]string{"machine", "join"}, "private"},
-		{[]string{"machine", "remove"}, "force"},
-		{[]string{"machine", "remove"}, "yes"},
+		{[]string{"member", "add"}, "name"},
+		{[]string{"member", "add"}, "edge"},
+		{[]string{"member", "add"}, "private"},
+		{[]string{"member", "add"}, "binary"},
+		{[]string{"member", "token"}, "ttl"},
+		{[]string{"member", "join"}, "token"},
+		{[]string{"member", "join"}, "name"},
+		{[]string{"member", "join"}, "private"},
+		{[]string{"member", "remove"}, "force"},
+		{[]string{"member", "remove"}, "yes"},
 		{[]string{"env", "handoff"}, "to"},
 		{[]string{"env", "create"}, "on"},
 		{[]string{"env", "expose"}, "via"},
 		{[]string{"env", "list"}, "mine"},
 		{[]string{"env", "list"}, "all"},
 
-		{[]string{"server", "setup"}, "binary"},
+		{[]string{"hub", "setup"}, "binary"},
 	} {
 		cmd, _, err := root.Find(tc.path)
 		if err != nil {
@@ -96,10 +96,10 @@ func TestTheTwoLocalFleetCommandsRefuseBeforeTheyTouchAnything(t *testing.T) {
 		code int
 		want string
 	}{
-		{[]string{"machine", "join", "hub.example.com", "--token", "t"}, ExitUsage, "caramelo-join-v1."},
-		{[]string{"machine", "join", "hub.example.com"}, ExitUsage, "needs a token"},
-		{[]string{"machine", "add", "admin@nx2.local"}, ExitError, "take a join token from the hub"},
-		{[]string{"machine", "add", "admin@nx2.local", "--edge", "--private"}, ExitUsage, "opposites"},
+		{[]string{"member", "join", "hub.example.com", "--token", "t"}, ExitUsage, "caramelo-join-v1."},
+		{[]string{"member", "join", "hub.example.com"}, ExitUsage, "needs a token"},
+		{[]string{"member", "add", "admin@nx2.local"}, ExitError, "take a join token from the hub"},
+		{[]string{"member", "add", "admin@nx2.local", "--edge", "--private"}, ExitUsage, "opposites"},
 	} {
 		var stdout, stderr bytes.Buffer
 		code := Run(tc.args, &stdout, &stderr)

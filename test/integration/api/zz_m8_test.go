@@ -16,16 +16,16 @@ import (
 func TestZZAMachineOfOneIsAHub(t *testing.T) {
 	_, o := box(t)
 
-	res := itest.SSHAPIRun(t, o, "machine", "list", "--json")
+	res := itest.SSHAPIRun(t, o, "member", "list", "--json")
 	if res.ExitCode != 0 {
-		t.Fatalf("machine list: exit %d\nstdout:%s\nstderr:%s", res.ExitCode, res.Stdout, res.Stderr)
+		t.Fatalf("member list: exit %d\nstdout:%s\nstderr:%s", res.ExitCode, res.Stdout, res.Stderr)
 	}
 	var list []cfleet.Machine
 	if err := json.Unmarshal([]byte(strings.TrimSpace(res.Stdout)), &list); err != nil {
-		t.Fatalf("machine list --json: %v\nstdout: %q", err, res.Stdout)
+		t.Fatalf("member list --json: %v\nstdout: %q", err, res.Stdout)
 	}
 	if len(list) != 1 {
-		t.Fatalf("machine list = %d rows on a machine of one, want 1: %+v", len(list), list)
+		t.Fatalf("member list = %d rows on a machine of one, want 1: %+v", len(list), list)
 	}
 	if !list[0].Role.IsHub() {
 		t.Errorf("a machine nobody joined has role %q, want %q", list[0].Role, cfleet.RoleHub)
@@ -37,27 +37,27 @@ func TestZZAMachineOfOneIsAHub(t *testing.T) {
 		t.Errorf("the hub holds %s, want %s", got, cfleet.HubSubnet)
 	}
 
-	named := itest.SSHAPIRun(t, o, "machine", "show", list[0].Name, "--json")
+	named := itest.SSHAPIRun(t, o, "member", "show", list[0].Name, "--json")
 	if named.ExitCode != 0 {
-		t.Fatalf("machine show %s: exit %d\nstderr:%s", list[0].Name, named.ExitCode, named.Stderr)
+		t.Fatalf("member show %s: exit %d\nstderr:%s", list[0].Name, named.ExitCode, named.Stderr)
 	}
 	var detail capi.MachineDetail
 	if err := json.Unmarshal([]byte(strings.TrimSpace(named.Stdout)), &detail); err != nil {
-		t.Fatalf("machine show %s --json: %v\nstdout: %q", list[0].Name, err, named.Stdout)
+		t.Fatalf("member show %s --json: %v\nstdout: %q", list[0].Name, err, named.Stdout)
 	}
 	if detail.Machine.Name != list[0].Name {
-		t.Errorf("machine show %s answered about %q", list[0].Name, detail.Machine.Name)
+		t.Errorf("member show %s answered about %q", list[0].Name, detail.Machine.Name)
 	}
 	if detail.Gauge == nil {
-		t.Error("machine show carries no gauge; placement has nothing to read")
+		t.Error("member show carries no gauge; placement has nothing to read")
 	}
 	if detail.Unreachable {
 		t.Error("a machine says it cannot reach itself")
 	}
 
-	missing := itest.SSHAPIRun(t, o, "machine", "show", "no-such-machine", "--json")
+	missing := itest.SSHAPIRun(t, o, "member", "show", "no-such-machine", "--json")
 	if missing.ExitCode == 0 {
-		t.Error("machine show of a machine that does not exist succeeded")
+		t.Error("member show of a machine that does not exist succeeded")
 	}
 	if !strings.Contains(missing.Stdout+missing.Stderr, "no-such-machine") {
 		t.Errorf("the refusal does not name what was asked for:\n%s%s", missing.Stdout, missing.Stderr)
@@ -67,30 +67,30 @@ func TestZZAMachineOfOneIsAHub(t *testing.T) {
 func TestZZAJoinTokenOverBothTransports(t *testing.T) {
 	m, o := box(t)
 
-	overSSH := itest.SSHAPIRun(t, o, "machine", "token", "--json")
+	overSSH := itest.SSHAPIRun(t, o, "member", "token", "--json")
 	if overSSH.ExitCode != 0 {
-		t.Fatalf("machine token over ssh: exit %d\nstdout:%s\nstderr:%s",
+		t.Fatalf("member token over ssh: exit %d\nstdout:%s\nstderr:%s",
 			overSSH.ExitCode, overSSH.Stdout, overSSH.Stderr)
 	}
-	first := decodeToken(t, "machine token over ssh", overSSH.Stdout)
+	first := decodeToken(t, "member token over ssh", overSSH.Stdout)
 	if strings.TrimSpace(first.Token) == "" {
-		t.Fatal("machine token printed no token")
+		t.Fatal("member token printed no token")
 	}
 	if first.Endpoint == "" {
-		t.Error("machine token carries no endpoint; a joining machine has nothing to dial")
+		t.Error("member token carries no endpoint; a joining machine has nothing to dial")
 	}
 	if first.PublicKey == "" {
-		t.Error("machine token carries no public key; a joining machine has nothing to verify against")
+		t.Error("member token carries no public key; a joining machine has nothing to verify against")
 	}
 	if !first.ExpiresAt.After(time.Now()) {
 		t.Errorf("the token expires at %v, which is not in the future", first.ExpiresAt)
 	}
 
 	local := itest.MustRunAsUser(t, m, itest.CarameloUser,
-		itest.CarameloBinary+" machine token --json")
-	second := decodeToken(t, "machine token over the socket", local.Stdout)
+		itest.CarameloBinary+" member token --json")
+	second := decodeToken(t, "member token over the socket", local.Stdout)
 	if second.Token == first.Token {
-		t.Error("two calls to `machine token` produced the same token; each is for one machine")
+		t.Error("two calls to `member token` produced the same token; each is for one machine")
 	}
 
 	for _, tok := range []string{first.Token, second.Token} {
@@ -101,9 +101,9 @@ func TestZZAJoinTokenOverBothTransports(t *testing.T) {
 		}
 	}
 
-	long := itest.SSHAPIRun(t, o, "machine", "token", "--ttl", "168h", "--json")
+	long := itest.SSHAPIRun(t, o, "member", "token", "--ttl", "168h", "--json")
 	if long.ExitCode == 0 {
-		t.Error("`machine token --ttl 168h` was accepted; the ceiling is a day")
+		t.Error("`member token --ttl 168h` was accepted; the ceiling is a day")
 	}
 }
 

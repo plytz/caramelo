@@ -8,7 +8,7 @@ import (
 )
 
 func TestMachineAddIsRegisteredWithItsFlags(t *testing.T) {
-	code, stdout, _ := run(t, "machine", "add", "--help")
+	code, stdout, _ := run(t, "member", "add", "--help")
 	if code != ExitOK {
 		t.Fatalf("exit code = %d", code)
 	}
@@ -16,7 +16,7 @@ func TestMachineAddIsRegisteredWithItsFlags(t *testing.T) {
 		"--name", "--edge", "--private", "--binary", "--release", "--acme-email", "--acme-ca", "--tls",
 	} {
 		if !strings.Contains(stdout, flag) {
-			t.Errorf("machine add has no %s flag:\n%s", flag, stdout)
+			t.Errorf("member add has no %s flag:\n%s", flag, stdout)
 		}
 	}
 }

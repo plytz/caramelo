@@ -56,7 +56,7 @@ func TestGoldenPlainOutput(t *testing.T) {
 	}{
 		{"status", func(w io.Writer) error { return writeStatus(w, statusFixture()) }},
 		{"status-none", func(w io.Writer) error { return writeStatus(w, nil) }},
-		{"machine-show", func(w io.Writer) error { return writeMachine(w, machineFixture()) }},
+		{"member-show", func(w io.Writer) error { return writeMachine(w, machineFixture()) }},
 		{"app-list", func(w io.Writer) error { return writeApps(w, appsFixture()) }},
 		{"app-list-empty", func(w io.Writer) error { return writeApps(w, nil) }},
 		{"env-list", func(w io.Writer) error { return writeEnvs(w, []env.Env{sampleEnv(), releaseEnvFixture()}) }},
@@ -94,26 +94,26 @@ func TestGoldenPlainOutput(t *testing.T) {
 			return removedView("peer", removed{Name: "ci", Removed: true}).Write(w)
 		}},
 
-		{"machine-list", func(w io.Writer) error {
+		{"member-list", func(w io.Writer) error {
 			return machinesView(fleetFixture(), fleetNow()).Write(w)
 		}},
-		{"machine-list-one", func(w io.Writer) error {
+		{"member-list-one", func(w io.Writer) error {
 			return machinesView(fleetFixture()[:1], fleetNow()).Write(w)
 		}},
-		{"machine-list-empty", func(w io.Writer) error {
+		{"member-list-empty", func(w io.Writer) error {
 			return machinesView(nil, fleetNow()).Write(w)
 		}},
-		{"machine-show-fleet", func(w io.Writer) error {
+		{"member-show-fleet", func(w io.Writer) error {
 			return machineDetailView(machineDetailFixture(), fleetNow()).Write(w)
 		}},
-		{"machine-token", func(w io.Writer) error { return writeMachineToken(w, machineTokenFixture()) }},
-		{"machine-added", func(w io.Writer) error {
+		{"member-token", func(w io.Writer) error { return writeMachineToken(w, machineTokenFixture()) }},
+		{"member-added", func(w io.Writer) error {
 			return machineAddedView(machineAddedFixture(), fleetNow()).Write(w)
 		}},
-		{"machine-joined", func(w io.Writer) error {
+		{"member-joined", func(w io.Writer) error {
 			return machineJoinedView(machineJoinedFixture()).Write(w)
 		}},
-		{"machine-removed", func(w io.Writer) error {
+		{"member-removed", func(w io.Writer) error {
 			return removedView("machine", removed{Name: "nx3", Removed: true}).Write(w)
 		}},
 		{"env-list-fleet", func(w io.Writer) error {
@@ -162,7 +162,7 @@ func TestCommanderRenderMatchesTheDaemon(t *testing.T) {
 	}{
 		{name: "status", args: []string{"status"}, path: "status",
 			svc: &fakeAPI{status: statusFixture()}},
-		{name: "machine-show", args: []string{"machine", "show"}, path: "machine show",
+		{name: "member-show", args: []string{"member", "show"}, path: "member show",
 			svc: &fakeAPI{record: machineFixture()}},
 		{name: "app-list", args: []string{"app", "list"}, path: "app list",
 			svc: &envService{apps: appsFixture()}},
@@ -221,14 +221,14 @@ func TestCommanderRenderMatchesTheDaemon(t *testing.T) {
 		{name: "peer-list", args: []string{"peer", "list"}, path: "peer list",
 			svc: &peerService{peers: peersFixture()}},
 
-		{name: "machine-list", args: []string{"machine", "list"}, path: "machine list",
+		{name: "member-list", args: []string{"member", "list"}, path: "member list",
 			svc: &fleetService{machines: quietFleetFixture()}},
-		{name: "machine-show-fleet", args: []string{"machine", "show", "nx2"}, path: "machine show",
+		{name: "member-show-fleet", args: []string{"member", "show", "nx2"}, path: "member show",
 			svc: &fleetService{detail: machineDetailFixture()}},
-		{name: "machine-token", args: []string{"machine", "token"}, path: "machine token",
+		{name: "member-token", args: []string{"member", "token"}, path: "member token",
 			svc: &fleetService{token: machineTokenFixture()}},
-		{name: "machine-remove", args: []string{"machine", "remove", "nx3", "--yes"},
-			path: "machine remove", svc: &fleetService{}},
+		{name: "member-remove", args: []string{"member", "remove", "nx3", "--yes"},
+			path: "member remove", svc: &fleetService{}},
 		{name: "env-handoff", args: []string{"env", "handoff", "feat-x", "--app", "shop", "--to", "agent-b"},
 			path: "env handoff",
 			info: renderInfo{app: "shop", env: "feat-x", args: []string{"feat-x"}},

@@ -99,7 +99,7 @@ func silenceError(rec Record, ap netip.AddrPort, last time.Time, known bool) err
 
 func firewallHint(rec Record) string {
 	return fmt.Sprintf("a firewall on the machine or a security group in front of it dropping UDP %s "+
-		"looks exactly like this, and 'caramelo server probe %s' from here says which",
+		"looks exactly like this, and 'caramelo hub probe %s' from here says which",
 		rec.Endpoint, rec.Machine)
 }
 

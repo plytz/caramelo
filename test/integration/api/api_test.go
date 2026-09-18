@@ -50,13 +50,13 @@ func withStdin(o itest.SSHAPIOptions, in string) itest.SSHAPIOptions {
 
 func TestMachineShow(t *testing.T) {
 	m, o := box(t)
-	res := itest.SSHAPIRun(t, o, "machine", "show", "--json")
+	res := itest.SSHAPIRun(t, o, "member", "show", "--json")
 	if res.ExitCode != 0 {
-		t.Fatalf("machine show: exit %d\nstdout:%s\nstderr:%s", res.ExitCode, res.Stdout, res.Stderr)
+		t.Fatalf("member show: exit %d\nstdout:%s\nstderr:%s", res.ExitCode, res.Stdout, res.Stderr)
 	}
 	var rec machine.Record
 	if err := json.Unmarshal([]byte(strings.TrimSpace(res.Stdout)), &rec); err != nil {
-		t.Fatalf("machine show --json: %v\nstdout: %q", err, res.Stdout)
+		t.Fatalf("member show --json: %v\nstdout: %q", err, res.Stdout)
 	}
 	nproc := strings.TrimSpace(m.MustRun(t, "nproc").Stdout)
 	if want, err := strconv.Atoi(nproc); err != nil {
@@ -114,7 +114,7 @@ func TestExitCodes(t *testing.T) {
 	})
 
 	t.Run("server commands are refused", func(t *testing.T) {
-		res := itest.SSHAPIRun(t, o, "server", "setup")
+		res := itest.SSHAPIRun(t, o, "hub", "setup")
 		if res.ExitCode != 2 {
 			t.Errorf("exit = %d, want 2\nstdout:%s\nstderr:%s", res.ExitCode, res.Stdout, res.Stderr)
 		}
@@ -329,7 +329,7 @@ func TestCommanderWithoutMachine(t *testing.T) {
 		t.Errorf("exit = %d, want 1\nstdout:%s\nstderr:%s", res.ExitCode, res.Stdout, res.Stderr)
 	}
 	got := strings.ToLower(res.Stdout + res.Stderr)
-	for _, want := range []string{"server setup", "--machine"} {
+	for _, want := range []string{"hub setup", "--machine"} {
 		if !strings.Contains(got, strings.ToLower(want)) {
 			t.Errorf("error does not mention %q:\n%s%s", want, res.Stdout, res.Stderr)
 		}

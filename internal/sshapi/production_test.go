@@ -83,7 +83,7 @@ func TestProductionCommandsSayWhatTheMachineIsMissing(t *testing.T) {
 			t.Errorf("%s on a daemon with no vault succeeded", name)
 			continue
 		}
-		if !strings.Contains(err.Error(), "no vault") || !strings.Contains(err.Error(), "server setup") {
+		if !strings.Contains(err.Error(), "no vault") || !strings.Contains(err.Error(), "hub setup") {
 			t.Errorf("%s said %q, want it to name the vault and the way to get one", name, err)
 		}
 	}

@@ -239,7 +239,7 @@ func (d *Daemon) EnvExpose(ctx context.Context, req api.ExposeRequest) (*api.Exp
 }
 
 func (d *Daemon) MachineAnnounce(ctx context.Context, a fleet.Announcement) (*api.AnnounceResult, error) {
-	peer, err := d.requireMachinePeer(ctx, "an announcement", "machine list")
+	peer, err := d.requireMachinePeer(ctx, "an announcement", "member list")
 	if err != nil {
 		return nil, err
 	}
