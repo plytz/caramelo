@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/cpuguy83/go-md2man/v2/md2man"
 	"github.com/spf13/cobra"
 
 	"github.com/plytz/caramelo/internal/place"
@@ -149,7 +150,13 @@ func TestEveryCommandOfTheTreeSaysWhatItIsFor(t *testing.T) {
 
 func TestEveryCommandOfTheManualSaysWhereItHolds(t *testing.T) {
 	m, _ := manualOfRole(t, manualRoleAll)
-	plain := renderPlain(m)
+	forms := []struct {
+		name string
+		out  string
+	}{
+		{"plain", renderPlain(m)},
+		{"markdown", renderManual(m, false)},
+	}
 	var walk func(cs []manualCommand)
 	walk = func(cs []manualCommand) {
 		for _, c := range cs {
@@ -164,8 +171,11 @@ func TestEveryCommandOfTheManualSaysWhereItHolds(t *testing.T) {
 				t.Errorf("%q does not say where it holds", c.Path)
 				continue
 			}
-			if !strings.Contains(plain, holdsOnLine(c.Holds)) {
-				t.Errorf("the section of %q does not print %q", c.Path, holdsOnLine(c.Holds))
+			for _, form := range forms {
+				if !strings.Contains(form.out, holdsOnLine(c.Holds)) {
+					t.Errorf("the %s section of %q does not print %q",
+						form.name, c.Path, holdsOnLine(c.Holds))
+				}
 			}
 		}
 	}
@@ -205,6 +215,20 @@ func TestManualCommandFormats(t *testing.T) {
 	}
 	if !strings.Contains(stdout.String(), "laptop, commander") {
 		t.Errorf("man output does not say where it was rendered:\n%s", firstLines(stdout.String(), 20))
+	}
+
+	stdout.Reset()
+	if code := Run([]string{"manual", "--role", "hub", "--markdown"}, &stdout, &stderr); code != ExitOK {
+		t.Fatalf("manual --role hub --markdown: exit %d: %s", code, stderr.String())
+	}
+	hub := strings.Join(canonicalOf(t, place.CanonicalHub).HeaderParts(), " · ")
+	if !strings.HasPrefix(stdout.String(), "# caramelo manual\n\n"+hub+"\n\n") {
+		t.Errorf("the markdown manual of a hub does not open with the canonical hub's header:\n%s",
+			firstLines(stdout.String(), 4))
+	}
+	if !strings.Contains(stdout.String(), "This is the manual of a canonical hub, not of this machine") {
+		t.Errorf("the markdown manual of a hub does not say it is not of this machine:\n%s",
+			firstLines(stdout.String(), 6))
 	}
 
 	stdout.Reset()
@@ -270,27 +294,50 @@ func TestTheManualIsTheManualOfThePlaceItRunsIn(t *testing.T) {
 }
 
 func TestTheManualOfAnotherRoleIsRenderedAgainstACanonicalMachine(t *testing.T) {
-	freshPlace(t)
-	code, stdout, stderr := run(t, "manual", "--role", "hub")
-	if code != ExitOK {
-		t.Fatalf("exit = %d: %s", code, stderr)
-	}
-	if !strings.HasPrefix(stdout, "box, hub of fleet home · ") {
-		t.Errorf("manual --role hub does not open with the canonical hub's header:\n%s", firstLines(stdout, 3))
-	}
-	if !strings.Contains(stdout, "This is the manual of a canonical hub, not of this machine") {
-		t.Errorf("nothing says the manual is not of this machine:\n%s", firstLines(stdout, 5))
-	}
-	for _, path := range []string{"caramelo hub status", "caramelo member add"} {
-		if !strings.Contains(stdout, "\n"+strings.ToUpper(path)+"\n") {
-			t.Errorf("a hub's manual has no section for %q", path)
-		}
-	}
-	if strings.Contains(stdout, "\nCARAMELO VPN UP\n") {
-		t.Errorf("a hub's manual has a section for vpn up, which holds on a commander")
-	}
-	if strings.Contains(stdout, "hidden here") {
-		t.Errorf("a role's manual counts what it hides:\n%s", firstLines(stdout, 5))
+	for _, tc := range []struct {
+		role   string
+		lists  []string
+		absent []string
+	}{
+		{role: place.RoleCommander,
+			lists:  []string{"caramelo fleet list", "caramelo vpn up", "caramelo commander init"},
+			absent: []string{"caramelo member join", "caramelo member leave", "caramelo hub uninstall"}},
+		{role: place.RoleHub,
+			lists:  []string{"caramelo hub status", "caramelo member add", "caramelo env create"},
+			absent: []string{"caramelo fleet list", "caramelo vpn up", "caramelo commander init"}},
+		{role: place.RoleMember,
+			lists:  []string{"caramelo member leave", "caramelo hub status", "caramelo edge status"},
+			absent: []string{"caramelo env create", "caramelo deploy", "caramelo fleet list"}},
+	} {
+		t.Run(tc.role, func(t *testing.T) {
+			freshPlace(t)
+			code, stdout, stderr := run(t, "manual", "--role", tc.role)
+			if code != ExitOK {
+				t.Fatalf("exit = %d: %s", code, stderr)
+			}
+			header := strings.Join(headerLines(canonicalOf(t, tc.role).HeaderParts()), "\n") + "\n"
+			if !strings.HasPrefix(stdout, header) {
+				t.Errorf("manual --role %s does not open with the header of the canonical %s;\nwant %q\ngot\n%s",
+					tc.role, tc.role, header, firstLines(stdout, 5))
+			}
+			note := fmt.Sprintf("This is the manual of a canonical %s, not of this machine", tc.role)
+			if !strings.Contains(stdout, note) {
+				t.Errorf("nothing says %q:\n%s", note, firstLines(stdout, 6))
+			}
+			if strings.Contains(stdout, "hidden here") {
+				t.Errorf("the manual of a %s counts what it hides:\n%s", tc.role, firstLines(stdout, 6))
+			}
+			for _, path := range tc.lists {
+				if !strings.Contains(stdout, "\n"+strings.ToUpper(path)+"\n") {
+					t.Errorf("the manual of a %s has no section for %q", tc.role, path)
+				}
+			}
+			for _, path := range tc.absent {
+				if strings.Contains(stdout, "\n"+strings.ToUpper(path)+"\n") {
+					t.Errorf("the manual of a %s has a section for %q, which does not hold there", tc.role, path)
+				}
+			}
+		})
 	}
 }
 
@@ -347,6 +394,14 @@ func TestTheManualSaysHowManyCommandsItLeftOut(t *testing.T) {
 			if !strings.Contains(renderPlain(m), line) {
 				t.Errorf("the plain manual does not say %q", line)
 			}
+			md := renderManual(m, false)
+			if !strings.Contains(md, hiddenHere(want)) {
+				t.Errorf("the markdown manual does not say %q", hiddenHere(want))
+			}
+			roff := string(md2man.Render([]byte(renderManual(m, true))))
+			if !strings.Contains(roff, hiddenHere(want)) {
+				t.Errorf("the roff manual does not say %q", hiddenHere(want))
+			}
 		})
 	}
 }
@@ -397,6 +452,34 @@ func TestManualJSONSaysTheRoleAndThePlace(t *testing.T) {
 	}
 	if every.Role != manualRoleAll || every.Context != nil {
 		t.Errorf("role = %q with context %v, want %q and no place", every.Role, every.Context, manualRoleAll)
+	}
+
+	for _, name := range place.CanonicalNames() {
+		t.Run(name, func(t *testing.T) {
+			c := canonicalOf(t, name)
+			here, _ := manualHere(t, name)
+			body, err := json.Marshal(here)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var back manual
+			if err := json.Unmarshal(body, &back); err != nil {
+				t.Fatal(err)
+			}
+			if back.Role != c.Role {
+				t.Errorf("role = %q, want %q", back.Role, c.Role)
+			}
+			if back.Context == nil {
+				t.Fatalf("the JSON manual of the canonical %s carries no context", name)
+			}
+			if back.Context.Role != back.Role {
+				t.Errorf("role = %q with a context of a %q; the manual and its place disagree",
+					back.Role, back.Context.Role)
+			}
+			if back.Context.Name != c.Name {
+				t.Errorf("context names %q, want %q", back.Context.Name, c.Name)
+			}
+		})
 	}
 }
 
