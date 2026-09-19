@@ -65,6 +65,10 @@ COMMANDS
       caramelo secrets rm         Forget secrets at one scope
       caramelo secrets set        Write secrets at one scope
     caramelo status               Show whether caramelod and Docker are up, and how we reached them
+    caramelo task                 The tasks this binary carries: what they do and running one here
+      caramelo task list          List the tasks this binary carries
+      caramelo task run           Run a task on this machine
+      caramelo task show          Print the task file that will run, byte for byte
     caramelo test                 Run the app's tests inside an environment
     caramelo up                   Start an environment's services and wait for them to be healthy
     caramelo version              Print the caramelo version

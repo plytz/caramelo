@@ -20,6 +20,7 @@ Available Commands:
   help        Help about any command
   hub         Commands the machine itself runs: setup, uninstall, status, run
   manual      The manual of this machine: every command that holds here, with examples
+  task        The tasks this binary carries: what they do and running one here
   version     Print the caramelo version
 
 Flags:

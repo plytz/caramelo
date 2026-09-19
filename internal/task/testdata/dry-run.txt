@@ -1,0 +1,10 @@
+commander-setup  Name this machine a commander and write the files it needs  (dry run)
+
+  parallel  the config, vpn and cache directories, private to the user
+    config-dir     would-change
+    vpn-dir        would-change
+    cache-dir      ok
+  config           would-change   /home/alex/.config/caramelo/config.yaml missing
+  identity         would-change   /home/alex/.config/caramelo/identity.key missing
+
+commander-setup  ok=1  would-change=4  skipped=0  failed=0   0.03s

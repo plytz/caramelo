@@ -1,0 +1,12 @@
+commander-setup  Name this machine a commander and write the files it needs
+
+  [1;34mparallel[0m  the config, vpn and cache directories, private to the user
+    config-dir     [32mok[0m
+    vpn-dir        [32mok[0m
+    cache-dir      [31mfailed[0m    cmd exit 1
+                   install: cannot create directory '/home/alex/.cache/caramelo': Permission denied
+  config           not run
+  identity         not run
+
+commander-setup  [32mok=2[0m  [33mchanged=0[0m  [34mskipped=0[0m  [31mfailed=1[0m   0.05s
+commander-setup failed at cache-dir; run again with --debug for the full output

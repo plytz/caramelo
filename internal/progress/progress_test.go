@@ -267,3 +267,62 @@ func TestMachineFieldIsAbsentOnAMachineOfOne(t *testing.T) {
 		t.Errorf("Line with a machine = %q, want the M4 line unchanged", got)
 	}
 }
+
+func TestATaskEventCarriesItsTaskAndRoundTrips(t *testing.T) {
+	var b bytes.Buffer
+	w := New(&b, FormatJSON)
+	at := time.Date(2026, 9, 18, 20, 33, 11, 412_000_000, time.UTC)
+	if err := w.Emit(Event{Action: ActionTask, Task: "commander-setup", Step: "config-dir",
+		Status: StatusChanged, Detail: "created, 0700", At: at}); err != nil {
+		t.Fatal(err)
+	}
+	want := `{"action":"task","task":"commander-setup","step":"config-dir","status":"changed",` +
+		`"detail":"created, 0700","at":"2026-09-18T20:33:11.412Z"}` + "\n"
+	if b.String() != want {
+		t.Errorf("event =\n%s\nwant\n%s", b.String(), want)
+	}
+	var back Event
+	if err := json.Unmarshal(b.Bytes(), &back); err != nil {
+		t.Fatal(err)
+	}
+	if back.Task != "commander-setup" {
+		t.Errorf("task = %q", back.Task)
+	}
+}
+
+func TestAnEventWithNoTaskCarriesNoTaskField(t *testing.T) {
+	b, err := json.Marshal(Event{Action: ActionMessage, Status: StatusWarning})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(b, []byte(`"task"`)) {
+		t.Errorf("event = %s, want no task field", b)
+	}
+}
+
+func TestTheStatusVocabularyHoldsWouldChange(t *testing.T) {
+	want := []string{StatusStarted, StatusOK, StatusChanged, StatusWouldChange, StatusSkipped, StatusWarning, StatusFailed}
+	if len(Statuses) != len(want) {
+		t.Fatalf("statuses = %v, want %v", Statuses, want)
+	}
+	for i, s := range want {
+		if Statuses[i] != s {
+			t.Errorf("statuses[%d] = %q, want %q", i, Statuses[i], s)
+		}
+	}
+}
+
+func TestTheProgressLineIsUnchanged(t *testing.T) {
+	for _, tc := range []struct {
+		e    Event
+		want string
+	}{
+		{Event{Action: "task", Status: "changed"}, "[changed] task"},
+		{Event{Action: "task", Status: "changed", Detail: "created, 0700"}, "[changed] task: created, 0700"},
+		{Event{Action: "task", Task: "commander-setup", Step: "config-dir", Status: "ok"}, "[ok] task"},
+	} {
+		if got := Line(tc.e); got != tc.want {
+			t.Errorf("Line(%+v) = %q, want %q", tc.e, got, tc.want)
+		}
+	}
+}

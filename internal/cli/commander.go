@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -11,6 +13,8 @@ import (
 
 	"github.com/plytz/caramelo/internal/cli/ui"
 	"github.com/plytz/caramelo/internal/remote"
+	"github.com/plytz/caramelo/internal/runner"
+	"github.com/plytz/caramelo/internal/task"
 	"github.com/plytz/caramelo/internal/userdir"
 	"github.com/plytz/caramelo/internal/vpnclient"
 )
@@ -27,7 +31,7 @@ it can reach, all under the user's own config directory.
 'commander init' is the one command a box with no config at all can run.`,
 		})
 		asGroup(cmd)
-		cmd.AddCommand(a.commanderInitCmd())
+		cmd.AddCommand(a.commanderInitCmd(), a.commanderWriteConfigCmd())
 		return cmd
 	})
 }
@@ -71,7 +75,7 @@ nothing and says so; --name alone renames this commander.`,
 				return &usageError{fmt.Errorf(
 					"--name %q has nothing a machine's name can be made of: want lowercase letters, digits and dashes", name)}
 			}
-			res, err := initCommander(machineNameSlug(name))
+			res, err := a.initCommander(cmd.Context(), machineNameSlug(name))
 			if err != nil {
 				return err
 			}
@@ -84,12 +88,8 @@ nothing and says so; --name alone renames this commander.`,
 	return available(cmd, fresh.or(onCommander))
 }
 
-func initCommander(name string) (commanderInitResult, error) {
+func (a *app) initCommander(ctx context.Context, name string) (commanderInitResult, error) {
 	paths, err := commanderPathsHere()
-	if err != nil {
-		return commanderInitResult{}, err
-	}
-	written, _, err := remote.CommanderInitialized()
 	if err != nil {
 		return commanderInitResult{}, err
 	}
@@ -98,16 +98,6 @@ func initCommander(name string) (commanderInitResult, error) {
 		return commanderInitResult{}, err
 	}
 	res := commanderInitResult{Role: remote.RoleCommander, Paths: paths, Created: []string{}}
-
-	for _, dir := range []string{paths.Dir, paths.VPNDir, paths.CacheDir} {
-		created, err := makeDir(dir)
-		if err != nil {
-			return commanderInitResult{}, err
-		}
-		if created {
-			res.Created = append(res.Created, dir)
-		}
-	}
 
 	switch {
 	case name != "" && cfg.Name != "" && cfg.Name != name:
@@ -120,28 +110,140 @@ func initCommander(name string) (commanderInitResult, error) {
 		res.Name = thisMachineName("")
 	}
 
-	rewriting := !written || cfg.Name != res.Name || cfg.Role != remote.RoleCommander
-	if rewriting {
-		cfg.Name, cfg.Role = res.Name, remote.RoleCommander
-		if err := remote.SaveCommanderConfigTo(paths.Config, cfg); err != nil {
-			return commanderInitResult{}, err
-		}
-		if !written {
-			res.Created = append(res.Created, paths.Config)
+	known := []string{paths.Dir, paths.VPNDir, paths.CacheDir, paths.Config, paths.IdentityKey}
+	before := whichExist(known)
+
+	f, err := task.Load(commanderSetupTask)
+	if err != nil {
+		return commanderInitResult{}, err
+	}
+	engine := &task.Engine{
+		Runner:  runner.Exec{},
+		Leaf:    a.taskLeaf(),
+		Version: version,
+		Vars: map[string]string{
+			"name":  res.Name,
+			"dir":   paths.Dir,
+			"vpn":   paths.VPNDir,
+			"cache": paths.CacheDir,
+		},
+	}
+	report, err := engine.Execute(ctx, f)
+	if err != nil {
+		return commanderInitResult{}, fmt.Errorf("name this machine a commander: %w", err)
+	}
+	if failed, ok := report.FirstFailure(); ok {
+		return commanderInitResult{}, fmt.Errorf("name this machine a commander: %s: %s",
+			failed.Name, commanderFailure(failed))
+	}
+	if report.ReportErr != nil {
+		return commanderInitResult{}, fmt.Errorf("name this machine a commander: %w", report.ReportErr)
+	}
+
+	after := whichExist(known)
+	for _, path := range known {
+		if !before[path] && after[path] {
+			res.Created = append(res.Created, path)
 		}
 	}
 
-	key, created, err := vpnclient.EnsureIdentity()
+	key, err := vpnclient.LoadIdentity()
 	if err != nil {
 		return commanderInitResult{}, fmt.Errorf("the commander's identity key: %w", err)
 	}
 	res.PublicKey = key.Public
-	if created {
-		res.Created = append(res.Created, paths.IdentityKey)
-	}
-
-	res.Changed = rewriting || len(res.Created) > 0
+	res.Changed = report.Changed > 0
 	return res, nil
+}
+
+const commanderSetupTask = "commander-setup"
+
+func commanderFailure(res task.Result) string {
+	for i := len(res.Commands) - 1; i >= 0; i-- {
+		if line := strings.TrimSpace(res.Commands[i].Stderr); line != "" {
+			return res.Error + ": " + strings.SplitN(line, "\n", 2)[0]
+		}
+	}
+	return res.Error
+}
+
+func whichExist(paths []string) map[string]bool {
+	out := map[string]bool{}
+	for _, path := range paths {
+		if _, err := os.Lstat(path); err == nil {
+			out[path] = true
+		}
+	}
+	return out
+}
+
+func (a *app) commanderWriteConfigCmd() *cobra.Command {
+	var path, name string
+	var check bool
+	cmd := &cobra.Command{
+		Use:    "write-config",
+		Short:  "Write a commander config.yaml with a name and the commander role (tasks only)",
+		Hidden: true,
+		Args:   exactArgs(0),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			switch {
+			case strings.TrimSpace(path) == "":
+				return &usageError{errors.New("commander write-config: --path says which file is written")}
+			case machineNameSlug(name) == "":
+				return &usageError{fmt.Errorf(
+					"--name %q has nothing a machine's name can be made of: want lowercase letters, digits and dashes", name)}
+			}
+			name = machineNameSlug(name)
+			cfg, err := remote.LoadCommanderConfigFrom(path)
+			if err != nil {
+				return err
+			}
+			written, err := fileIsThere(path)
+			if err != nil {
+				return err
+			}
+			if check {
+				if written && cfg.Name == name && cfg.Role == remote.RoleCommander {
+					fmt.Fprintf(a.stdout, "name %s, role %s\n", cfg.Name, cfg.Role)
+					return nil
+				}
+				if !written {
+					fmt.Fprintf(a.stdout, "%s missing\n", path)
+				} else {
+					fmt.Fprintf(a.stdout, "%s names %s, want %s\n", path, orNothing(cfg.Name), name)
+				}
+				return &exitError{ExitError}
+			}
+			cfg.Name, cfg.Role = name, remote.RoleCommander
+			if err := remote.SaveCommanderConfigTo(path, cfg); err != nil {
+				return err
+			}
+			fmt.Fprintf(a.stdout, "%s written\n", path)
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&path, "path", "", "the config file to write")
+	cmd.Flags().StringVar(&name, "name", "", "what to call this commander")
+	cmd.Flags().BoolVar(&check, "check", false, "say whether the file already names this commander, and change nothing")
+	return available(cmd, fresh.or(onCommander))
+}
+
+func fileIsThere(path string) (bool, error) {
+	_, err := os.Stat(path)
+	switch {
+	case err == nil:
+		return true, nil
+	case errors.Is(err, os.ErrNotExist):
+		return false, nil
+	}
+	return false, fmt.Errorf("stat %s: %w", path, err)
+}
+
+func orNothing(s string) string {
+	if s == "" {
+		return "nothing"
+	}
+	return s
 }
 
 func commanderPathsHere() (commanderPaths, error) {
@@ -173,19 +275,6 @@ func requireCommander(cmd *cobra.Command) error {
 	return &usageError{fmt.Errorf(
 		"%s sets up another machine from this one, and only a commander does that: "+
 			"run 'caramelo commander init' first (there is no %s)", cmd.CommandPath(), path)}
-}
-
-func makeDir(path string) (bool, error) {
-	if fi, err := os.Stat(path); err == nil && fi.IsDir() {
-		return false, nil
-	}
-	if err := os.MkdirAll(path, 0o700); err != nil {
-		return false, fmt.Errorf("create %s: %w", path, err)
-	}
-	if err := os.Chmod(path, 0o700); err != nil {
-		return false, fmt.Errorf("chmod %s: %w", path, err)
-	}
-	return true, nil
 }
 
 func commanderInitView(r commanderInitResult) *ui.View {

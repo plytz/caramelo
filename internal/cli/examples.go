@@ -330,6 +330,25 @@ caramelo status --fleet home                        # a fleet of the commander c
 caramelo status --machine you@box                   # a box that is in no fleet yet
 caramelo status --json`,
 
+	"caramelo task": `
+caramelo task list
+caramelo task show commander-setup
+caramelo task run commander-setup --dry-run`,
+
+	"caramelo task list": `
+caramelo task list                                  # every task this binary carries
+caramelo task list --json`,
+
+	"caramelo task run": `
+caramelo task run commander-setup                   # run it here, item by item
+caramelo task run commander-setup --dry-run         # what it would change, changing nothing
+caramelo task run commander-setup --debug           # every check and command with its output
+caramelo task run commander-setup --var name=laptop # a value the task's templates read
+caramelo task run commander-setup --json --progress json`,
+
+	"caramelo task show": `
+caramelo task show commander-setup                  # the file that will run, byte for byte`,
+
 	"caramelo test": `
 caramelo test feat-x                                # the app's test suite, deps wired
 caramelo test feat-x -- -run TestCheckout           # arguments for the test command

@@ -1,0 +1,12 @@
+commander-setup  Name this machine a commander and write the files it needs
+
+  parallel  the config, vpn and cache directories, private to the user
+    config-dir     ok
+    vpn-dir        ok
+    cache-dir      failed    cmd exit 1
+                   install: cannot create directory '/home/alex/.cache/caramelo': Permission denied
+  config           not run
+  identity         not run
+
+commander-setup  ok=2  changed=0  skipped=0  failed=1   0.05s
+commander-setup failed at cache-dir; run again with --debug for the full output

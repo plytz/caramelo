@@ -57,6 +57,16 @@ func (c *clock) add(d time.Duration) {
 	c.at = c.at.Add(d)
 }
 
+func (c *clock) ticking(step time.Duration) func() time.Time {
+	return func() time.Time {
+		c.mu.Lock()
+		defer c.mu.Unlock()
+		at := c.at
+		c.at = c.at.Add(step)
+		return at
+	}
+}
+
 func (h *harness) mustDeploy(req DeployRequest) *Deploy {
 	h.t.Helper()
 	d, err := h.m.Deploy(context.Background(), req, &h.out)
@@ -552,6 +562,28 @@ func TestDeployWatchIsJudgedOnTheManagersClock(t *testing.T) {
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("the deploy did not end after the window passed")
+	}
+}
+
+func TestDeployWatchReadsTheClockOncePerRound(t *testing.T) {
+	h, _, _ := deployHarness(t, 1)
+	c := newClock()
+	h.m.Now = c.ticking(time.Second)
+	h.cfg.Deploy = &config.Deploy{Watch: time.Minute}
+	h.mustCreate(CreateRequest{App: "shop", Name: "production", Production: true})
+
+	d := h.mustDeploy(DeployRequest{App: "shop", Env: "production"})
+	if d.Status != DeployPromoted {
+		t.Fatalf("status = %s\n%s", d.Status, stepsText(d))
+	}
+	if d.Watch == nil {
+		t.Fatal("the promoted deploy carries no watch")
+	}
+	if d.Watch.Elapsed != d.Watch.Counted {
+		t.Errorf("elapsed = %s, counted = %s: the round read the clock twice", d.Watch.Elapsed, d.Watch.Counted)
+	}
+	if d.Watch.Elapsed < d.Watch.Window {
+		t.Errorf("elapsed = %s, window = %s", d.Watch.Elapsed, d.Watch.Window)
 	}
 }
 

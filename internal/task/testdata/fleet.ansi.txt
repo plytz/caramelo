@@ -1,0 +1,15 @@
+tunnel-kernel  Move the tunnel from caramelod to the kernel  on m1 m2 m3
+
+  [m1] module           [32mok[0m        wireguard 6.12.30
+  [m2] module           [32mok[0m        wireguard 6.12.30
+  [m3] module           [34mskipped[0m   no kernel module; staying in userspace
+  [m1] interface        [33mchanged[0m   caramelo0 up, 10.86.0.1/16
+  [m2] interface        [33mchanged[0m   caramelo0 up, 10.87.0.1/16
+  [m1] unit             [33mchanged[0m   caramelo-tunnel.service enabled
+  [m2] unit             [33mchanged[0m   caramelo-tunnel.service enabled
+  [m1] caramelod        [33mchanged[0m   restarted, vpn_mode kernel
+  [m2] caramelod        [33mchanged[0m   restarted, vpn_mode kernel
+
+m1  [32mok=1[0m  [33mchanged=3[0m  [34mskipped=0[0m  [31mfailed=0[0m   4.2s
+m2  [32mok=1[0m  [33mchanged=3[0m  [34mskipped=0[0m  [31mfailed=0[0m   4.6s
+m3  [32mok=0[0m  [33mchanged=0[0m  [34mskipped=1[0m  [31mfailed=0[0m   0.3s

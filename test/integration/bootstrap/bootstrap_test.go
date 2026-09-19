@@ -17,6 +17,7 @@ import (
 	"github.com/plytz/caramelo/internal/remote"
 	setuppkg "github.com/plytz/caramelo/internal/setup"
 	"github.com/plytz/caramelo/internal/state"
+	taskpkg "github.com/plytz/caramelo/internal/task"
 	"github.com/plytz/caramelo/internal/vpn"
 	"github.com/plytz/caramelo/internal/vpnclient"
 	"github.com/plytz/caramelo/test/integration/itest"
@@ -315,6 +316,32 @@ func TestCommanderInitWroteEveryFileACommanderNeeds(t *testing.T) {
 	if again.Changed || again.Name != commanderName {
 		t.Errorf("a second commander init reported %+v, want %s unchanged", again, commanderName)
 	}
+
+	run := commander.MustRun(t, commanderBin+" task run commander-setup --json")
+	var report taskpkg.Report
+	if err := json.Unmarshal([]byte(strings.TrimSpace(run.Stdout)), &report); err != nil {
+		t.Fatalf("task run commander-setup --json: %v\nstdout: %q", err, run.Stdout)
+	}
+	if report.Changed != 0 || report.Failed != 0 {
+		t.Errorf("the task behind commander init reported %+v on a commander, want it to change nothing", report)
+	}
+	for _, r := range taskLeaves(report.Results) {
+		if r.Status != taskpkg.StatusOK {
+			t.Errorf("item %s reported %q, want ok on a box commander init already named", r.Name, r.Status)
+		}
+	}
+}
+
+func taskLeaves(results []taskpkg.Result) []taskpkg.Result {
+	var out []taskpkg.Result
+	for _, r := range results {
+		if r.Block {
+			out = append(out, taskLeaves(r.Results)...)
+			continue
+		}
+		out = append(out, r)
+	}
+	return out
 }
 
 func TestAFreshBoxRefusesToSetUpAnotherMachine(t *testing.T) {

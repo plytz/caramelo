@@ -102,3 +102,7 @@ func (s *FileKeyStore) Remove(machine string) error {
 	}
 	return nil
 }
+
+func EnsureKeyAt(path, owner string) (KeyPair, bool, error) { return ensureKeyFile(path, owner) }
+
+func LoadKeyAt(path, owner string) (KeyPair, error) { return loadKeyFile(path, owner) }

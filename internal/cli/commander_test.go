@@ -262,3 +262,129 @@ func TestABrokenCommanderConfigStopsHubSetup(t *testing.T) {
 		}
 	}
 }
+
+func TestCommanderInitRenamingKeepsTheFleetsThisCommanderKnows(t *testing.T) {
+	config, _ := freshBox(t)
+	if code, _, stderr := run(t, "commander", "init", "--name", "laptop"); code != ExitOK {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	path := filepath.Join(config, remote.CommanderConfigFile)
+	cfg := readCommanderConfig(t, config)
+	cfg.Commander = remote.Commander{
+		DefaultFleet: "home",
+		Fleets: map[string]remote.Fleet{
+			"home": {Hub: "admin@box.example:4022", PublicKey: "Nq0Xw2mS8VbZ1YtR7dK3jL5pQ9cF4hG6uI8oP0aB2wE=", Apps: []string{"shop"}},
+			"work": {Hub: "ops@hub.work.example:4022"},
+		},
+	}
+	if err := remote.SaveCommanderConfigTo(path, cfg); err != nil {
+		t.Fatal(err)
+	}
+
+	code, stdout, stderr := run(t, "commander", "init", "--name", "desk")
+	if code != ExitOK {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	if !strings.Contains(stdout, "renamed laptop to desk") {
+		t.Errorf("stdout = %q, want the rename line", stdout)
+	}
+	after := readCommanderConfig(t, config)
+	if after.Name != "desk" {
+		t.Errorf("name = %q, want desk", after.Name)
+	}
+	if after.Commander.DefaultFleet != "home" || len(after.Commander.Fleets) != 2 {
+		t.Fatalf("the rename dropped the commander block: %+v", after.Commander)
+	}
+	home := after.Commander.Fleets["home"]
+	if home.Hub != "admin@box.example:4022" || home.PublicKey == "" || len(home.Apps) != 1 {
+		t.Errorf("the rename lost the pinned fleet: %+v", home)
+	}
+}
+
+func TestCommanderInitDoesNotCallARenameACreation(t *testing.T) {
+	freshBox(t)
+	if code, _, stderr := run(t, "commander", "init", "--name", "laptop"); code != ExitOK {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	code, stdout, stderr := run(t, "commander", "init", "--name", "desk", "--json")
+	if code != ExitOK {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	var got commanderInitResult
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("%v: %s", err, stdout)
+	}
+	if len(got.Created) != 0 {
+		t.Errorf("created = %v, want nothing: a rename creates no file", got.Created)
+	}
+	if !got.Changed || got.RenamedFrom != "laptop" {
+		t.Errorf("result = %+v, want a rename that changed something", got)
+	}
+}
+
+func TestCommanderInitRepairsAConfigDirectoryAnyoneCanRead(t *testing.T) {
+	config, _ := freshBox(t)
+	if code, _, stderr := run(t, "commander", "init", "--name", "laptop"); code != ExitOK {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	if err := os.Chmod(config, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	code, stdout, stderr := run(t, "commander", "init", "--json")
+	if code != ExitOK {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	var got commanderInitResult
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("%v: %s", err, stdout)
+	}
+	wantMode(t, config, 0o700)
+	if !got.Changed {
+		t.Errorf("result = %+v, want it to say the mode was repaired", got)
+	}
+	if slices.Contains(got.Created, config) {
+		t.Errorf("created = %v, want a repaired directory left out of it", got.Created)
+	}
+}
+
+func TestCommanderInitSaysWhichItemFailed(t *testing.T) {
+	config, _ := freshBox(t)
+	if err := os.MkdirAll(config, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(config, vpnclient.KeyDir), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	code, _, stderr := run(t, "commander", "init", "--name", "laptop")
+	if code == ExitOK {
+		t.Fatal("commander init ran with a file where a directory belongs")
+	}
+	if !strings.Contains(stderr, "vpn-dir") {
+		t.Errorf("stderr = %q, want it to name the item that failed", stderr)
+	}
+}
+
+func TestCommanderInitWritesThroughAConfigDirectoryThatIsALink(t *testing.T) {
+	dir := isolate(t)
+	config := filepath.Join(dir, "config")
+	if err := os.MkdirAll(config, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	target := filepath.Join(dir, "dotfiles", remote.CommanderDirName)
+	if err := os.MkdirAll(target, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, filepath.Join(config, remote.CommanderDirName)); err != nil {
+		t.Fatal(err)
+	}
+	code, stdout, stderr := run(t, "commander", "init", "--name", "box-one")
+	if code != ExitOK {
+		t.Fatalf("exit %d: %s%s", code, stdout, stderr)
+	}
+	wantMode(t, target, 0o700)
+	wantMode(t, filepath.Join(target, remote.CommanderConfigFile), 0o600)
+	wantMode(t, filepath.Join(target, vpnclient.IdentityKeyFile), 0o600)
+	if cfg := readCommanderConfig(t, target); cfg.Name != "box-one" {
+		t.Errorf("config = %+v, want box-one", cfg)
+	}
+}

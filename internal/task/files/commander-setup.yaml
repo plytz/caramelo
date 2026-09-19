@@ -1,0 +1,35 @@
+version: 1
+name: commander-setup
+desc: Name this machine a commander and write the files it needs
+vars:
+  name: '{{ .Hostname }}'
+  dir: '{{ .CommanderDir }}'
+  vpn: '{{ .CommanderDir }}/vpn'
+  cache: '{{ .CacheDir }}/caramelo'
+items:
+  - parallel:
+      desc: the config and cache directories, private to the user
+      items:
+        - name: config-dir
+          desc: the commander's own directory, which nobody else can read
+          dir:
+            path: '{{ .dir }}'
+            mode: '0700'
+        - name: cache-dir
+          desc: what this machine keeps between runs
+          dir:
+            path: '{{ .cache }}'
+            mode: '0700'
+  - name: vpn-dir
+    desc: the per-fleet records this commander pins, inside the config directory and after it
+    dir:
+      path: '{{ .vpn }}'
+      mode: '0700'
+  - name: config
+    desc: config.yaml with this machine's name and the commander role
+    check: caramelo commander write-config --check --path "{{ .dir }}/config.yaml" --name "{{ .name }}"
+    cmd: caramelo commander write-config --path "{{ .dir }}/config.yaml" --name "{{ .name }}"
+  - name: identity
+    desc: the identity key every fleet is joined under, created once
+    check: caramelo vpn keygen --check --out "{{ .dir }}/identity.key"
+    cmd: caramelo vpn keygen --out "{{ .dir }}/identity.key"

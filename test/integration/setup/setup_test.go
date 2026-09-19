@@ -25,6 +25,7 @@ import (
 	"github.com/plytz/caramelo/internal/serverconfig"
 	setuppkg "github.com/plytz/caramelo/internal/setup"
 	"github.com/plytz/caramelo/internal/state"
+	taskpkg "github.com/plytz/caramelo/internal/task"
 	"github.com/plytz/caramelo/internal/vpn"
 	"github.com/plytz/caramelo/test/integration/itest"
 )
@@ -969,4 +970,141 @@ func parseCurl(stdout string) (body, code, clientIP string) {
 		code, clientIP = fields[0], fields[1]
 	}
 	return strings.Join(lines[:len(lines)-1], "\n"), code, clientIP
+}
+
+func TestTheTaskRunnerOnAHub(t *testing.T) {
+	_, m := begin(t)
+	t.Log("written while the container and end-to-end tiers are on hold, and not run")
+	if firstRunErr != nil {
+		t.Skip("hub setup failed; what the task runner does on this box proves nothing")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), itest.Scale(5*time.Minute))
+	defer cancel()
+
+	list := m.MustRun(t, itest.CarameloBinary+" task list")
+	if !strings.Contains(list.Stdout, taskCommanderSetup) {
+		t.Errorf("task list does not carry %s:\n%s", taskCommanderSetup, list.Stdout)
+	}
+	if !strings.Contains(list.Stdout, "Name this machine a commander") {
+		t.Errorf("task list says nothing about what %s does:\n%s", taskCommanderSetup, list.Stdout)
+	}
+
+	show := m.MustRun(t, itest.CarameloBinary+" task show "+taskCommanderSetup)
+	if first := strings.SplitN(show.Stdout, "\n", 2)[0]; first != "version: 1" {
+		t.Errorf("task show opens with %q, want the file itself", first)
+	}
+	if strings.Contains(show.Stdout, "\n#") {
+		t.Errorf("the embedded task carries a comment:\n%s", show.Stdout)
+	}
+
+	before := filesUnder(t, m, taskHubDirs(m))
+	res := m.MustRun(t, itest.CarameloBinary+" task run "+taskCommanderSetup+" --dry-run --json")
+	var report taskpkg.Report
+	if err := json.Unmarshal([]byte(strings.TrimSpace(res.Stdout)), &report); err != nil {
+		t.Fatalf("task run --dry-run --json is not a task.Report: %v\nstdout:\n%s", err, res.Stdout)
+	}
+	if !report.DryRun || report.Failed != 0 || report.Changed != 0 {
+		t.Errorf("report = %+v, want a dry run that changed nothing", report)
+	}
+	for _, r := range taskLeaves(report.Results) {
+		if r.Status != taskpkg.StatusOK && r.Status != taskpkg.StatusWouldChange {
+			t.Errorf("item %s reported %q on a dry run", r.Name, r.Status)
+		}
+	}
+	if after := filesUnder(t, m, taskHubDirs(m)); after != before {
+		t.Errorf("a dry run on a hub wrote something:\n--- before ---\n%s\n--- after ---\n%s", before, after)
+	}
+
+	unknown, err := m.Run(ctx, itest.CarameloBinary+" task show nosuchtask")
+	if err != nil {
+		t.Fatalf("task show nosuchtask: %v", err)
+	}
+	if unknown.ExitCode != 2 {
+		t.Errorf("task show nosuchtask: exit %d, want 2", unknown.ExitCode)
+	}
+	if !strings.Contains(unknown.Stderr, taskCommanderSetup) {
+		t.Errorf("task show nosuchtask does not name the tasks there are: %q", unknown.Stderr)
+	}
+}
+
+func TestTheTaskRunnerOnACommander(t *testing.T) {
+	begin(t)
+	t.Log("written while the container and end-to-end tiers are on hold, and not run")
+	if commander == nil {
+		t.Skip("setup suite: this lab has no commander container of its own")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), itest.Scale(10*time.Minute))
+	defer cancel()
+	if err := itest.InstallBinaryOn(ctx, commander); err != nil {
+		t.Fatalf("install the binary on %s: %v", commander.Alias, err)
+	}
+
+	const name = "commander"
+	init, err := commander.Run(ctx, itest.CarameloBinary+" commander init --name "+name+" --json")
+	if err != nil {
+		t.Fatalf("commander init on %s: %v", commander.Alias, err)
+	}
+	if init.ExitCode != 0 {
+		t.Fatalf("commander init on %s: exit %d\nstdout:\n%sstderr:\n%s",
+			commander.Alias, init.ExitCode, init.Stdout, init.Stderr)
+	}
+
+	res, err := commander.Run(ctx, itest.CarameloBinary+" task run "+taskCommanderSetup+" --json")
+	if err != nil {
+		t.Fatalf("task run on %s: %v", commander.Alias, err)
+	}
+	if res.ExitCode != 0 {
+		t.Fatalf("task run on %s: exit %d\nstdout:\n%sstderr:\n%s",
+			commander.Alias, res.ExitCode, res.Stdout, res.Stderr)
+	}
+	var report taskpkg.Report
+	if err := json.Unmarshal([]byte(strings.TrimSpace(res.Stdout)), &report); err != nil {
+		t.Fatalf("task run --json is not a task.Report: %v\nstdout:\n%s", err, res.Stdout)
+	}
+	if report.Changed != 0 || report.Failed != 0 {
+		t.Errorf("the run after commander init reported %+v, want it to change nothing", report)
+	}
+	for _, r := range taskLeaves(report.Results) {
+		if r.Status != taskpkg.StatusOK {
+			t.Errorf("item %s reported %q, want ok on a commander that is already one", r.Name, r.Status)
+		}
+	}
+
+	got := itest.MustContextOn(t, commander, itest.CarameloBinary)
+	if got.Role != place.RoleCommander || got.Name != name {
+		t.Errorf("after the task the box says %q %q, want a commander still called %s", got.Role, got.Name, name)
+	}
+}
+
+const taskCommanderSetup = "commander-setup"
+
+func taskHubDirs(m *itest.Machine) []string {
+	home := itest.HomeOf(m)
+	return []string{home + "/.config", home + "/.cache"}
+}
+
+func filesUnder(t *testing.T, m *itest.Machine, dirs []string) string {
+	t.Helper()
+	res := m.MustRun(t, "find "+strings.Join(quoteAll(dirs), " ")+" 2>/dev/null | sort || true")
+	return res.Stdout
+}
+
+func quoteAll(paths []string) []string {
+	out := make([]string, 0, len(paths))
+	for _, p := range paths {
+		out = append(out, itest.ShellQuote(p))
+	}
+	return out
+}
+
+func taskLeaves(results []taskpkg.Result) []taskpkg.Result {
+	var out []taskpkg.Result
+	for _, r := range results {
+		if r.Block {
+			out = append(out, taskLeaves(r.Results)...)
+			continue
+		}
+		out = append(out, r)
+	}
+	return out
 }

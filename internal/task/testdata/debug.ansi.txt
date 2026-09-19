@@ -1,0 +1,23 @@
+commander-setup  Name this machine a commander and write the files it needs
+  vars  name=laptop  dir=/home/alex/.config/caramelo  CacheDir=/home/alex/.cache  OS=linux
+
+  [1;34mparallel[0m  the config, vpn and cache directories, private to the user
+    config-dir   check  test -d "/home/alex/.config/caramelo" && test "$(stat -c %a ... )" = 700
+                 exit 0  2ms
+    config-dir     [32mok[0m
+    vpn-dir      check  test -d "/home/alex/.config/caramelo/vpn"
+                 exit 0  1ms
+    vpn-dir        [32mok[0m
+    cache-dir    check  test -d "/home/alex/.cache/caramelo"
+                 exit 1  1ms
+    cache-dir    cmd    install -d -m 0700 "/home/alex/.cache/caramelo"
+                 exit 1  6ms
+                 stderr:
+                 install: cannot create directory '/home/alex/.cache/caramelo': Permission denied
+                 install: (parent /home/alex/.cache is owned by root, mode 0755)
+    cache-dir      [31mfailed[0m    cmd exit 1
+  config           not run
+  identity         not run
+
+commander-setup  [32mok=2[0m  [33mchanged=0[0m  [34mskipped=0[0m  [31mfailed=1[0m   0.05s
+report  /home/alex/.cache/caramelo/runs/20260918T203311.412Z.json

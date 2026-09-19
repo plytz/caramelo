@@ -1,0 +1,10 @@
+commander-setup  Name this machine a commander and write the files it needs
+
+  [1;34mparallel[0m  the config, vpn and cache directories, private to the user
+    config-dir     [33mchanged[0m   created, 0700
+    cache-dir      [33mchanged[0m   created, 0700
+    vpn-dir        [33mchanged[0m   created, 0700
+  config           [33mchanged[0m   /home/alex/.config/caramelo/config.yaml written
+  identity         [33mchanged[0m   /home/alex/.config/caramelo/identity.key created
+
+commander-setup  [32mok=0[0m  [33mchanged=5[0m  [34mskipped=0[0m  [31mfailed=0[0m   0.09s

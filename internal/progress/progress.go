@@ -22,6 +22,8 @@ type Event struct {
 
 	Action string `json:"action"`
 
+	Task string `json:"task,omitempty"`
+
 	Step string `json:"step,omitempty"`
 
 	Status string `json:"status"`
@@ -46,12 +48,14 @@ const (
 
 	StatusSkipped = "skipped"
 
+	StatusWouldChange = "would-change"
+
 	StatusWarning = "warning"
 
 	StatusFailed = "failed"
 )
 
-var Statuses = []string{StatusStarted, StatusOK, StatusChanged, StatusSkipped, StatusWarning, StatusFailed}
+var Statuses = []string{StatusStarted, StatusOK, StatusChanged, StatusWouldChange, StatusSkipped, StatusWarning, StatusFailed}
 
 type Format string
 
@@ -170,6 +174,8 @@ func (p *Writer) Write(b []byte) (int, error) {
 }
 
 const ActionMessage = "message"
+
+const ActionTask = "task"
 
 func (p *Writer) now() time.Time {
 	if p != nil && p.Now != nil {

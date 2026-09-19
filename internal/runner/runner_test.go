@@ -355,3 +355,39 @@ func TestSessionEnvUnknownUser(t *testing.T) {
 }
 
 var _ Runner = Exec{}
+
+func TestRunKillsTheWholeProcessGroup(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	res, err := Exec{}.Run(ctx, Cmd{
+		Name: "/bin/sh",
+		Args: []string{"-c", "sh -c 'echo $$ > " + filepath.Join(t.TempDir(), "pid") + "; sleep 30' & wait"},
+	})
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("err = %v, want the deadline", err)
+	}
+	if d := time.Since(start); d > 10*time.Second {
+		t.Fatalf("the run took %v, want the timeout to kill the whole group", d)
+	}
+	if res.ExitCode == 0 {
+		t.Errorf("exit code = %d, want the kill to show", res.ExitCode)
+	}
+}
+
+func TestAKilledGroupLeavesNoGrandchildBehind(t *testing.T) {
+	dir := t.TempDir()
+	marker := filepath.Join(dir, "still-here")
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+	if _, err := (Exec{}).Run(ctx, Cmd{
+		Name: "/bin/sh",
+		Args: []string{"-c", "sh -c 'sleep 1; touch " + marker + "' & wait"},
+	}); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("err = %v, want the deadline", err)
+	}
+	time.Sleep(1500 * time.Millisecond)
+	if _, err := os.Stat(marker); err == nil {
+		t.Errorf("%s was written: a grandchild outlived the kill", marker)
+	}
+}
