@@ -1,6 +1,6 @@
 laptop, commander · fleets home (default), work ·
   no app checkout here → fleet home (commander.default_fleet)
-61 commands are hidden here; 'caramelo manual --role all' lists every command
+59 commands are hidden here; 'caramelo manual --role all' lists every command
 of every role.
 
 COMMANDS
@@ -8,6 +8,8 @@ COMMANDS
       caramelo commander init     Name this machine a commander and write the files it needs
     caramelo context              Say where this CLI is running and what a command typed here would act on
     caramelo fleet                Manage the fleets this commander talks to
+      caramelo fleet add          Record a fleet by name and the ssh address of its hub
+      caramelo fleet list         List the fleets this commander knows
       caramelo fleet setup        Turn this machine into a Caramelo host (run as root)
     caramelo manual               The manual of this machine: every command that holds here, with examples
     caramelo version              Print the caramelo version

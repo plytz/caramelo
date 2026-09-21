@@ -464,8 +464,8 @@ func TestADormantLeafIsRefusedNamingTheSwitch(t *testing.T) {
 		args  []string
 		want  string
 	}{
-		{name: "fleet list on a commander", where: commanderPlace, args: []string{"fleet", "list"},
-			want: "fleet list is not approved on a commander yet; " +
+		{name: "member list on a commander", where: commanderPlace, args: []string{"member", "list"},
+			want: "member list is not approved on a commander yet; " +
 				"set CARAMELO_EXPERIMENTAL=1 to run a dormant command"},
 		{name: "hub status on a hub", where: hubPlace, args: []string{"hub", "status"},
 			want: "hub status is not approved on a hub or a member yet; " +

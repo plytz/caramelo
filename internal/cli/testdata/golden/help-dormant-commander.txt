@@ -33,4 +33,4 @@ Flags:
 
 Use "caramelo [command] --help" for more information about a command.
 
-61 commands are hidden here; 'caramelo manual --role all' lists every command of every role.
+59 commands are hidden here; 'caramelo manual --role all' lists every command of every role.
