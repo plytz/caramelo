@@ -84,7 +84,7 @@ func (s *helpScope) keep(cmd *cobra.Command, c place.Context) bool {
 		return false
 	}
 	if !cmd.HasSubCommands() {
-		if w, ok := whenOf(cmd); ok && !w.ok(c) {
+		if !shownHere(cmd, c) {
 			s.hide(cmd)
 			s.hidden++
 			return false

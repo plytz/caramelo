@@ -190,6 +190,15 @@ page, `--json` a tree carrying the role and the place it was rendered for. Nothi
 it: a release carries the binaries and their checksums, and the manual is whatever the binary in
 front of you prints.
 
+A command is approved or dormant. The tree carries two lists — one for the commands of a commander,
+one for the commands of a hub or a member — naming the commands a person has validated end to end;
+everything else is dormant. A dormant command is compiled and unit-tested like any other, but it is
+left out of `--help` and of the manual of that machine, counted with the rest of what is hidden
+there, and refused in one line with exit 2 when it is typed, naming the switch that lifts it.
+`caramelo manual --role all` lists it all the same, and its own `--help` still prints in full.
+Setting `CARAMELO_EXPERIMENTAL=1` runs the whole tree anyway, for trying a command that is not
+approved yet.
+
 ## Tasks
 
 A task is a list of items in one YAML file, each item a check that says whether the machine is

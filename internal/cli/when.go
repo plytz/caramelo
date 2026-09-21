@@ -2,6 +2,8 @@ package cli
 
 import (
 	"fmt"
+	"os"
+	"slices"
 	"strings"
 	"sync"
 
@@ -110,6 +112,65 @@ func whenOf(cmd *cobra.Command) (when, bool) {
 	return w.(when), true
 }
 
+const experimentalEnv = "CARAMELO_EXPERIMENTAL"
+
+func experimentalIsOn() bool { return os.Getenv(experimentalEnv) != "" }
+
+type approval struct {
+	where string
+	names []string
+}
+
+func (ap approval) covers(name string) bool { return slices.Contains(ap.names, name) }
+
+func approvalFor(c place.Context) (approval, bool) {
+	if cannotSayWhereThisIs(c) {
+		return approval{}, false
+	}
+	switch {
+	case c.IsServer():
+		return approval{where: "a hub or a member", names: approvedOnServer}, true
+	case c.IsFresh(), c.IsCommander():
+		return approval{where: "a commander", names: approvedOnCommander}, true
+	}
+	return approval{}, false
+}
+
+func isMachinery(cmd *cobra.Command) bool {
+	for c := cmd; c != nil && c.HasParent(); c = c.Parent() {
+		if c.Hidden {
+			return true
+		}
+	}
+	return false
+}
+
+func dormantHere(cmd *cobra.Command, c place.Context) (approval, bool) {
+	if experimentalIsOn() || isMachinery(cmd) {
+		return approval{}, false
+	}
+	if _, ok := whenOf(cmd); !ok {
+		return approval{}, false
+	}
+	ap, ok := approvalFor(c)
+	if !ok || ap.covers(leafName(cmd)) {
+		return approval{}, false
+	}
+	return ap, true
+}
+
+func shownHere(cmd *cobra.Command, c place.Context) bool {
+	w, ok := whenOf(cmd)
+	if !ok {
+		return true
+	}
+	if !w.ok(c) {
+		return false
+	}
+	_, dormant := dormantHere(cmd, c)
+	return !dormant
+}
+
 type notHereError struct{ msg string }
 
 func (e *notHereError) Error() string { return e.msg }
@@ -135,10 +196,19 @@ func (a *app) refuseWhereItDoesNotBelong(cmd *cobra.Command) error {
 		return nil
 	}
 	if w.ok(c) {
-		return nil
+		return refuseWhatIsNotApproved(cmd, c)
 	}
 	return &notHereError{fmt.Sprintf("%s runs on %s, and %s; %s",
 		leafName(cmd), w.text, whatThisIs(c), whatToDo(c, w))}
+}
+
+func refuseWhatIsNotApproved(cmd *cobra.Command, c place.Context) error {
+	ap, dormant := dormantHere(cmd, c)
+	if !dormant {
+		return nil
+	}
+	return &notHereError{fmt.Sprintf("%s is not approved on %s yet; set %s=1 to run a dormant command",
+		leafName(cmd), ap.where, experimentalEnv)}
 }
 
 func cannotSayWhereThisIs(c place.Context) bool {

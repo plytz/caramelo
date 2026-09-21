@@ -1,86 +1,86 @@
-COMMAND                 FRESH  COMMANDER  COMMANDER-CHECKOUT  HUB  MEMBER  HOLDS ON
-app list                -      yes        yes                 yes  yes     a commander or a hub or a member
-build                   -      yes        yes                 yes  -       a commander or a hub
-commander init          yes    yes        yes                 -    -       a box with no config at all or a commander
-commander write-config  yes    yes        yes                 -    -       a box with no config at all or a commander
-config show             -      yes        yes                 yes  -       a commander or a hub
-connect                 -      yes        yes                 yes  -       a commander or a hub
-context                 yes    yes        yes                 yes  yes     any machine
-deploy                  -      yes        yes                 yes  -       a commander or a hub
-down                    -      yes        yes                 yes  -       a commander or a hub
-edge ca                 -      yes        yes                 yes  yes     a commander or a hub or a member
-edge counts             -      yes        yes                 yes  yes     a commander or a hub or a member
-edge disable            -      -          -                   yes  yes     (a hub or a member), as root
-edge enable             -      -          -                   yes  yes     (a hub or a member), as root
-edge prune              -      yes        yes                 yes  yes     a commander or a hub or a member
-edge status             -      yes        yes                 yes  yes     a commander or a hub or a member
-env create              -      yes        yes                 yes  -       a commander or a hub
-env destroy             -      yes        yes                 yes  -       a commander or a hub
-env exec                -      yes        yes                 yes  -       a commander or a hub
-env export              -      yes        yes                 yes  -       a commander or a hub
-env expose              -      yes        yes                 yes  -       a commander or a hub
-env handoff             -      yes        yes                 yes  -       a commander or a hub
-env list                -      yes        yes                 yes  -       a commander or a hub
-env show                -      yes        yes                 yes  -       a commander or a hub
-env sync                -      -          -                   yes  yes     a hub or a member
-env unexpose            -      yes        yes                 yes  -       a commander or a hub
-env url                 -      yes        yes                 yes  -       a commander or a hub
-env worktree-status     -      -          -                   yes  yes     a hub or a member
-events                  -      yes        yes                 yes  yes     a commander or a hub or a member
-fleet add               -      yes        yes                 -    -       a commander
-fleet default           -      yes        yes                 -    -       a commander
-fleet list              -      yes        yes                 -    -       a commander
-fleet remove            -      yes        yes                 -    -       a commander
-git-ssh                 -      yes        yes                 -    -       a commander
-hub probe               -      yes        yes                 yes  yes     a commander or a hub or a member
-hub run                 -      -          -                   yes  yes     a hub or a member
-hub setup               yes    yes        yes                 yes  yes     a box with no config at all or a commander or a hub or a member
-hub status              yes    -          -                   yes  yes     anything but a commander
-hub uninstall           yes    -          -                   yes  yes     anything but a commander
-images of               -      -          -                   yes  yes     a hub or a member
-images receive          -      -          -                   yes  yes     a hub or a member
-images record           -      -          -                   yes  yes     a hub or a member
-images send             -      -          -                   yes  yes     a hub or a member
-key add                 -      yes        yes                 yes  -       a commander or a hub
-key list                -      yes        yes                 yes  -       a commander or a hub
-key remove              -      yes        yes                 yes  -       a commander or a hub
-logs                    -      yes        yes                 yes  yes     a commander or a hub or a member
-manual                  yes    yes        yes                 yes  yes     any machine
-member add              -      yes        yes                 yes  -       a commander or a hub
-member announce         -      -          -                   yes  yes     a hub or a member
-member join             -      -          -                   yes  yes     a hub or a member
-member leave            -      -          -                   -    yes     a member
-member list             -      yes        yes                 yes  yes     a commander or a hub or a member
-member redeem           -      -          -                   yes  yes     a hub or a member
-member remove           -      yes        yes                 yes  -       a commander or a hub
-member removed          -      -          -                   yes  yes     a hub or a member
-member show             -      yes        yes                 yes  yes     a commander or a hub or a member
-member token            -      yes        yes                 yes  -       a commander or a hub
-peer add                -      yes        yes                 yes  yes     a commander or a hub or a member
-peer list               -      yes        yes                 yes  yes     a commander or a hub or a member
-peer remove             -      yes        yes                 yes  yes     a commander or a hub or a member
-promote                 -      yes        yes                 yes  -       a commander or a hub
-push-check              -      -          -                   yes  yes     a hub or a member
-releases                -      yes        yes                 yes  yes     a commander or a hub or a member
-rollback                -      yes        yes                 yes  -       a commander or a hub
-run                     -      yes        yes                 yes  -       a commander or a hub
-secrets bundle          -      -          -                   yes  yes     a hub or a member
-secrets export          -      yes        yes                 yes  yes     a commander or a hub or a member
-secrets list            -      yes        yes                 yes  yes     a commander or a hub or a member
-secrets rm              -      yes        yes                 yes  yes     a commander or a hub or a member
-secrets set             -      yes        yes                 yes  yes     a commander or a hub or a member
-status                  -      yes        yes                 yes  yes     a commander or a hub or a member
-task list               yes    yes        yes                 yes  yes     any machine
-task run                yes    yes        yes                 yes  yes     any machine
-task show               yes    yes        yes                 yes  yes     any machine
-test                    -      yes        yes                 yes  -       a commander or a hub
-up                      -      yes        yes                 yes  -       a commander or a hub
-version                 yes    yes        yes                 yes  yes     any machine
-vpn config              -      yes        yes                 -    -       a commander
-vpn down                -      yes        yes                 -    -       a commander
-vpn install             -      yes        yes                 -    -       a commander
-vpn keygen              yes    yes        yes                 -    -       a box with no config at all or a commander
-vpn service             -      yes        yes                 -    -       a commander
-vpn status              -      yes        yes                 -    -       a commander
-vpn uninstall           -      yes        yes                 -    -       a commander
-vpn up                  -      yes        yes                 -    -       a commander
+COMMAND                 APPROVED   FRESH  COMMANDER  COMMANDER-CHECKOUT  HUB  MEMBER  HOLDS ON
+app list                -          -      yes        yes                 yes  yes     a commander or a hub or a member
+build                   -          -      yes        yes                 yes  -       a commander or a hub
+commander init          -          yes    yes        yes                 -    -       a box with no config at all or a commander
+commander write-config  machinery  yes    yes        yes                 -    -       a box with no config at all or a commander
+config show             -          -      yes        yes                 yes  -       a commander or a hub
+connect                 -          -      yes        yes                 yes  -       a commander or a hub
+context                 -          yes    yes        yes                 yes  yes     any machine
+deploy                  -          -      yes        yes                 yes  -       a commander or a hub
+down                    -          -      yes        yes                 yes  -       a commander or a hub
+edge ca                 -          -      yes        yes                 yes  yes     a commander or a hub or a member
+edge counts             -          -      yes        yes                 yes  yes     a commander or a hub or a member
+edge disable            -          -      -          -                   yes  yes     (a hub or a member), as root
+edge enable             -          -      -          -                   yes  yes     (a hub or a member), as root
+edge prune              -          -      yes        yes                 yes  yes     a commander or a hub or a member
+edge status             -          -      yes        yes                 yes  yes     a commander or a hub or a member
+env create              -          -      yes        yes                 yes  -       a commander or a hub
+env destroy             -          -      yes        yes                 yes  -       a commander or a hub
+env exec                -          -      yes        yes                 yes  -       a commander or a hub
+env export              -          -      yes        yes                 yes  -       a commander or a hub
+env expose              -          -      yes        yes                 yes  -       a commander or a hub
+env handoff             -          -      yes        yes                 yes  -       a commander or a hub
+env list                -          -      yes        yes                 yes  -       a commander or a hub
+env show                -          -      yes        yes                 yes  -       a commander or a hub
+env sync                machinery  -      -          -                   yes  yes     a hub or a member
+env unexpose            -          -      yes        yes                 yes  -       a commander or a hub
+env url                 -          -      yes        yes                 yes  -       a commander or a hub
+env worktree-status     machinery  -      -          -                   yes  yes     a hub or a member
+events                  -          -      yes        yes                 yes  yes     a commander or a hub or a member
+fleet add               -          -      yes        yes                 -    -       a commander
+fleet default           -          -      yes        yes                 -    -       a commander
+fleet list              -          -      yes        yes                 -    -       a commander
+fleet remove            -          -      yes        yes                 -    -       a commander
+git-ssh                 machinery  -      yes        yes                 -    -       a commander
+hub probe               -          -      yes        yes                 yes  yes     a commander or a hub or a member
+hub run                 machinery  -      -          -                   yes  yes     a hub or a member
+hub setup               -          yes    yes        yes                 yes  yes     a box with no config at all or a commander or a hub or a member
+hub status              -          yes    -          -                   yes  yes     anything but a commander
+hub uninstall           -          yes    -          -                   yes  yes     anything but a commander
+images of               machinery  -      -          -                   yes  yes     a hub or a member
+images receive          machinery  -      -          -                   yes  yes     a hub or a member
+images record           machinery  -      -          -                   yes  yes     a hub or a member
+images send             machinery  -      -          -                   yes  yes     a hub or a member
+key add                 -          -      yes        yes                 yes  -       a commander or a hub
+key list                -          -      yes        yes                 yes  -       a commander or a hub
+key remove              -          -      yes        yes                 yes  -       a commander or a hub
+logs                    -          -      yes        yes                 yes  yes     a commander or a hub or a member
+manual                  -          yes    yes        yes                 yes  yes     any machine
+member add              -          -      yes        yes                 yes  -       a commander or a hub
+member announce         machinery  -      -          -                   yes  yes     a hub or a member
+member join             -          -      -          -                   yes  yes     a hub or a member
+member leave            -          -      -          -                   -    yes     a member
+member list             -          -      yes        yes                 yes  yes     a commander or a hub or a member
+member redeem           machinery  -      -          -                   yes  yes     a hub or a member
+member remove           -          -      yes        yes                 yes  -       a commander or a hub
+member removed          machinery  -      -          -                   yes  yes     a hub or a member
+member show             -          -      yes        yes                 yes  yes     a commander or a hub or a member
+member token            -          -      yes        yes                 yes  -       a commander or a hub
+peer add                -          -      yes        yes                 yes  yes     a commander or a hub or a member
+peer list               -          -      yes        yes                 yes  yes     a commander or a hub or a member
+peer remove             -          -      yes        yes                 yes  yes     a commander or a hub or a member
+promote                 -          -      yes        yes                 yes  -       a commander or a hub
+push-check              machinery  -      -          -                   yes  yes     a hub or a member
+releases                -          -      yes        yes                 yes  yes     a commander or a hub or a member
+rollback                -          -      yes        yes                 yes  -       a commander or a hub
+run                     -          -      yes        yes                 yes  -       a commander or a hub
+secrets bundle          machinery  -      -          -                   yes  yes     a hub or a member
+secrets export          -          -      yes        yes                 yes  yes     a commander or a hub or a member
+secrets list            -          -      yes        yes                 yes  yes     a commander or a hub or a member
+secrets rm              -          -      yes        yes                 yes  yes     a commander or a hub or a member
+secrets set             -          -      yes        yes                 yes  yes     a commander or a hub or a member
+status                  -          -      yes        yes                 yes  yes     a commander or a hub or a member
+task list               -          yes    yes        yes                 yes  yes     any machine
+task run                -          yes    yes        yes                 yes  yes     any machine
+task show               -          yes    yes        yes                 yes  yes     any machine
+test                    -          -      yes        yes                 yes  -       a commander or a hub
+up                      -          -      yes        yes                 yes  -       a commander or a hub
+version                 -          yes    yes        yes                 yes  yes     any machine
+vpn config              -          -      yes        yes                 -    -       a commander
+vpn down                -          -      yes        yes                 -    -       a commander
+vpn install             -          -      yes        yes                 -    -       a commander
+vpn keygen              machinery  yes    yes        yes                 -    -       a box with no config at all or a commander
+vpn service             machinery  -      yes        yes                 -    -       a commander
+vpn status              -          -      yes        yes                 -    -       a commander
+vpn uninstall           -          -      yes        yes                 -    -       a commander
+vpn up                  -          -      yes        yes                 -    -       a commander
