@@ -595,3 +595,93 @@ func firstLines(s string, n int) string {
 	}
 	return strings.Join(lines, "\n")
 }
+
+func TestTheManualOfThisMachineLeavesOutADormantCommand(t *testing.T) {
+	t.Setenv(experimentalEnv, "")
+	m, s := manualHere(t, place.CanonicalCommander)
+	if paths := manualPaths(m); len(paths) != 0 {
+		t.Errorf("the manual of a commander documents %v although nothing is approved", paths)
+	}
+	want := len(leavesThatAreNotMachinery(t))
+	if s.hidden != want {
+		t.Errorf("the manual left out %d commands, want the %d that are not machinery", s.hidden, want)
+	}
+	if m.note != hiddenHere(want) {
+		t.Errorf("the note = %q, want %q", m.note, hiddenHere(want))
+	}
+}
+
+func TestTheManualOfARoleIsScopedByThatRolesList(t *testing.T) {
+	t.Setenv(experimentalEnv, "")
+	want := len(leavesThatAreNotMachinery(t))
+	for _, role := range manualRoles() {
+		if role == manualRoleAll {
+			continue
+		}
+		t.Run(role, func(t *testing.T) {
+			m, s := manualOfRole(t, role)
+			if paths := manualPaths(m); len(paths) != 0 {
+				t.Errorf("the manual of a canonical %s documents %v although nothing is approved", role, paths)
+			}
+			if s.hidden != want {
+				t.Errorf("the manual of a canonical %s left out %d commands, want the %d that are not machinery",
+					role, s.hidden, want)
+			}
+		})
+	}
+}
+
+func TestRoleAllStillListsADormantCommand(t *testing.T) {
+	t.Setenv(experimentalEnv, "")
+	root := manualRoot(t)
+	all := buildManual(root, everyRoleScope())
+	listed := map[string]bool{}
+	for _, path := range manualPaths(all) {
+		listed[path] = true
+	}
+	for _, path := range []string{"caramelo fleet list", "caramelo vpn up", "caramelo env create",
+		"caramelo commander init", "caramelo context"} {
+		if !listed[path] {
+			t.Errorf("--role all leaves out %q, which is dormant and not gone", path)
+		}
+	}
+	if got, want := len(listed), len(visibleCommands(root)); got != want {
+		t.Errorf("--role all lists %d of the %d commands there are", got, want)
+	}
+}
+
+func TestTheManualNamesTheExperimentalSwitch(t *testing.T) {
+	m, _ := manualOfRole(t, manualRoleAll)
+	if !strings.Contains(renderPlain(m), "\n    "+experimentalEnv+"\n") {
+		t.Errorf("the plain manual's environment table does not carry %s", experimentalEnv)
+	}
+	if !strings.Contains(renderManual(m, false), "| `"+experimentalEnv+"` |") {
+		t.Errorf("the markdown manual's environment table does not carry %s", experimentalEnv)
+	}
+	body, err := json.Marshal(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var back manual
+	if err := json.Unmarshal(body, &back); err != nil {
+		t.Fatal(err)
+	}
+	var found bool
+	for _, e := range back.Environment {
+		if e.Name == experimentalEnv {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("the JSON manual's environment does not carry %s", experimentalEnv)
+	}
+	if !strings.Contains(renderPlain(m), "dormant") {
+		t.Error("nothing in the manual says what a dormant command is")
+	}
+}
+
+func TestGoldenManualOfACommanderWithNothingApproved(t *testing.T) {
+	t.Setenv(experimentalEnv, "")
+	m, _ := manualHere(t, place.CanonicalCommander)
+	checkGolden(t, "manual-dormant-commander", manualOutline(t, renderPlain(m)))
+}

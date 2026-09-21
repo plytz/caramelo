@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"text/tabwriter"
+
+	"github.com/spf13/cobra"
 
 	"github.com/plytz/caramelo/internal/place"
 )
@@ -39,7 +42,7 @@ func availabilityTable(t *testing.T) string {
 	t.Helper()
 	var b bytes.Buffer
 	w := tabwriter.NewWriter(&b, 0, 0, 2, ' ', 0)
-	header := []string{"COMMAND"}
+	header := []string{"COMMAND", "APPROVED"}
 	for _, name := range place.CanonicalNames() {
 		header = append(header, strings.ToUpper(name))
 	}
@@ -51,7 +54,7 @@ func availabilityTable(t *testing.T) string {
 		if !ok {
 			continue
 		}
-		row := []string{leafName(cmd)}
+		row := []string{leafName(cmd), approvedFamilies(cmd)}
 		for _, name := range place.CanonicalNames() {
 			row = append(row, yesOrNo(when.ok(canonicalOf(t, name))))
 		}
@@ -61,6 +64,24 @@ func availabilityTable(t *testing.T) string {
 		t.Fatal(err)
 	}
 	return b.String()
+}
+
+func approvedFamilies(cmd *cobra.Command) string {
+	if isMachinery(cmd) {
+		return "machinery"
+	}
+	name := leafName(cmd)
+	var families []string
+	if slices.Contains(approvedOnCommander, name) {
+		families = append(families, "commander")
+	}
+	if slices.Contains(approvedOnServer, name) {
+		families = append(families, "server")
+	}
+	if len(families) == 0 {
+		return "-"
+	}
+	return strings.Join(families, "+")
 }
 
 func yesOrNo(b bool) string {

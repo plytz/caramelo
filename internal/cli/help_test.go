@@ -7,8 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/spf13/cobra"
-
 	"github.com/plytz/caramelo/internal/place"
 )
 
@@ -178,20 +176,11 @@ func TestAGroupIsHiddenOnceNoChildOfItHolds(t *testing.T) {
 	}
 }
 
-func hasHiddenAncestor(cmd *cobra.Command) bool {
-	for c := cmd; c != nil && c.HasParent(); c = c.Parent() {
-		if c.Hidden {
-			return true
-		}
-	}
-	return false
-}
-
 func hiddenByThePlace(t *testing.T, c place.Context) []string {
 	t.Helper()
 	var names []string
 	for _, cmd := range leaves(conditionalRoot(t)) {
-		if hasHiddenAncestor(cmd) {
+		if isMachinery(cmd) {
 			continue
 		}
 		if w, ok := whenOf(cmd); ok && !w.ok(c) {
@@ -351,4 +340,41 @@ func TestHelpLeavesTheTreeAsItFoundIt(t *testing.T) {
 				before[cmd.CommandPath()])
 		}
 	}
+}
+
+func leavesThatAreNotMachinery(t *testing.T) []string {
+	t.Helper()
+	var names []string
+	for _, cmd := range leaves(conditionalRoot(t)) {
+		if isMachinery(cmd) {
+			continue
+		}
+		if _, ok := whenOf(cmd); !ok {
+			continue
+		}
+		names = append(names, leafName(cmd))
+	}
+	return names
+}
+
+func TestADormantLeafIsLeftOutOfTheListAndCounted(t *testing.T) {
+	t.Setenv(experimentalEnv, "")
+	c := canonicalOf(t, place.CanonicalCommander)
+	out := helpIn(t, c, "")
+	for _, name := range []string{"fleet", "vpn", "env", "deploy", "context"} {
+		if lists(out, name) {
+			t.Errorf("%s is listed on a commander although nothing is approved:\n%s", name, out)
+		}
+	}
+	want := len(leavesThatAreNotMachinery(t))
+	line := strconv.Itoa(want) +
+		" commands are hidden here; 'caramelo manual --role all' lists every command of every role."
+	if !strings.HasSuffix(out, "\n"+line+"\n") {
+		t.Errorf("help does not end with %q:\n%s", line, out)
+	}
+}
+
+func TestGoldenHelpOfACommanderWithNothingApproved(t *testing.T) {
+	t.Setenv(experimentalEnv, "")
+	checkGolden(t, "help-dormant-commander", helpIn(t, canonicalOf(t, place.CanonicalCommander), ""))
 }

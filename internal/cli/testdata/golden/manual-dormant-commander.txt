@@ -1,0 +1,6 @@
+laptop, commander · fleets home (default), work ·
+  no app checkout here → fleet home (commander.default_fleet)
+69 commands are hidden here; 'caramelo manual --role all' lists every command
+of every role.
+
+COMMANDS

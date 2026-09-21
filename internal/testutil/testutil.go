@@ -21,6 +21,7 @@ func Main(m *testing.M) {
 			os.Unsetenv(k)
 		}
 	}
+	os.Setenv("CARAMELO_EXPERIMENTAL", "1")
 	config := filepath.Join(home, ".config")
 	cache := filepath.Join(home, ".cache")
 	os.Setenv("HOME", home)

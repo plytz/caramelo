@@ -1,0 +1,24 @@
+laptop, commander · fleets home (default), work ·
+  no app checkout here → fleet home (commander.default_fleet)
+
+caramelo builds, tests, runs, deploys and operates applications from a single
+caramelo.yaml, on machines it sets up itself: isolated environments for every
+branch, previews on real hostnames, production with gated deploys and one-command
+rollback, and a fleet of machines behaving as one.
+
+It is built for agents first. Every command has --json output, stable exit codes
+and never waits on a terminal, so an agent can drive it from a shell; a person
+types the same commands. 'caramelo manual' is the reference for this machine,
+and 'caramelo manual --role all' for every role there is.
+
+Usage:
+  caramelo [flags]
+
+Flags:
+      --fleet string      fleet to talk to, by its name in the commander config (default: the app's fleet, then the default fleet)
+  -h, --help              help for caramelo
+      --json              print machine-readable JSON on stdout
+      --machine string    raw ssh target to talk to, for a machine that is in no fleet yet: user@host[:port], or 'local'
+      --progress string   how progress is written to stderr: text (default) or json, one event per line
+
+69 commands are hidden here; 'caramelo manual --role all' lists every command of every role.
