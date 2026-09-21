@@ -18,8 +18,8 @@ Usage:
 
 Available Commands:
   context     Say where this CLI is running and what a command typed here would act on
+  fleet       Manage the fleets this commander talks to
   help        Help about any command
-  hub         Commands the machine itself runs: setup, uninstall, status, run
   manual      The manual of this machine: every command that holds here, with examples
   member      Inspect this machine, and the fleet it is part of
   peer        Manage the identities allowed on the machine's network

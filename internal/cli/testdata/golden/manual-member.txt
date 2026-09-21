@@ -15,9 +15,10 @@ COMMANDS
       caramelo edge prune         Remove certificates left behind by an issuer this machine no longer uses
       caramelo edge status        Show the machine's routes, targets and certificates
     caramelo events               Everything the machine does, whoever started it
-    caramelo hub                  Commands the machine itself runs: setup, uninstall, status, run
+    caramelo fleet                Manage the fleets this commander talks to
+      caramelo fleet setup        Turn this machine into a Caramelo host (run as root)
+    caramelo hub                  Commands the machine itself runs: uninstall, status, run
       caramelo hub probe          Ask whether a machine's tunnel port answers from here
-      caramelo hub setup          Turn this machine into a Caramelo host (run as root)
       caramelo hub status         Report what setup installed on this machine and whether it is running
       caramelo hub uninstall      Stop caramelod and undo what setup changed on this machine (run as root)
     caramelo logs                 Show an environment's service logs, merged and prefixed

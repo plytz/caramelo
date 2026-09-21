@@ -215,7 +215,7 @@ func udpBound(port int) bool {
 func writeHubStatus(w io.Writer, st hubStatus) error {
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	if !st.Installed {
-		fmt.Fprintf(tw, "not set up\tno %s (run: sudo caramelo hub setup)\n", st.ConfigFile)
+		fmt.Fprintf(tw, "not set up\tno %s (run: sudo caramelo fleet setup)\n", st.ConfigFile)
 	}
 	fmt.Fprintf(tw, "machine\t%s\n", st.Hostname)
 	fmt.Fprintf(tw, "version\t%s\n", st.Version)

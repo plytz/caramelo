@@ -210,7 +210,7 @@ func TestForwardSocketReportsAMissingSocket(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "no caramelod socket at "+path) {
 		t.Fatalf("error = %v, want it to name the missing socket", err)
 	}
-	if !strings.Contains(err.Error(), "hub setup") || !strings.Contains(err.Error(), "--machine") {
+	if !strings.Contains(err.Error(), "fleet setup") || !strings.Contains(err.Error(), "--machine") {
 		t.Errorf("error = %v, want it to name both fixes", err)
 	}
 }

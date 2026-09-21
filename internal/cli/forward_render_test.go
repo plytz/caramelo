@@ -362,7 +362,7 @@ func TestAnOlderDaemonIsNamedRatherThanGuessedAt(t *testing.T) {
 	if stdout != "" {
 		t.Errorf("stdout = %q, want nothing", stdout)
 	}
-	for _, want := range []string{"older", "--progress", "hub setup --target"} {
+	for _, want := range []string{"older", "--progress", "fleet setup --target"} {
 		if !strings.Contains(stderr, want) {
 			t.Errorf("stderr %q does not mention %q", stderr, want)
 		}

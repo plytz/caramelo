@@ -24,7 +24,7 @@ const (
 
 const EdgeSysctlPath = "/etc/sysctl.d/60-caramelo-edge.conf"
 
-const EdgeSysctlContent = `# Installed by caramelo hub setup --edge.
+const EdgeSysctlContent = `# Installed by caramelo fleet setup --edge.
 # QUIC (HTTP/3) reads and writes in large bursts; the kernel's default 208 KiB
 # cap is far below what quic-go asks for, and it logs a warning on every start
 # until this is raised.
@@ -32,7 +32,7 @@ net.core.rmem_max = 7500000
 net.core.wmem_max = 7500000
 `
 
-const EdgeSocketUnitTemplate = `# Installed by caramelo hub setup --edge.
+const EdgeSocketUnitTemplate = `# Installed by caramelo fleet setup --edge.
 [Unit]
 Description=Caramelo edge sockets (%s)
 Documentation=https://github.com/plytz/caramelo
@@ -51,7 +51,7 @@ TriggerLimitIntervalSec=0
 WantedBy=sockets.target
 `
 
-const EdgeServiceUnitTemplate = `# Installed by caramelo hub setup --edge.
+const EdgeServiceUnitTemplate = `# Installed by caramelo fleet setup --edge.
 [Unit]
 Description=Caramelo edge
 Documentation=https://github.com/plytz/caramelo

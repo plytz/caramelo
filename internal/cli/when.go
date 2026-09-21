@@ -238,7 +238,7 @@ func whatToDo(c place.Context, w when) string {
 		return "run 'caramelo commander init' to name this machine"
 	}
 	if !c.IsServer() && holdsOn(w, place.CanonicalHub) {
-		return "run 'sudo caramelo hub setup' to make this machine a hub"
+		return "run 'sudo caramelo fleet setup' to make this machine a hub"
 	}
 	return "'caramelo context' says where you are"
 }

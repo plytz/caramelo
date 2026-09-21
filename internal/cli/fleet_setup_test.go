@@ -13,7 +13,7 @@ import (
 )
 
 func TestServerSetupIsRegisteredWithItsFlags(t *testing.T) {
-	code, stdout, _ := run(t, "hub", "setup", "--help")
+	code, stdout, _ := run(t, "fleet", "setup", "--help")
 	if code != ExitOK {
 		t.Fatalf("exit code = %d", code)
 	}
@@ -23,14 +23,14 @@ func TestServerSetupIsRegisteredWithItsFlags(t *testing.T) {
 		"--target", "--name", "--binary", "--release",
 	} {
 		if !strings.Contains(stdout, flag) {
-			t.Errorf("hub setup has no %s flag:\n%s", flag, stdout)
+			t.Errorf("fleet setup has no %s flag:\n%s", flag, stdout)
 		}
 	}
 }
 
 func TestServerSetupRefusesWithoutAnAnswer(t *testing.T) {
 
-	code, _, stderr := run(t, "hub", "setup", "--config-dir", t.TempDir())
+	code, _, stderr := run(t, "fleet", "setup", "--config-dir", t.TempDir())
 	if code != ExitError {
 		t.Fatalf("exit code = %d, want %d", code, ExitError)
 	}
@@ -50,7 +50,7 @@ func TestResolveSetupConfigLayersDefaultsFileAndFlags(t *testing.T) {
 	}
 
 	a := &app{}
-	cmd := a.hubSetupCmd()
+	cmd := a.fleetSetupCmd()
 	if err := cmd.Flags().Parse([]string{"--data-dir", "/mnt/big"}); err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +76,7 @@ func TestResolveSetupConfigLayersDefaultsFileAndFlags(t *testing.T) {
 
 func TestResolveSetupConfigRejectsABadPort(t *testing.T) {
 	a := &app{}
-	cmd := a.hubSetupCmd()
+	cmd := a.fleetSetupCmd()
 	if err := cmd.Flags().Parse([]string{"--ssh-port", "99999"}); err != nil {
 		t.Fatal(err)
 	}
@@ -272,7 +272,7 @@ func TestResolveSetupConfigKeepsTheNetworkAMachineAlreadyHas(t *testing.T) {
 	}
 
 	a := &app{}
-	cmd := a.hubSetupCmd()
+	cmd := a.fleetSetupCmd()
 	if err := cmd.Flags().Parse([]string{"--api-listen", "both"}); err != nil {
 		t.Fatal(err)
 	}
@@ -301,7 +301,7 @@ func TestResolveSetupConfigKeepsTheSwapAMachineAlreadyHas(t *testing.T) {
 	}
 
 	a := &app{}
-	cmd := a.hubSetupCmd()
+	cmd := a.fleetSetupCmd()
 	if err := cmd.Flags().Parse([]string{"--api-listen", "both"}); err != nil {
 		t.Fatal(err)
 	}
@@ -353,7 +353,7 @@ func TestParseSwapFlag(t *testing.T) {
 
 func TestSetupRejectsSwapValuesTheMachineCannotHave(t *testing.T) {
 	for _, arg := range []string{"zram", "plenty", "64m"} {
-		code, _, stderr := run(t, "hub", "setup", "--yes", "--swap", arg, "--config-dir", t.TempDir())
+		code, _, stderr := run(t, "fleet", "setup", "--yes", "--swap", arg, "--config-dir", t.TempDir())
 		if code == ExitOK {
 			t.Errorf("--swap %s was accepted", arg)
 		}
@@ -371,7 +371,7 @@ func TestResolveSetupConfigRejectsABadNetwork(t *testing.T) {
 		{"--api-listen", "sometimes"},
 	} {
 		a := &app{}
-		cmd := a.hubSetupCmd()
+		cmd := a.fleetSetupCmd()
 		if err := cmd.Flags().Parse(args); err != nil {
 			t.Fatal(err)
 		}
@@ -393,7 +393,7 @@ func TestResolveSetupConfigRejectsABadNetwork(t *testing.T) {
 
 func TestSetupRefusesAnUnusablePeerBeforeTouchingTheMachine(t *testing.T) {
 	noCommanderConfig(t)
-	code, _, stderr := run(t, "hub", "setup", "--yes", "--peer", "laptop nonsense")
+	code, _, stderr := run(t, "fleet", "setup", "--yes", "--peer", "laptop nonsense")
 	if code != ExitUsage {
 		t.Fatalf("exit = %d, want %d\n%s", code, ExitUsage, stderr)
 	}
@@ -424,9 +424,9 @@ func TestSetupPlanNamesTheNetworkAndThePeer(t *testing.T) {
 
 func TestSetupPeerFlagForms(t *testing.T) {
 	for _, args := range [][]string{
-		{"hub", "setup", "--dry-run", "--peer", "agent-7", testPeerKey},
-		{"hub", "setup", "--dry-run", "--peer", "agent-7 " + testPeerKey},
-		{"hub", "setup", "--dry-run", "--peer", "agent-7=" + testPeerKey},
+		{"fleet", "setup", "--dry-run", "--peer", "agent-7", testPeerKey},
+		{"fleet", "setup", "--dry-run", "--peer", "agent-7 " + testPeerKey},
+		{"fleet", "setup", "--dry-run", "--peer", "agent-7=" + testPeerKey},
 	} {
 		var stdout, stderr bytes.Buffer
 		if code := Run(append(args, "--json"), &stdout, &stderr); code == ExitUsage {
@@ -434,7 +434,7 @@ func TestSetupPeerFlagForms(t *testing.T) {
 		}
 	}
 	var stdout, stderr bytes.Buffer
-	if code := Run([]string{"hub", "setup", "--dry-run", "stray"}, &stdout, &stderr); code != ExitUsage {
+	if code := Run([]string{"fleet", "setup", "--dry-run", "stray"}, &stdout, &stderr); code != ExitUsage {
 		t.Errorf("a stray argument exited %d, want %d", code, ExitUsage)
 	}
 }
@@ -466,7 +466,7 @@ func aMemberConfig(t *testing.T, dir string) serverconfig.Config {
 func TestASecondSetupKeepsTheMemberBlock(t *testing.T) {
 	dir := t.TempDir()
 	existing := aMemberConfig(t, dir)
-	cmd := (&app{}).hubSetupCmd()
+	cmd := (&app{}).fleetSetupCmd()
 	if err := cmd.Flags().Set("data-dir", "/mnt/other"); err != nil {
 		t.Fatal(err)
 	}
@@ -486,7 +486,7 @@ func TestASecondSetupKeepsTheMemberBlock(t *testing.T) {
 func TestSetupRefusesToRenameTheFleetOfAMember(t *testing.T) {
 	dir := t.TempDir()
 	aMemberConfig(t, dir)
-	cmd := (&app{}).hubSetupCmd()
+	cmd := (&app{}).fleetSetupCmd()
 	if err := cmd.Flags().Set("fleet", "work"); err != nil {
 		t.Fatal(err)
 	}
@@ -503,7 +503,7 @@ func TestSetupRefusesToRenameTheFleetOfAMember(t *testing.T) {
 
 func TestSetupNamesTheMachineAndItsFleet(t *testing.T) {
 	dir := t.TempDir()
-	cmd := (&app{}).hubSetupCmd()
+	cmd := (&app{}).fleetSetupCmd()
 	for flag, value := range map[string]string{"name": "box", "fleet": "home"} {
 		if err := cmd.Flags().Set(flag, value); err != nil {
 			t.Fatal(err)
@@ -517,7 +517,7 @@ func TestSetupNamesTheMachineAndItsFleet(t *testing.T) {
 		t.Errorf("config = %q %q %q, want box, hub, home", got.Name, got.Role, got.Hub.Fleet)
 	}
 
-	plain := (&app{}).hubSetupCmd()
+	plain := (&app{}).fleetSetupCmd()
 	if err := plain.Flags().Set("name", "box"); err != nil {
 		t.Fatal(err)
 	}

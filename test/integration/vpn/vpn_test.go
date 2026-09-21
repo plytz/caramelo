@@ -681,7 +681,7 @@ func (s *suite) setAPIListen(t *testing.T, mode string) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), itest.Scale(10*time.Minute))
 	defer cancel()
-	cmd := fmt.Sprintf("sudo -n %s hub setup --yes --json --api-listen %s", itest.CarameloBinary, mode)
+	cmd := fmt.Sprintf("sudo -n %s fleet setup --yes --json --api-listen %s", itest.CarameloBinary, mode)
 	res, err := s.box.Run(ctx, cmd)
 	if err != nil {
 		t.Fatalf("api_listen=%s on %s: %v", mode, s.box.Alias, err)

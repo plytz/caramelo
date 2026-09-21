@@ -10,7 +10,7 @@ func init() {
 	register(func(a *app) *cobra.Command {
 		cmd := &cobra.Command{
 			Use:   "hub",
-			Short: "Commands the machine itself runs: setup, uninstall, status, run",
+			Short: "Commands the machine itself runs: uninstall, status, run",
 			Long: `The hub namespace acts on this machine directly. It is never
 forwarded to a daemon and caramelod refuses it over the SSH API.
 

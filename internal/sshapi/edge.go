@@ -50,7 +50,7 @@ func (d *Daemon) edgeControl() (edge.Client, error) {
 	}
 	if !d.Config.Edge {
 		return nil, errors.New("this machine has no edge: run 'caramelo edge enable' on it " +
-			"(or 'caramelo hub setup --edge')")
+			"(or 'caramelo fleet setup --edge')")
 	}
 	d.edgeClient = edge.NewClient(d.Config.EdgeSocketPath())
 	return d.edgeClient, nil

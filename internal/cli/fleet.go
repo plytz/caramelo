@@ -22,6 +22,10 @@ func init() {
 fleet; a commander knows as many as it has been told about and talks to one at a
 time.
 
+'fleet setup' makes one: it turns a machine into the hub the rest of the fleet
+joins, on the box itself as root or from here over ssh with --target. The other
+commands are about the fleets this commander already knows.
+
 A fleet is recorded here by the ssh address of its hub and by the hub's public
 key, which is the fleet's real identity: the key is pinned the first time this
 commander reaches the fleet, and a hub answering at the same address with another
@@ -33,7 +37,8 @@ in, commander.default_fleet, and the only fleet when there is exactly one. With
 several fleets and none of those, a command refuses rather than guess.`,
 		}
 		asGroup(cmd)
-		cmd.AddCommand(a.fleetListCmd(), a.fleetAddCmd(), a.fleetRemoveCmd(), a.fleetDefaultCmd())
+		cmd.AddCommand(a.fleetSetupCmd(), a.fleetListCmd(), a.fleetAddCmd(),
+			a.fleetRemoveCmd(), a.fleetDefaultCmd())
 		return cmd
 	})
 }
@@ -64,7 +69,7 @@ func fleetsView(fs []fleetView) *ui.View {
 	if len(fs) == 0 {
 		return ui.NewView().Text(
 			"no fleets: record one with `caramelo fleet add NAME user@host`, " +
-				"or set a box up with `caramelo hub setup --target user@host`")
+				"or set a box up with `caramelo fleet setup --target user@host`")
 	}
 	t := ui.NewTable("NAME", "HUB", "KEY", "APPS", "DEFAULT")
 	for _, f := range fs {

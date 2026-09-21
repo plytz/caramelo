@@ -52,7 +52,7 @@ func TestJoinOnABoxWithNoConfigAtAllIsRefusedBeforeItRuns(t *testing.T) {
 	if n := strings.Count(strings.TrimSpace(stderr), "\n"); n != 0 {
 		t.Errorf("stderr = %q, want the refusal alone on one line", stderr)
 	}
-	for _, want := range []string{"a hub or a member", "caramelo hub setup"} {
+	for _, want := range []string{"a hub or a member", "caramelo fleet setup"} {
 		if !strings.Contains(stderr, want) {
 			t.Errorf("stderr = %q, want it to name %q", stderr, want)
 		}
@@ -67,7 +67,7 @@ func TestJoinRefusalOnAServerLeadsWithALineThatStandsAlone(t *testing.T) {
 	_, token := aJoinTicket(t)
 	_, _, stderr := run(t, "member", "join", "hub.example.com:4021", "--token", token, "--config-dir", configDir)
 	first := strings.SplitN(strings.TrimSpace(stderr), "\n", 2)[0]
-	for _, want := range []string{"has not been set up", "caramelo hub setup"} {
+	for _, want := range []string{"has not been set up", "caramelo fleet setup"} {
 		if !strings.Contains(first, want) {
 			t.Errorf("first line = %q, want it alone to say %q", first, want)
 		}
@@ -91,8 +91,8 @@ func TestJoinPreflightOnANeverSetUpMachineListsEveryPreconditionInSetupOrder(t *
 		if !strings.Contains(pre.missing[i], want) {
 			t.Errorf("missing[%d] = %q, want it to name setup's %q step", i, pre.missing[i], want)
 		}
-		if !strings.Contains(pre.missing[i], "caramelo hub setup") {
-			t.Errorf("missing[%d] = %q, want it to name `caramelo hub setup`", i, pre.missing[i])
+		if !strings.Contains(pre.missing[i], "caramelo fleet setup") {
+			t.Errorf("missing[%d] = %q, want it to name `caramelo fleet setup`", i, pre.missing[i])
 		}
 	}
 	if !strings.Contains(pre.missing[0], cfg.User) {
@@ -106,8 +106,8 @@ func TestJoinPreflightOnANeverSetUpMachineListsEveryPreconditionInSetupOrder(t *
 	}
 	if err := pre.err(); err == nil {
 		t.Fatal("a machine missing all four preconditions passed the preflight")
-	} else if first := strings.SplitN(err.Error(), "\n", 2)[0]; !strings.Contains(first, "sudo caramelo hub setup") {
-		t.Errorf("first line = %q, want it to name `sudo caramelo hub setup`", first)
+	} else if first := strings.SplitN(err.Error(), "\n", 2)[0]; !strings.Contains(first, "sudo caramelo fleet setup") {
+		t.Errorf("first line = %q, want it to name `sudo caramelo fleet setup`", first)
 	}
 }
 
@@ -122,7 +122,7 @@ func TestJoinOnAMachineWithAConfigAndNoKeyNamesTheKey(t *testing.T) {
 	if stdout != "" {
 		t.Errorf("stdout = %q, want empty", stdout)
 	}
-	for _, want := range []string{cfg.VPNKeyPath(), "caramelo hub setup"} {
+	for _, want := range []string{cfg.VPNKeyPath(), "caramelo fleet setup"} {
 		if !strings.Contains(stderr, want) {
 			t.Errorf("stderr = %q, want it to name %q", stderr, want)
 		}
@@ -210,7 +210,7 @@ func TestJoinHelpSaysItRunsAfterServerSetup(t *testing.T) {
 		t.Fatal(err)
 	}
 	help := cmd.Short + "\n" + cmd.Long
-	for _, want := range []string{"caramelo hub setup", "caramelo member add"} {
+	for _, want := range []string{"caramelo fleet setup", "caramelo member add"} {
 		if !strings.Contains(help, want) {
 			t.Errorf("the help of %q does not name %q", cmd.CommandPath(), want)
 		}

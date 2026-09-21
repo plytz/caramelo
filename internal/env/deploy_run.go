@@ -793,7 +793,7 @@ func releaseName(rel *release.Release) string {
 
 func errNoBuilder() error {
 	return errors.New("this machine cannot build releases: caramelod has no builder " +
-		"(run `caramelo hub setup` again to upgrade it)")
+		"(run `caramelo fleet setup` again to upgrade it)")
 }
 
 func errNoEdgeForDeploy() error {

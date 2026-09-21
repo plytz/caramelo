@@ -235,7 +235,7 @@ func unitContent(env *Env) string {
 	if env.ConfigDir != "" && env.ConfigDir != serverconfig.DefaultConfigDir {
 		execStart += " --config-dir " + env.ConfigDir
 	}
-	return "# Installed by caramelo hub setup.\n" +
+	return "# Installed by caramelo fleet setup.\n" +
 		"[Unit]\n" +
 		"Description=Caramelo control plane\n" +
 		"Documentation=https://github.com/plytz/caramelo\n" +

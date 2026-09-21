@@ -265,12 +265,12 @@ func TestAMemberJoinsItselfWithAToken(t *testing.T) {
 	}
 	unprepared := machineJoinOn(t, box, endpoint, throwaway.Token, name+"-unprepared")
 	if unprepared.ExitCode == 0 {
-		t.Fatalf("a join on %s, which never ran hub setup, succeeded:\nstdout:\n%sstderr:\n%s",
+		t.Fatalf("a join on %s, which never ran fleet setup, succeeded:\nstdout:\n%sstderr:\n%s",
 			box.Alias, unprepared.Stdout, unprepared.Stderr)
 	}
 	said := unprepared.Stdout + unprepared.Stderr
-	if !strings.Contains(said, "hub setup") {
-		t.Errorf("the refusal on an unprepared machine does not name hub setup:\n%s", said)
+	if !strings.Contains(said, "fleet setup") {
+		t.Errorf("the refusal on an unprepared machine does not name fleet setup:\n%s", said)
 	}
 	if strings.Contains(said, "no such file") {
 		t.Errorf("the refusal on an unprepared machine names a missing file instead of the step that makes it:\n%s", said)

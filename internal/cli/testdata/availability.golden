@@ -27,14 +27,14 @@ env unexpose            -                 -      yes        yes                 
 env url                 -                 -      yes        yes                 yes  -       a commander or a hub
 env worktree-status     machinery         -      -          -                   yes  yes     a hub or a member
 events                  -                 -      yes        yes                 yes  yes     a commander or a hub or a member
-fleet add               -                 -      yes        yes                 -    -       a commander
+fleet add               commander         -      yes        yes                 -    -       a commander
 fleet default           -                 -      yes        yes                 -    -       a commander
-fleet list              -                 -      yes        yes                 -    -       a commander
+fleet list              commander         -      yes        yes                 -    -       a commander
 fleet remove            -                 -      yes        yes                 -    -       a commander
+fleet setup             commander+server  yes    yes        yes                 yes  yes     a box with no config at all or a commander or a hub or a member
 git-ssh                 machinery         -      yes        yes                 -    -       a commander
 hub probe               -                 -      yes        yes                 yes  yes     a commander or a hub or a member
 hub run                 machinery         -      -          -                   yes  yes     a hub or a member
-hub setup               commander+server  yes    yes        yes                 yes  yes     a box with no config at all or a commander or a hub or a member
 hub status              -                 yes    -          -                   yes  yes     anything but a commander
 hub uninstall           -                 yes    -          -                   yes  yes     anything but a commander
 images of               machinery         -      -          -                   yes  yes     a hub or a member

@@ -77,8 +77,8 @@ block that holds the machines it talks to — the identity key every fleet is jo
 hostname. It asks nothing and needs no terminal, `--json` reports what it wrote and the values it
 chose, running it again changes nothing and says so, and `--name` alone renames. The config is the
 user's and not root's: under `sudo`, on a machine that is not a server yet, caramelo reads the
-invoking user's config, so `sudo caramelo hub setup` on an initialized commander is the normal way
-to turn it into a hub. The two commands that set up another machine from this one, `caramelo hub
+invoking user's config, so `sudo caramelo fleet setup` on an initialized commander is the normal way
+to turn it into a hub. The two commands that set up another machine from this one, `caramelo fleet
 setup --target` and `caramelo member add`, refuse to run from a box that is not a commander yet and
 name `caramelo commander init`.
 
@@ -99,7 +99,7 @@ member carries `member:` with the `fleet` it joined, its `subnet`, whether it is
 which is what proves the box that answers is the one that was joined. The fleet and the hub are named
 apart on purpose: a member calls its hub by the name the hub answers to, so one machine has one name
 everywhere in the fleet. A server belongs to one fleet and the file cannot say two:
-`caramelo hub setup --name NAME --fleet FLEET` writes the hub side, `caramelo member join` copies
+`caramelo fleet setup --name NAME --fleet FLEET` writes the hub side, `caramelo member join` copies
 the fleet's name and the hub's from the hub, and `caramelo member leave` takes the member block away
 again.
 `CARAMELO_CONFIG_DIR` moves that file and everything derived from it, and is the default of every
@@ -126,11 +126,12 @@ the tunnel to a fleet is one record, `vpn/<fleet>.json`, under the commander's c
 **fleet.** The set of machines that behave as one: a hub and its members. Other tools call this a
 cluster; caramelo does not use that word.
 
-The CLI is named after them. `caramelo hub setup|status|uninstall|probe` is what a machine runs
+The CLI is named after them. `caramelo hub status|uninstall|probe` is what a machine runs
 about itself, and every machine starts as a hub of one, so a member types them too.
 `caramelo member add|token|join|leave|list|show|remove` is the fleet's group: how a box becomes a
-member and what the fleet says about itself. `caramelo fleet list|add|remove|default` is the
-commander's own: which fleets it knows and which one it talks to.
+member and what the fleet says about itself. `caramelo fleet setup|list|add|remove|default` is the
+fleet's own: `setup` makes one by turning a machine into its hub, and the rest are which fleets this
+commander knows and which one it talks to.
 
 Four words that appear all over the code and are **not** roles. **client** keeps its ordinary
 protocol and library meaning — an ssh client, an HTTP client, a TLS client config, a browser, curl,
@@ -174,8 +175,8 @@ first on a box that puzzles you.
 
 `--help` is scoped to that same place. It opens with the header `caramelo context` opens with, then
 lists only the commands that hold where you are: a command whose condition fails is left out, and a
-group no child of which holds goes with them, so `caramelo --help` on a member has no `env`, `vpn`
-or `fleet` in it and `caramelo hub --help` on a commander offers `setup` and `probe` and not `run`.
+group no child of which holds goes with them, so `caramelo --help` on a member has no `env` or
+`vpn` in it and `caramelo hub --help` on a commander offers `probe` and not `run`.
 The line after the list says how many commands are hidden and that `caramelo manual --role all`
 lists every command of every role. Help has no role flag: it answers for the machine it runs on. The
 help of a single command always prints in full, whether or not that command holds here, so
@@ -224,7 +225,7 @@ Docker is required. The integration tests run caramelo inside containers that st
 machines, so they need a Linux container host with cgroup v2, privileged containers, and
 `br_netfilter` available in the host kernel, either built in (as in Docker Desktop's VM) or loaded
 as a module (`sudo modprobe br_netfilter` on a Linux host that has not loaded it). A container
-shares the host kernel and cannot load a module for it, so a machine's `hub setup` needs the host
+shares the host kernel and cannot load a module for it, so a machine's `fleet setup` needs the host
 to have it; the suites check it once the first container is up and stop there if it is missing.
 `make check` is everything that must pass before a commit and touches no container. `make
 integration` runs the whole integration tier, `SUITE=` narrows it to one suite, and `make
@@ -255,7 +256,7 @@ user you log in as, and it must be reachable at the address you write in the inv
 machine running the tests and from the other boxes. The fleet suites join machines to each other
 over exactly that address.
 
-`caramelo hub setup` reads that box's own firewall before it installs anything and stops when it
+`caramelo fleet setup` reads that box's own firewall before it installs anything and stops when it
 denies UDP 4021, the one port a machine needs, printing the rule that would open it (`--force` to
 continue anyway, `--open-ports` to let setup add the rule itself). It never changes a firewall
 otherwise, and a local reading only ever says this machine is not the one blocking a port: a
@@ -269,7 +270,7 @@ owned by root, activated by a systemd swap unit and read at every boot, with `vm
 10 in `/etc/sysctl.d/80-caramelo-swap.conf`. `--swap 8G` asks for another size and `--swap off` for
 none: on a machine caramelo had already given swap, `--swap off` takes the swapfile, its unit and the
 sysctl drop-in away again, so a box on a network-backed disk can be put back the way it was without
-uninstalling. The value is kept in `config.yaml`, so a later `hub setup` with no `--swap` leaves
+uninstalling. The value is kept in `config.yaml`, so a later `fleet setup` with no `--swap` leaves
 what the machine already has. A machine that already swaps is left exactly as it is, and setup says
 what it found. Setup refuses, rather than risk the machine, on btrfs and ZFS, on flash storage such as an SD
 card, and when the disk has no room for the swapfile and 5 GiB of headroom: each refusal skips the

@@ -19,11 +19,7 @@ import (
 	dockersetup "github.com/plytz/caramelo/internal/setup/docker"
 )
 
-func init() {
-	registerHub(func(a *app) *cobra.Command { return a.hubSetupCmd() })
-}
-
-func (a *app) hubSetupCmd() *cobra.Command {
+func (a *app) fleetSetupCmd() *cobra.Command {
 	var (
 		configDir     string
 		opts          setup.Options
@@ -336,7 +332,7 @@ func setupPlan(env *setup.Env) string {
 		packages = "none (--no-packages)"
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "caramelo hub setup will change this machine:\n")
+	fmt.Fprintf(&b, "caramelo fleet setup will change this machine:\n")
 	fmt.Fprintf(&b, "  config    %s\n", env.ConfigDir)
 	fmt.Fprintf(&b, "  state     %s (home of the %s user)\n", cfg.StateDir, cfg.User)
 	fmt.Fprintf(&b, "  data      %s (apps and Docker images)\n", cfg.DataDir)

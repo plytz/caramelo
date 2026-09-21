@@ -18,7 +18,7 @@ func SetupMemberForJoin(m *Machine, private bool) error { return provision(m, pr
 
 func MemberSetupCommandFor(home string) string {
 	return fmt.Sprintf(
-		"sudo %s hub setup --yes --json --authorized-keys %s/.ssh/authorized_keys "+
+		"sudo %s fleet setup --yes --json --authorized-keys %s/.ssh/authorized_keys "+
 			"--private --acme-ca %s --acme-email %s",
 		RemoteBin, home, ACMEDirectory, ACMEEmail)
 }
@@ -52,15 +52,15 @@ func provision(m *Machine, private bool) error {
 	}
 	res, err := m.Run(ctx, cmd)
 	if err != nil {
-		return fmt.Errorf("hub setup on %s: %w", m.Alias, err)
+		return fmt.Errorf("fleet setup on %s: %w", m.Alias, err)
 	}
 	var report setup.Report
 	if err := json.Unmarshal([]byte(strings.TrimSpace(res.Stdout)), &report); err != nil {
-		return fmt.Errorf("hub setup on %s: exit %d, stdout is not a report: %w\nstdout:\n%s\nstderr:\n%s",
+		return fmt.Errorf("fleet setup on %s: exit %d, stdout is not a report: %w\nstdout:\n%s\nstderr:\n%s",
 			m.Alias, res.ExitCode, err, res.Stdout, res.Stderr)
 	}
 	if res.ExitCode != 0 || report.Failed != 0 {
-		return fmt.Errorf("hub setup on %s: exit %d, %d step(s) failed\n%s",
+		return fmt.Errorf("fleet setup on %s: exit %d, %d step(s) failed\n%s",
 			m.Alias, res.ExitCode, report.Failed, res.Stdout)
 	}
 	if private {

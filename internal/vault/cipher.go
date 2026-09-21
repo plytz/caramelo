@@ -58,7 +58,7 @@ func LoadKey(path string) ([]byte, error) {
 	switch {
 	case errors.Is(err, fs.ErrNotExist):
 		return nil, fmt.Errorf("no vault key at %s "+
-			"(run `caramelo hub setup` again to create it): %w", path, ErrNoKey)
+			"(run `caramelo fleet setup` again to create it): %w", path, ErrNoKey)
 	case err != nil:
 		return nil, fmt.Errorf("read the vault key at %s: %w", path, err)
 	}
@@ -85,7 +85,7 @@ func decodeKey(path, content string) ([]byte, error) {
 	key, err := base64.StdEncoding.DecodeString(strings.TrimSpace(content))
 	if err != nil {
 		return nil, fmt.Errorf("the vault key at %s is not base64 "+
-			"(it is written by `caramelo hub setup`; do not edit it): %w", path, ErrNoKey)
+			"(it is written by `caramelo fleet setup`; do not edit it): %w", path, ErrNoKey)
 	}
 	if len(key) != KeySize {
 		return nil, fmt.Errorf("the vault key at %s is %d bytes, want %d: %w",

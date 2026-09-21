@@ -304,6 +304,14 @@ func refusedOverAPI(args []string) (why string, refused bool) {
 		return "hub commands are not available over the API", true
 	case "commander":
 		return "commander commands are not available over the API: a commander is the machine a person types on", true
+	case "fleet":
+		for _, a := range rest {
+			if a == "setup" {
+				return "fleet setup is not available over the API: it changes the machine it runs on, " +
+					"and is typed on the box itself as root or from a commander with --target", true
+			}
+		}
+		return "", false
 	case "edge":
 
 		for _, a := range rest {

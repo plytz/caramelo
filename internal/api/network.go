@@ -357,7 +357,7 @@ func (n *Network) disabledReason() string {
 	if n != nil && n.Disabled != "" {
 		return n.Disabled
 	}
-	return "re-run 'caramelo hub setup' on it to add one"
+	return "re-run 'caramelo fleet setup' on it to add one"
 }
 
 func (n *Network) now() time.Time {

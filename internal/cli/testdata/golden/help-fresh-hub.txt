@@ -11,14 +11,12 @@ Usage:
   caramelo hub [command]
 
 Examples:
-  caramelo hub setup --target you@box
   caramelo hub status
   caramelo hub probe box
   sudo caramelo hub uninstall --yes
 
 
 Available Commands:
-  setup       Turn this machine into a Caramelo host (run as root)
   status      Report what setup installed on this machine and whether it is running
   uninstall   Stop caramelod and undo what setup changed on this machine (run as root)
 

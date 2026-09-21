@@ -18,8 +18,8 @@ Usage:
 Available Commands:
   commander   The machine you type on: name it and write the files it needs
   context     Say where this CLI is running and what a command typed here would act on
+  fleet       Manage the fleets this commander talks to
   help        Help about any command
-  hub         Commands the machine itself runs: setup, uninstall, status, run
   manual      The manual of this machine: every command that holds here, with examples
   version     Print the caramelo version
   vpn         Join a machine's private network
@@ -33,4 +33,4 @@ Flags:
 
 Use "caramelo [command] --help" for more information about a command.
 
-61 commands are hidden here; 'caramelo manual --role all' lists every command of every role.
+59 commands are hidden here; 'caramelo manual --role all' lists every command of every role.

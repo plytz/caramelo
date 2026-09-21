@@ -22,7 +22,7 @@ import (
 func (d *Daemon) vaultStore() (vault.Store, error) {
 	if d.Vault == nil {
 		return nil, errors.New("this machine has no vault: nothing can hold a secret " +
-			"(run `caramelo hub setup` again to create the vault key)")
+			"(run `caramelo fleet setup` again to create the vault key)")
 	}
 	return d.Vault, nil
 }

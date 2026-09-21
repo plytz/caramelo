@@ -36,7 +36,7 @@ func (a *app) memberAddCmd() *cobra.Command {
 		Short: "Set a box up and join it to this fleet",
 		Long: `add turns a box into a Caramelo machine and joins it to the hub in one
 command: it ships a binary for the target's own architecture over ssh, runs
-'caramelo hub setup' there as root, takes a one-time join token from the hub
+'caramelo fleet setup' there as root, takes a one-time join token from the hub
 and redeems it, and returns once the machine answers in 'caramelo member list'.
 
 TARGET is an ssh destination the commander can reach (you@box.example.com).
@@ -142,7 +142,7 @@ HUB is the hub's endpoint — a hostname, optionally with the UDP port. Run it o
 the machine that is joining, as root, with a token from 'caramelo member token'
 on the hub.
 
-'caramelo hub setup' runs first on that machine and makes what join needs:
+'caramelo fleet setup' runs first on that machine and makes what join needs:
 the configuration, the caramelo user, rootless Docker and the machine's key.
 From the commander, 'caramelo member add' does both halves in one go.
 

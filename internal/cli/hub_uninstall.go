@@ -167,7 +167,7 @@ func (u *uninstaller) run(ctx context.Context) uninstallReport {
 	}
 	u.do(ctx, "daemon-reload", "systemd reloaded", runner.Cmd{Name: "systemctl", Args: []string{"daemon-reload"}})
 	u.skip("firewall", fmt.Sprintf(
-		"a rule for udp %d may have been added by 'hub setup --open-ports'; it is left in place — "+
+		"a rule for udp %d may have been added by 'fleet setup --open-ports'; it is left in place — "+
 			"remove it with 'ufw delete allow %d/udp' if you want it gone",
 		firewall.VPNPort(u.cfg.VPNListen), firewall.VPNPort(u.cfg.VPNListen)))
 
