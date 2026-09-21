@@ -78,7 +78,7 @@ func TestM8StubFlags(t *testing.T) {
 		{[]string{"env", "list"}, "mine"},
 		{[]string{"env", "list"}, "all"},
 
-		{[]string{"hub", "setup"}, "binary"},
+		{[]string{"fleet", "setup"}, "binary"},
 	} {
 		cmd, _, err := root.Find(tc.path)
 		if err != nil {

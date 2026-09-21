@@ -73,7 +73,7 @@ func (a *app) runMachineJoin(ctx context.Context, configDir, hub, token, name st
 	key, err := vpn.ReadPrivateKey(cfg.VPNKeyPath())
 	if err != nil {
 		return fmt.Errorf("read this machine's WireGuard key at %s: %w "+
-			"(has `caramelo hub setup` run here?)", cfg.VPNKeyPath(), err)
+			"(has `caramelo fleet setup` run here?)", cfg.VPNKeyPath(), err)
 	}
 	pub, err := key.Public()
 	if err != nil {

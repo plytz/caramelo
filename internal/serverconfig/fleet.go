@@ -209,7 +209,7 @@ func validateHubBlock(c Config) []error {
 	switch f := strings.TrimSpace(c.Hub.Fleet); {
 	case f == "":
 		errs = append(errs, fmt.Errorf(
-			"hub.fleet must name the fleet this machine hubs: `caramelo hub setup --fleet NAME` sets it"))
+			"hub.fleet must name the fleet this machine hubs: `caramelo fleet setup --fleet NAME` sets it"))
 	case !isSlug(f):
 		errs = append(errs, fmt.Errorf(
 			"hub.fleet %q: a fleet's name is a slug — lowercase letters, digits and dashes", f))

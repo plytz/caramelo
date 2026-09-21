@@ -358,7 +358,7 @@ func TestSSHRefusesServerCommands(t *testing.T) {
 	}
 	defer func() { _ = client.Close() }()
 
-	for _, args := range [][]string{{"hub", "setup"}, {"caramelo", "hub", "run"}} {
+	for _, args := range [][]string{{"fleet", "setup"}, {"caramelo", "hub", "run"}} {
 		code, stdout, stderr := run(t, client, args...)
 		if code != cli.ExitUsage {
 			t.Errorf("%v exit = %d, want %d", args, code, cli.ExitUsage)
@@ -370,8 +370,8 @@ func TestSSHRefusesServerCommands(t *testing.T) {
 			t.Errorf("%v stdout = %q, want empty", args, stdout)
 		}
 	}
-	if got := h.commands.last(); got != nil && len(got) > 0 && got[0] == "hub" {
-		t.Errorf("a hub command reached the CLI: %v", got)
+	if got := h.commands.last(); len(got) > 0 && (got[0] == "hub" || got[0] == "fleet") {
+		t.Errorf("a refused command reached the CLI: %v", got)
 	}
 }
 
@@ -564,8 +564,8 @@ func TestRealSSHClient(t *testing.T) {
 	if code, _, _ := runSSH("nope"); code != cli.ExitUsage {
 		t.Errorf("unknown command exit = %d, want %d", code, cli.ExitUsage)
 	}
-	if code, _, stderr := runSSH("hub", "setup"); code != cli.ExitUsage || !strings.Contains(stderr, "not available over the API") {
-		t.Errorf("hub setup: exit %d, stderr %q", code, stderr)
+	if code, _, stderr := runSSH("fleet", "setup"); code != cli.ExitUsage || !strings.Contains(stderr, "not available over the API") {
+		t.Errorf("fleet setup: exit %d, stderr %q", code, stderr)
 	}
 
 	want := []string{"version", "a b", "it's"}

@@ -324,7 +324,7 @@ func (a *app) edgeEnableCmd() *cobra.Command {
 		Use:   "enable",
 		Short: "Turn the edge on for this machine (run as root)",
 		Long: `Installs the socket and service units, creates the storage directories and
-writes the edge keys into config.yaml — exactly what 'caramelo hub setup
+writes the edge keys into config.yaml — exactly what 'caramelo fleet setup
 --edge' does, on a machine that was set up without it.
 
 Ports 80, 443/tcp and 443/udp have to be reachable; Caramelo never touches a
@@ -387,7 +387,7 @@ Certificates, the route table and every environment stay exactly as they are:
 func loadEdgeConfig(configDir string) (serverconfig.Config, error) {
 	if !serverconfig.Exists(configDir) {
 		return serverconfig.Config{}, fmt.Errorf(
-			"%s is not a Caramelo machine (no %s): run 'caramelo hub setup --edge' instead",
+			"%s is not a Caramelo machine (no %s): run 'caramelo fleet setup --edge' instead",
 			configDir, serverconfig.ConfigFile)
 	}
 	cfg, err := serverconfig.Load(configDir)

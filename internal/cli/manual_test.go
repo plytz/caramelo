@@ -259,11 +259,11 @@ func TestTheManualIsTheManualOfThePlaceItRunsIn(t *testing.T) {
 		absent []string
 	}{
 		{name: "fresh", where: freshPlace, header: "fresh box: no config",
-			lists: []string{"caramelo commander init", "caramelo context", "caramelo hub setup", "caramelo manual"},
+			lists: []string{"caramelo commander init", "caramelo context", "caramelo fleet setup", "caramelo manual"},
 			absent: []string{"caramelo deploy", "caramelo env create", "caramelo vpn up", "caramelo fleet list",
 				"caramelo member join"}},
 		{name: "commander", where: commanderPlace, header: "laptop, commander",
-			lists:  []string{"caramelo deploy", "caramelo vpn up", "caramelo fleet list", "caramelo hub setup"},
+			lists:  []string{"caramelo deploy", "caramelo vpn up", "caramelo fleet list", "caramelo fleet setup"},
 			absent: []string{"caramelo hub uninstall", "caramelo member join", "caramelo member leave"}},
 		{name: "hub", where: hubPlace, header: "box, hub of fleet home",
 			lists:  []string{"caramelo hub status", "caramelo member add", "caramelo env create"},

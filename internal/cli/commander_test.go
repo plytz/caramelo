@@ -195,7 +195,7 @@ func TestCommanderInitRefusesANameThatIsNoName(t *testing.T) {
 
 func TestTheCommandsThatSetUpAnotherMachineNeedACommander(t *testing.T) {
 	for _, args := range [][]string{
-		{"hub", "setup", "--target", "admin@box.example", "--yes"},
+		{"fleet", "setup", "--target", "admin@box.example", "--yes"},
 		{"member", "add", "admin@box.example"},
 	} {
 		t.Run(strings.Join(args, " "), func(t *testing.T) {
@@ -211,7 +211,7 @@ func TestTheCommandsThatSetUpAnotherMachineNeedACommander(t *testing.T) {
 	}
 }
 
-func TestHubSetupTakesItsNameFromTheCommanderConfig(t *testing.T) {
+func TestFleetSetupTakesItsNameFromTheCommanderConfig(t *testing.T) {
 	freshBox(t)
 	if code, _, stderr := run(t, "commander", "init", "--name", "laptop"); code != ExitOK {
 		t.Fatalf("commander init: exit %d: %s", code, stderr)
@@ -240,7 +240,7 @@ func TestWithoutACommanderTheMachineIsNamedAfterItsHost(t *testing.T) {
 	}
 }
 
-func TestABrokenCommanderConfigStopsHubSetup(t *testing.T) {
+func TestABrokenCommanderConfigStopsFleetSetup(t *testing.T) {
 	freshBox(t)
 	path, err := remote.CommanderConfigPath()
 	if err != nil {
@@ -252,9 +252,9 @@ func TestABrokenCommanderConfigStopsHubSetup(t *testing.T) {
 	if err := os.WriteFile(path, []byte("machines:\n  box: alex@box:4022\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	code, _, stderr := run(t, "hub", "setup", "--yes")
+	code, _, stderr := run(t, "fleet", "setup", "--yes")
 	if code == ExitOK {
-		t.Fatal("hub setup ran with a commander config it could not read")
+		t.Fatal("fleet setup ran with a commander config it could not read")
 	}
 	for _, want := range []string{"machines", "retired", "fleets"} {
 		if !strings.Contains(stderr, want) {

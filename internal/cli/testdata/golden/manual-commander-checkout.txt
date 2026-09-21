@@ -37,9 +37,9 @@ COMMANDS
       caramelo fleet default      Make a fleet the one commands talk to when nothing says otherwise
       caramelo fleet list         List the fleets this commander knows
       caramelo fleet remove       Forget a fleet
-    caramelo hub                  Commands the machine itself runs: setup, uninstall, status, run
+      caramelo fleet setup        Turn this machine into a Caramelo host (run as root)
+    caramelo hub                  Commands the machine itself runs: uninstall, status, run
       caramelo hub probe          Ask whether a machine's tunnel port answers from here
-      caramelo hub setup          Turn this machine into a Caramelo host (run as root)
     caramelo key                  Manage the SSH keys allowed to use the API
       caramelo key add            Authorize a public key, read from a file or standard input
       caramelo key list           List the authorized keys

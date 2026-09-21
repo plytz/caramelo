@@ -20,8 +20,9 @@ Available Commands:
   context     Say where this CLI is running and what a command typed here would act on
   edge        The machine's public edge: routes, certificates, targets
   events      Everything the machine does, whoever started it
+  fleet       Manage the fleets this commander talks to
   help        Help about any command
-  hub         Commands the machine itself runs: setup, uninstall, status, run
+  hub         Commands the machine itself runs: uninstall, status, run
   logs        Show an environment's service logs, merged and prefixed
   manual      The manual of this machine: every command that holds here, with examples
   member      Inspect this machine, and the fleet it is part of

@@ -40,7 +40,7 @@ const (
 func TestSetup(t *testing.T) {
 	begin(t)
 	if firstRunErr != nil {
-		t.Fatalf("hub setup failed: %v\noutput:\n%s", firstRunErr, firstRunRaw)
+		t.Fatalf("fleet setup failed: %v\noutput:\n%s", firstRunErr, firstRunRaw)
 	}
 	for _, r := range firstRun.Results {
 		t.Logf("step %-18s %-12s %s%s", r.Step, r.Status, r.Detail, r.Error)
@@ -254,7 +254,7 @@ func TestIdempotent(t *testing.T) {
 	defer cancel()
 	report, raw, err := runSetup(ctx, m, itest.CarameloBinary)
 	if err != nil {
-		t.Fatalf("second hub setup failed: %v\noutput:\n%s", err, raw)
+		t.Fatalf("second fleet setup failed: %v\noutput:\n%s", err, raw)
 	}
 	for _, r := range report.Results {
 		t.Logf("step %-18s %-12s %s", r.Step, r.Status, r.Detail)
@@ -319,7 +319,7 @@ func TestSetupSurvivesAPowerCycle(t *testing.T) {
 
 	report, raw, err := runSetup(ctx, m, itest.CarameloBinary)
 	if err != nil {
-		t.Fatalf("hub setup after the power cycle: %v\noutput:\n%s", err, raw)
+		t.Fatalf("fleet setup after the power cycle: %v\noutput:\n%s", err, raw)
 	}
 	if report.Changed != 0 || report.Failed != 0 {
 		t.Errorf("setup after the power cycle changed %d and failed %d step(s), want 0 and 0\n%s",
@@ -470,13 +470,13 @@ func TestVPNAfterSetup(t *testing.T) {
 func TestTheContextOnAHub(t *testing.T) {
 	_, m := begin(t)
 	if firstRunErr != nil {
-		t.Skip("hub setup failed; what the box says it is proves nothing")
+		t.Skip("fleet setup failed; what the box says it is proves nothing")
 	}
 	cfg := itest.MustServerConfigOn(t, m)
 	got := itest.MustContextOn(t, m, itest.CarameloBinary)
 
 	if got.Role != place.RoleHub {
-		t.Fatalf("a box that ran hub setup says role %q, want %q: %+v", got.Role, place.RoleHub, got)
+		t.Fatalf("a box that ran fleet setup says role %q, want %q: %+v", got.Role, place.RoleHub, got)
 	}
 	if got.Name == "" || got.Name != cfg.Name {
 		t.Errorf("context calls this box %q and config.yaml calls it %q", got.Name, cfg.Name)
@@ -615,18 +615,18 @@ func TestSetupRecordsAPeer(t *testing.T) {
 		}
 	})
 
-	cmd := fmt.Sprintf("sudo %s hub setup --yes --json --authorized-keys %s --peer %s %s",
+	cmd := fmt.Sprintf("sudo %s fleet setup --yes --json --authorized-keys %s --peer %s %s",
 		itest.CarameloBinary, authorizedKeys(m), peerName, pub)
 	res, err := m.Run(ctx, cmd)
 	if err != nil {
-		t.Fatalf("hub setup --peer: %v", err)
+		t.Fatalf("fleet setup --peer: %v", err)
 	}
 	if res.ExitCode != 0 {
-		t.Fatalf("hub setup --peer: exit %d\nstdout:%s\nstderr:%s", res.ExitCode, res.Stdout, res.Stderr)
+		t.Fatalf("fleet setup --peer: exit %d\nstdout:%s\nstderr:%s", res.ExitCode, res.Stdout, res.Stderr)
 	}
 	var report setuppkg.Report
 	if err := json.Unmarshal([]byte(strings.TrimSpace(res.Stdout)), &report); err != nil {
-		t.Fatalf("hub setup --peer: stdout is not a report: %v\n%s", err, res.Stdout)
+		t.Fatalf("fleet setup --peer: stdout is not a report: %v\n%s", err, res.Stdout)
 	}
 	if report.Failed != 0 {
 		t.Errorf("%d step(s) failed with --peer\n%s", report.Failed, res.Stdout)
@@ -757,14 +757,14 @@ func TestZZProvisionForTheLab(t *testing.T) {
 	}
 	res, err := m.Run(ctx, cmd)
 	if err != nil {
-		t.Fatalf("hub setup for the lab: %v", err)
+		t.Fatalf("fleet setup for the lab: %v", err)
 	}
 	if res.ExitCode != 0 {
-		t.Fatalf("hub setup for the lab: exit %d\nstdout:%s\nstderr:%s", res.ExitCode, res.Stdout, res.Stderr)
+		t.Fatalf("fleet setup for the lab: exit %d\nstdout:%s\nstderr:%s", res.ExitCode, res.Stdout, res.Stderr)
 	}
 	var report setuppkg.Report
 	if err := json.Unmarshal([]byte(strings.TrimSpace(res.Stdout)), &report); err != nil {
-		t.Fatalf("hub setup for the lab: stdout is not a report: %v\n%s", err, res.Stdout)
+		t.Fatalf("fleet setup for the lab: stdout is not a report: %v\n%s", err, res.Stdout)
 	}
 	if report.Failed != 0 {
 		t.Fatalf("%d step(s) failed\n%s", report.Failed, res.Stdout)
@@ -802,7 +802,7 @@ func TestZZProvisionForTheLab(t *testing.T) {
 				t.Fatalf("%s: %v", probe.what, err)
 			}
 			if res.ExitCode != 0 {
-				t.Errorf("nothing is listening on %s after `hub setup --edge`", probe.what)
+				t.Errorf("nothing is listening on %s after `fleet setup --edge`", probe.what)
 			}
 		}
 		cfg, err := m.Run(ctx, "sudo grep -E '^(edge|tls|acme_ca):' /etc/caramelo/config.yaml")
@@ -976,7 +976,7 @@ func TestTheTaskRunnerOnAHub(t *testing.T) {
 	_, m := begin(t)
 	t.Log("written while the container and end-to-end tiers are on hold, and not run")
 	if firstRunErr != nil {
-		t.Skip("hub setup failed; what the task runner does on this box proves nothing")
+		t.Skip("fleet setup failed; what the task runner does on this box proves nothing")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), itest.Scale(5*time.Minute))
 	defer cancel()

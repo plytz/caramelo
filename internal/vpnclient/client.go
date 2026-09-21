@@ -284,7 +284,7 @@ func (c *client) machineStatus(ctx context.Context, machine string) (*api.Status
 			reason = st.VPN.Error
 		}
 		return nil, fmt.Errorf("%s has no private network (%s); "+
-			"re-run 'caramelo hub setup' on it to add one", machine, reason)
+			"re-run 'caramelo fleet setup' on it to add one", machine, reason)
 	}
 	return &st, nil
 }

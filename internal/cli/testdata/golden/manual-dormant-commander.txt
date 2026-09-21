@@ -7,8 +7,8 @@ COMMANDS
     caramelo commander            The machine you type on: name it and write the files it needs
       caramelo commander init     Name this machine a commander and write the files it needs
     caramelo context              Say where this CLI is running and what a command typed here would act on
-    caramelo hub                  Commands the machine itself runs: setup, uninstall, status, run
-      caramelo hub setup          Turn this machine into a Caramelo host (run as root)
+    caramelo fleet                Manage the fleets this commander talks to
+      caramelo fleet setup        Turn this machine into a Caramelo host (run as root)
     caramelo manual               The manual of this machine: every command that holds here, with examples
     caramelo version              Print the caramelo version
     caramelo vpn                  Join a machine's private network

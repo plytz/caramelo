@@ -2,7 +2,7 @@ package cli
 
 var approvedOnServer = []string{
 	"context",
-	"hub setup",
+	"fleet setup",
 	"manual",
 	"member join",
 	"peer add",

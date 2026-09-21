@@ -29,7 +29,7 @@ func TestEveryConfigDirFlagFollowsTheEnvironment(t *testing.T) {
 	t.Setenv(serverconfig.ConfigDirEnv, "")
 	defaults := configDirFlags(manualRoot(t))
 	for _, want := range []string{
-		"caramelo hub setup", "caramelo hub status", "caramelo hub uninstall", "caramelo hub run",
+		"caramelo fleet setup", "caramelo hub status", "caramelo hub uninstall", "caramelo hub run",
 		"caramelo member join", "caramelo member leave",
 		"caramelo edge", "caramelo edge enable", "caramelo edge disable",
 	} {

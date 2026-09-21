@@ -470,7 +470,7 @@ func noFleetHere(c *Context) string {
 		return FreshBoxProblem
 	}
 	return "no fleet in the commander config: record one with 'caramelo fleet add NAME user@host', " +
-		"or make this machine a hub with 'sudo caramelo hub setup'"
+		"or make this machine a hub with 'sudo caramelo fleet setup'"
 }
 
 func (c Context) ServerConfigFile() string { return serverconfig.Path(c.ServerConfigDir) }

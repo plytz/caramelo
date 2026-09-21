@@ -174,7 +174,7 @@ func start() (err error) {
 	firstRun, firstRunRaw, firstRunErr = runSetup(ctx, machine, itest.RemoteBin)
 	if firstRunErr == nil {
 		if err := itest.WaitForCaramelod(ctx, machine); err != nil {
-			firstRunErr = fmt.Errorf("hub setup finished but caramelod never came up: %w", err)
+			firstRunErr = fmt.Errorf("fleet setup finished but caramelod never came up: %w", err)
 		} else if err := itest.Relogin(ctx, machine); err != nil {
 			firstRunErr = err
 		}
@@ -189,7 +189,7 @@ func runSetup(ctx context.Context, m *itest.Machine, bin string) (setuppkg.Repor
 }
 
 func runSetupWith(ctx context.Context, m *itest.Machine, bin string, extra ...string) (setuppkg.Report, string, error) {
-	cmd := strings.TrimSpace(fmt.Sprintf("sudo %s hub setup --yes --json --authorized-keys %s %s",
+	cmd := strings.TrimSpace(fmt.Sprintf("sudo %s fleet setup --yes --json --authorized-keys %s %s",
 		bin, authorizedKeys(m), strings.Join(extra, " ")))
 	res, err := m.Run(ctx, cmd)
 	raw := res.Stdout + "\n--- stderr ---\n" + res.Stderr
@@ -198,10 +198,10 @@ func runSetupWith(ctx context.Context, m *itest.Machine, bin string, extra ...st
 	}
 	var report setuppkg.Report
 	if jsonErr := json.Unmarshal([]byte(strings.TrimSpace(res.Stdout)), &report); jsonErr != nil {
-		return report, raw, fmt.Errorf("hub setup: exit %d, stdout is not a setup.Report: %w", res.ExitCode, jsonErr)
+		return report, raw, fmt.Errorf("fleet setup: exit %d, stdout is not a setup.Report: %w", res.ExitCode, jsonErr)
 	}
 	if res.ExitCode != 0 {
-		return report, raw, fmt.Errorf("hub setup: exit %d", res.ExitCode)
+		return report, raw, fmt.Errorf("fleet setup: exit %d", res.ExitCode)
 	}
 	return report, raw, nil
 }

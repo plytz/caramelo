@@ -33,7 +33,7 @@ func helpIn(t *testing.T, c place.Context, path string) string {
 }
 
 func helpGroups() []string {
-	return []string{"hub", "member", "env", "edge", "vpn", "secrets", "key", "peer", "task"}
+	return []string{"hub", "fleet", "member", "env", "edge", "vpn", "secrets", "key", "peer", "task"}
 }
 
 func TestGoldenHelpOfEveryPlace(t *testing.T) {
@@ -118,20 +118,22 @@ func TestHelpListsOnlyTheCommandsThatHoldHere(t *testing.T) {
 		hidden []string
 	}{
 		{name: "fresh", where: freshPlace,
-			shown:  []string{"commander", "context", "hub", "manual", "version"},
-			hidden: []string{"env", "up", "deploy", "fleet", "vpn", "member", "secrets", "key", "peer", "status"}},
+			shown:  []string{"commander", "context", "fleet", "hub", "manual", "version"},
+			hidden: []string{"env", "up", "deploy", "vpn", "member", "secrets", "key", "peer", "status"}},
 		{name: "commander", where: commanderPlace,
 			shown: []string{"commander", "env", "up", "deploy", "fleet", "vpn", "hub", "member",
 				"secrets", "key", "peer", "edge"}},
 		{name: "commander-hub", where: commanderPlace, args: []string{"hub"},
-			shown:  []string{"setup", "probe"},
+			shown:  []string{"probe"},
 			hidden: []string{"status", "uninstall", "run"}},
+		{name: "commander-fleet", where: commanderPlace, args: []string{"fleet"},
+			shown: []string{"setup", "list", "add", "remove", "default"}},
 		{name: "hub", where: hubPlace,
-			shown:  []string{"hub", "member", "env", "up", "secrets", "edge", "key", "peer"},
-			hidden: []string{"commander", "fleet", "vpn"}},
+			shown:  []string{"hub", "fleet", "member", "env", "up", "secrets", "edge", "key", "peer"},
+			hidden: []string{"commander", "vpn"}},
 		{name: "member", where: memberPlace,
-			shown:  []string{"hub", "member", "edge", "secrets", "peer", "status", "events"},
-			hidden: []string{"commander", "fleet", "vpn", "env", "up", "down", "deploy", "key", "connect"}},
+			shown:  []string{"hub", "fleet", "member", "edge", "secrets", "peer", "status", "events"},
+			hidden: []string{"commander", "vpn", "env", "up", "down", "deploy", "key", "connect"}},
 		{name: "member-member", where: memberPlace, args: []string{"member"},
 			shown:  []string{"join", "leave", "list", "show"},
 			hidden: []string{"add", "remove", "token"}},
@@ -218,7 +220,7 @@ func TestTheCountIsSingularForOneHiddenCommand(t *testing.T) {
 func TestNothingIsSaidWhenEveryCommandHoldsHere(t *testing.T) {
 	out := helpIn(t, canonicalOf(t, place.CanonicalCommander), "fleet")
 	if strings.Contains(out, "hidden here") {
-		t.Errorf("the fleet group counted hidden commands on a commander, where all four hold:\n%s", out)
+		t.Errorf("the fleet group counted hidden commands on a commander, where all five hold:\n%s", out)
 	}
 }
 
@@ -369,12 +371,12 @@ func TestADormantLeafIsLeftOutOfTheListAndCounted(t *testing.T) {
 	t.Setenv(experimentalEnv, "")
 	c := canonicalOf(t, place.CanonicalCommander)
 	out := helpIn(t, c, "")
-	for _, name := range []string{"commander", "hub", "vpn", "context", "manual", "version"} {
+	for _, name := range []string{"commander", "fleet", "vpn", "context", "manual", "version"} {
 		if !lists(out, name) {
 			t.Errorf("%s is left out on a commander although a command under it is approved:\n%s", name, out)
 		}
 	}
-	for _, name := range []string{"fleet", "env", "deploy", "member"} {
+	for _, name := range []string{"hub", "env", "deploy", "member"} {
 		if lists(out, name) {
 			t.Errorf("%s is listed on a commander although nothing under it is approved:\n%s", name, out)
 		}
@@ -399,12 +401,12 @@ func TestADormantLeafIsLeftOutOfAHubsListAndCounted(t *testing.T) {
 	t.Setenv(experimentalEnv, "")
 	c := canonicalOf(t, place.CanonicalHub)
 	out := helpIn(t, c, "")
-	for _, name := range []string{"hub", "member", "peer", "status", "context", "manual", "version"} {
+	for _, name := range []string{"fleet", "member", "peer", "status", "context", "manual", "version"} {
 		if !lists(out, name) {
 			t.Errorf("%s is left out on a hub although a command under it is approved:\n%s", name, out)
 		}
 	}
-	for _, name := range []string{"fleet", "env", "deploy"} {
+	for _, name := range []string{"hub", "env", "deploy"} {
 		if lists(out, name) {
 			t.Errorf("%s is listed on a hub although nothing under it is approved:\n%s", name, out)
 		}

@@ -389,7 +389,7 @@ func bootstrapPlan(target remote.Target, f bootstrapFlags) string {
 		keys = f.authorizedKeys + " (local file)"
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "caramelo hub setup will change %s (over ssh, as root):\n", target)
+	fmt.Fprintf(&b, "caramelo fleet setup will change %s (over ssh, as root):\n", target)
 
 	binary := defaultBinaryPlan(version)
 	if f.release != "" {

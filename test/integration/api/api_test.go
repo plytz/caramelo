@@ -114,7 +114,7 @@ func TestExitCodes(t *testing.T) {
 	})
 
 	t.Run("server commands are refused", func(t *testing.T) {
-		res := itest.SSHAPIRun(t, o, "hub", "setup")
+		res := itest.SSHAPIRun(t, o, "fleet", "setup")
 		if res.ExitCode != 2 {
 			t.Errorf("exit = %d, want 2\nstdout:%s\nstderr:%s", res.ExitCode, res.Stdout, res.Stderr)
 		}
@@ -332,7 +332,7 @@ func TestCommanderWithoutMachine(t *testing.T) {
 		t.Errorf("exit = %d, want 1\nstdout:%s\nstderr:%s", res.ExitCode, res.Stdout, res.Stderr)
 	}
 	got := strings.ToLower(res.Stdout + res.Stderr)
-	for _, want := range []string{"hub setup", "--machine"} {
+	for _, want := range []string{"fleet setup", "--machine"} {
 		if !strings.Contains(got, strings.ToLower(want)) {
 			t.Errorf("error does not mention %q:\n%s%s", want, res.Stdout, res.Stderr)
 		}

@@ -100,7 +100,7 @@ func resolveTransport(ctx context.Context, a *app) (transport, error) {
 		path, _ := remote.CommanderConfigPath()
 		return transport{}, fmt.Errorf(
 			"no local caramelod (no socket at %s) and no fleet in %s; "+
-				"run 'sudo caramelo hub setup' on this machine, or record a fleet with "+
+				"run 'sudo caramelo fleet setup' on this machine, or record a fleet with "+
 				"'caramelo fleet add NAME user@host' and pick it with --fleet NAME (or CARAMELO_FLEET); "+
 				"--machine <user@host> reaches a box that is in no fleet yet",
 			socketPath, path)
@@ -237,7 +237,7 @@ func forwardSocket(ctx context.Context, a *app, t transport) (int, error) {
 
 func socketDialError(path string, err error) error {
 	if errors.Is(err, fs.ErrNotExist) {
-		return fmt.Errorf("no caramelod socket at %s; run 'sudo caramelo hub setup' on this machine, or use --machine <user@host>", path)
+		return fmt.Errorf("no caramelod socket at %s; run 'sudo caramelo fleet setup' on this machine, or use --machine <user@host>", path)
 	}
 	return fmt.Errorf("caramelod socket exists at %s but refused the connection; is caramelod running? (systemctl --user -M caramelo@ status caramelod): %w", path, err)
 }

@@ -223,19 +223,19 @@ func bootstrap(ctx context.Context, extra ...string) (result, string, error) {
 	if err != nil {
 		return result{}, "", err
 	}
-	args := append([]string{commanderBin, "hub", "setup", "--target", target, "--yes", "--json"}, extra...)
+	args := append([]string{commanderBin, "fleet", "setup", "--target", target, "--yes", "--json"}, extra...)
 	res, err := commander.Run(ctx, strings.Join(args, " "))
 	raw := res.Stdout + "\n--- stderr ---\n" + res.Stderr
 	if err != nil {
-		return result{}, raw, fmt.Errorf("hub setup --target %s: %w", target, err)
+		return result{}, raw, fmt.Errorf("fleet setup --target %s: %w", target, err)
 	}
 	var out result
 	if jsonErr := json.Unmarshal([]byte(strings.TrimSpace(res.Stdout)), &out); jsonErr != nil {
-		return out, raw, fmt.Errorf("hub setup --target: exit %d; stdout is not a bootstrap result: %w",
+		return out, raw, fmt.Errorf("fleet setup --target: exit %d; stdout is not a bootstrap result: %w",
 			res.ExitCode, jsonErr)
 	}
 	if res.ExitCode != 0 {
-		return out, raw, fmt.Errorf("hub setup --target: exit %d", res.ExitCode)
+		return out, raw, fmt.Errorf("fleet setup --target: exit %d", res.ExitCode)
 	}
 	return out, raw, nil
 }

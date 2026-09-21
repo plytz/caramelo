@@ -262,7 +262,7 @@ func explainNotIdempotent(t *testing.T, m *itest.Machine) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), m.Budget().For(2*time.Minute))
 	defer cancel()
-	res, err := m.Run(ctx, "sudo -n "+itest.CarameloBinary+" hub setup --yes --json --dry-run")
+	res, err := m.Run(ctx, "sudo -n "+itest.CarameloBinary+" fleet setup --yes --json --dry-run")
 	if err != nil {
 		t.Logf("dry run to explain the difference: %v", err)
 		return
@@ -352,7 +352,7 @@ func TestAFreshBoxRefusesToSetUpAnotherMachine(t *testing.T) {
 	}
 	fresh := "/tmp/fresh-box"
 	commander.MustRun(t, "rm -rf "+fresh+" && mkdir -p "+fresh)
-	cmd := fmt.Sprintf("env HOME=%s XDG_CONFIG_HOME=%s/.config %s hub setup --target %s --yes",
+	cmd := fmt.Sprintf("env HOME=%s XDG_CONFIG_HOME=%s/.config %s fleet setup --target %s --yes",
 		fresh, fresh, commanderBin, target)
 	res, err := commander.Run(context.Background(), cmd)
 	if err != nil && res.ExitCode == 0 {

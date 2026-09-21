@@ -140,6 +140,7 @@ caramelo env url feat-x                             # the app's URL
 caramelo env url feat-x postgres                    # a dependency's address`,
 
 	"caramelo fleet": `
+caramelo fleet setup --target you@box        # make a fleet: set that machine up as its hub
 caramelo fleet list                          # the fleets this commander knows, and which is the default
 caramelo fleet add home you@box              # record a fleet by the ssh address of its hub
 caramelo fleet default home`,
@@ -158,6 +159,20 @@ caramelo fleet list --json`,
 	"caramelo fleet remove": `
 caramelo fleet remove work                   # forget it here; the fleet itself is untouched`,
 
+	"caramelo fleet setup": `
+caramelo fleet setup --target you@box                          # from the commander, over ssh
+caramelo fleet setup --target you@box --edge --acme-email ops@example.com
+caramelo fleet setup --target you@box --name prod --data-dir /mnt/big
+caramelo fleet setup --target you@box --peer agent-7 Nq0Xw2mS8VbZ1YtR7dK3jL5pQ9cF4hG6uI8oP0aB2wE=
+caramelo fleet setup --target you@box --release v0.0.1         # ship that release, not this build
+caramelo fleet setup --target you@box --dry-run                # say what would change
+sudo caramelo fleet setup --yes                                # on the box itself, named after its hostname
+sudo caramelo fleet setup --yes --name box --fleet home        # name the machine and the fleet it hubs
+sudo caramelo fleet setup --yes --open-ports                   # let setup open udp 4021 in this box's own firewall
+sudo caramelo fleet setup --yes --swap 8G                      # 8 GiB of swap instead of the default 4 GiB
+sudo caramelo fleet setup --yes --swap off                     # no swap on this machine
+caramelo fleet setup --target you@box --json --progress json`,
+
 	"caramelo events": `
 caramelo events                                     # the last 100 events on the machine
 caramelo events --follow                            # keep streaming
@@ -165,7 +180,6 @@ caramelo events feat-x --since 1h
 caramelo events --follow --json                     # one JSON event per line`,
 
 	"caramelo hub": `
-caramelo hub setup --target you@box
 caramelo hub status
 caramelo hub probe box
 sudo caramelo hub uninstall --yes`,
@@ -174,20 +188,6 @@ sudo caramelo hub uninstall --yes`,
 caramelo hub probe box                       # does its udp 4021 answer from here?
 caramelo hub probe 203.0.113.9:4021 --key Nq0Xw2mS8VbZ1YtR7dK3jL5pQ9cF4hG6uI8oP0aB2wE=
 caramelo hub probe box --timeout 3s --json`,
-
-	"caramelo hub setup": `
-caramelo hub setup --target you@box                          # from the commander, over ssh
-caramelo hub setup --target you@box --edge --acme-email ops@example.com
-caramelo hub setup --target you@box --name prod --data-dir /mnt/big
-caramelo hub setup --target you@box --peer agent-7 Nq0Xw2mS8VbZ1YtR7dK3jL5pQ9cF4hG6uI8oP0aB2wE=
-caramelo hub setup --target you@box --release v0.0.1         # ship that release, not this build
-caramelo hub setup --target you@box --dry-run                # say what would change
-sudo caramelo hub setup --yes                                # on the box itself, named after its hostname
-sudo caramelo hub setup --yes --name box --fleet home        # name the machine and the fleet it hubs
-sudo caramelo hub setup --yes --open-ports                   # let setup open udp 4021 in this box's own firewall
-sudo caramelo hub setup --yes --swap 8G                      # 8 GiB of swap instead of the default 4 GiB
-sudo caramelo hub setup --yes --swap off                     # no swap on this machine
-caramelo hub setup --target you@box --json --progress json`,
 
 	"caramelo hub status": `
 caramelo hub status
@@ -238,7 +238,7 @@ caramelo member add you@pi --binary ./caramelo-linux-arm64   # ship a binary for
 caramelo member add you@second-box --release v0.0.1   # ship that release instead of this build`,
 
 	"caramelo member join": `
-sudo caramelo hub setup --yes                    # join needs what setup makes
+sudo caramelo fleet setup --yes                    # join needs what setup makes
 sudo caramelo member join hub.example.com:4021 --token "$(cat token)"
 sudo caramelo member join hub.example.com:4021 --token - --name eu-1 < token`,
 

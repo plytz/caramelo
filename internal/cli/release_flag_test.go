@@ -19,7 +19,7 @@ func TestReleaseAndBinaryAreRefusedTogether(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, args := range [][]string{
-		{"hub", "setup", "--target", "root@box", "--yes", "--binary", binary, "--release", "v0.0.1"},
+		{"fleet", "setup", "--target", "root@box", "--yes", "--binary", binary, "--release", "v0.0.1"},
 		{"member", "add", "root@box", "--binary", binary, "--release", "v0.0.1"},
 	} {
 		code, _, stderr := run(t, args...)
@@ -35,7 +35,7 @@ func TestReleaseAndBinaryAreRefusedTogether(t *testing.T) {
 func TestReleaseWantsATag(t *testing.T) {
 	useScriptedTarget(t, greenReport(), okVerify)
 	for _, args := range [][]string{
-		{"hub", "setup", "--target", "root@box", "--yes", "--release", "0.0.1"},
+		{"fleet", "setup", "--target", "root@box", "--yes", "--release", "0.0.1"},
 		{"member", "add", "root@box", "--release", "latest"},
 	} {
 		code, _, stderr := run(t, args...)
@@ -50,7 +50,7 @@ func TestReleaseWantsATag(t *testing.T) {
 
 func TestReleaseWithoutATargetIsAUsageError(t *testing.T) {
 	useScriptedTarget(t, greenReport(), okVerify)
-	code, _, stderr := run(t, "hub", "setup", "--yes", "--release", "v0.0.1")
+	code, _, stderr := run(t, "fleet", "setup", "--yes", "--release", "v0.0.1")
 	if code != ExitUsage {
 		t.Fatalf("exit %d, want %d (stderr %q)", code, ExitUsage, stderr)
 	}
@@ -65,7 +65,7 @@ func TestBinaryWithoutATargetIsAUsageError(t *testing.T) {
 	if err := os.WriteFile(binary, []byte("elf"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	code, _, stderr := run(t, "hub", "setup", "--yes", "--dry-run",
+	code, _, stderr := run(t, "fleet", "setup", "--yes", "--dry-run",
 		"--config-dir", t.TempDir(), "--binary", binary)
 	if code != ExitUsage {
 		t.Fatalf("exit %d, want %d (stderr %q)", code, ExitUsage, stderr)
@@ -80,8 +80,8 @@ func TestAnEmptyBinaryOrReleaseIsAUsageError(t *testing.T) {
 		args []string
 		want string
 	}{
-		{[]string{"hub", "setup", "--target", "root@box", "--yes", "--release="}, "--release was given with no value"},
-		{[]string{"hub", "setup", "--target", "root@box", "--yes", "--binary="}, "--binary was given with no value"},
+		{[]string{"fleet", "setup", "--target", "root@box", "--yes", "--release="}, "--release was given with no value"},
+		{[]string{"fleet", "setup", "--target", "root@box", "--yes", "--binary="}, "--binary was given with no value"},
 		{[]string{"member", "add", "root@box", "--release="}, "--release was given with no value"},
 		{[]string{"member", "add", "root@box", "--binary="}, "--binary was given with no value"},
 	}
@@ -128,7 +128,7 @@ func TestAnEmptyMachineAddTargetIsNotBlamedOnATargetFlag(t *testing.T) {
 
 func TestReleaseAndVersionReachTheBootstrapOptions(t *testing.T) {
 	for _, args := range [][]string{
-		{"hub", "setup", "--target", "root@box", "--yes", "--release", "v0.0.1"},
+		{"fleet", "setup", "--target", "root@box", "--yes", "--release", "v0.0.1"},
 		{"member", "add", "root@box", "--release", "v0.0.1"},
 	} {
 		t.Run(strings.Join(args, " "), func(t *testing.T) {

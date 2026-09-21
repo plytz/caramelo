@@ -27,8 +27,9 @@ Available Commands:
   edge        The machine's public edge: routes, certificates, targets
   env         Create, inspect and destroy isolated environments of an app
   events      Everything the machine does, whoever started it
+  fleet       Manage the fleets this commander talks to
   help        Help about any command
-  hub         Commands the machine itself runs: setup, uninstall, status, run
+  hub         Commands the machine itself runs: uninstall, status, run
   key         Manage the SSH keys allowed to use the API
   logs        Show an environment's service logs, merged and prefixed
   manual      The manual of this machine: every command that holds here, with examples

@@ -455,7 +455,7 @@ func TestAReleaseEnvWithNoVaultIsRefused(t *testing.T) {
 	if err == nil {
 		t.Fatal("a release environment was created with no vault")
 	}
-	for _, want := range []string{"release environment", "no vault", "hub setup"} {
+	for _, want := range []string{"release environment", "no vault", "fleet setup"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal %q does not mention %q", err, want)
 		}

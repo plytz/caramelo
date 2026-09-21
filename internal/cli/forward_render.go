@@ -108,7 +108,7 @@ func errDaemonIsOlder(a *app) error {
 	}
 	return fmt.Errorf("%s runs a caramelod older than this commander: it does not understand --progress, "+
 		"which every command is forwarded with since M7. Upgrade it with "+
-		"`caramelo hub setup --target <user@host>` (or run the same version on both sides)", target)
+		"`caramelo fleet setup --target <user@host>` (or run the same version on both sides)", target)
 }
 
 func writeResult(path string, render Renderer, w io.Writer, raw []byte, code int, ferr error) error {

@@ -11,7 +11,8 @@ import (
 func TestRoleGroupsCarryEveryLeaf(t *testing.T) {
 	root := NewRootCmd(&bytes.Buffer{}, &bytes.Buffer{})
 	for _, path := range [][]string{
-		{"hub", "setup"}, {"hub", "status"}, {"hub", "uninstall"}, {"hub", "run"}, {"hub", "probe"},
+		{"hub", "status"}, {"hub", "uninstall"}, {"hub", "run"}, {"hub", "probe"},
+		{"fleet", "setup"},
 		{"member", "add"}, {"member", "join"}, {"member", "leave"}, {"member", "list"},
 		{"member", "remove"}, {"member", "show"}, {"member", "token"},
 		{"member", "announce"}, {"member", "redeem"}, {"member", "removed"},
@@ -54,15 +55,66 @@ func TestTheOldGroupNamesAreGone(t *testing.T) {
 	}
 }
 
-func TestExamplesUseTheRoleWords(t *testing.T) {
-	for path, ex := range examples {
-		for _, old := range []string{"caramelo server ", "caramelo machine "} {
-			if strings.Contains(ex, old) {
-				t.Errorf("the examples of %q still show %q", path, strings.TrimSpace(old))
+func TestTheFleetGroupIsNotForwarded(t *testing.T) {
+	root := NewRootCmd(&bytes.Buffer{}, &bytes.Buffer{})
+	for _, path := range [][]string{{"fleet"}, {"fleet", "setup"}, {"hub"}} {
+		cmd, _, err := root.Find(path)
+		if err != nil {
+			t.Fatalf("caramelo %s: %v", strings.Join(path, " "), err)
+		}
+		if isCommander(cmd) {
+			t.Errorf("caramelo %s is forwarded to a daemon; setup acts on the machine it is typed on",
+				cmd.CommandPath())
+		}
+	}
+}
+
+var retiredSpellings = [][]string{{"hub", "setup"}}
+
+func TestTheOldSpellingsAreGone(t *testing.T) {
+	root := NewRootCmd(&bytes.Buffer{}, &bytes.Buffer{})
+	for _, retired := range retiredSpellings {
+		group, leaf := retired[:len(retired)-1], retired[len(retired)-1]
+		var walk func(c *cobra.Command, path []string)
+		walk = func(c *cobra.Command, path []string) {
+			for _, sub := range c.Commands() {
+				if equal(path, group) {
+					for _, name := range append([]string{sub.Name()}, sub.Aliases...) {
+						if name == leaf {
+							t.Errorf("%q still answers to the retired spelling %q",
+								sub.CommandPath(), strings.Join(retired, " "))
+						}
+					}
+				}
+				walk(sub, append(append([]string{}, path...), sub.Name()))
 			}
 		}
-		if strings.HasPrefix(path, "caramelo server") || strings.HasPrefix(path, "caramelo machine") {
-			t.Errorf("examples are keyed on the retired command %q", path)
+		walk(root, nil)
+
+		var stdout, stderr bytes.Buffer
+		if code := Run(retired, &stdout, &stderr); code == ExitOK {
+			t.Errorf("caramelo %s still runs", strings.Join(retired, " "))
+		}
+	}
+}
+
+func TestExamplesUseTheRoleWords(t *testing.T) {
+	retired := []string{"caramelo server", "caramelo machine"}
+	for _, path := range retiredSpellings {
+		retired = append(retired, "caramelo "+strings.Join(path, " "))
+	}
+	for path, ex := range examples {
+		for _, old := range retired {
+			for _, line := range strings.Split(ex, "\n") {
+				line = strings.TrimSpace(line)
+				if strings.Contains(line, old+" ") || line == old || strings.HasSuffix(line, " "+old) {
+					t.Errorf("the examples of %q still show %q", path, old)
+					break
+				}
+			}
+			if strings.HasPrefix(path, old) {
+				t.Errorf("examples are keyed on the retired command %q", path)
+			}
 		}
 	}
 }

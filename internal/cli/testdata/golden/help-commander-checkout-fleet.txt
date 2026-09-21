@@ -1,0 +1,49 @@
+laptop, commander · fleets home (default), work ·
+  app shop → fleet home (the fleet recorded for app shop) · env feat-x
+
+A fleet is a hub and every machine that joined it. A server belongs to one
+fleet; a commander knows as many as it has been told about and talks to one at a
+time.
+
+'fleet setup' makes one: it turns a machine into the hub the rest of the fleet
+joins, on the box itself as root or from here over ssh with --target. The other
+commands are about the fleets this commander already knows.
+
+A fleet is recorded here by the ssh address of its hub and by the hub's public
+key, which is the fleet's real identity: the key is pinned the first time this
+commander reaches the fleet, and a hub answering at the same address with another
+key is refused rather than adopted.
+
+Which fleet a command talks to is decided in this order: --fleet (or
+CARAMELO_FLEET), the fleet recorded for the app of the checkout you are standing
+in, commander.default_fleet, and the only fleet when there is exactly one. With
+several fleets and none of those, a command refuses rather than guess.
+
+Usage:
+  caramelo fleet [flags]
+  caramelo fleet [command]
+
+Examples:
+  caramelo fleet setup --target you@box        # make a fleet: set that machine up as its hub
+  caramelo fleet list                          # the fleets this commander knows, and which is the default
+  caramelo fleet add home you@box              # record a fleet by the ssh address of its hub
+  caramelo fleet default home
+
+
+Available Commands:
+  add         Record a fleet by name and the ssh address of its hub
+  default     Make a fleet the one commands talk to when nothing says otherwise
+  list        List the fleets this commander knows
+  remove      Forget a fleet
+  setup       Turn this machine into a Caramelo host (run as root)
+
+Flags:
+  -h, --help   help for fleet
+
+Global Flags:
+      --fleet string      fleet to talk to, by its name in the commander config (default: the app's fleet, then the default fleet)
+      --json              print machine-readable JSON on stdout
+      --machine string    raw ssh target to talk to, for a machine that is in no fleet yet: user@host[:port], or 'local'
+      --progress string   how progress is written to stderr: text (default) or json, one event per line
+
+Use "caramelo fleet [command] --help" for more information about a command.

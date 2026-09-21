@@ -3,7 +3,7 @@ package cli
 var approvedOnCommander = []string{
 	"commander init",
 	"context",
-	"hub setup",
+	"fleet setup",
 	"manual",
 	"version",
 	"vpn down",

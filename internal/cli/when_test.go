@@ -255,7 +255,7 @@ func TestALeafTypedWhereItDoesNotBelongIsRefused(t *testing.T) {
 				"run 'caramelo commander init' to name this machine"},
 		{name: "hub run on a commander", where: commanderPlace, args: []string{"hub", "run"},
 			want: "hub run runs on a hub or a member, and this machine is a commander; " +
-				"run 'sudo caramelo hub setup' to make this machine a hub"},
+				"run 'sudo caramelo fleet setup' to make this machine a hub"},
 		{name: "fleet list on a hub", where: hubPlace, args: []string{"fleet", "list"},
 			want: "fleet list runs on a commander, and this machine is a hub; " +
 				"'caramelo context' says where you are"},
@@ -267,13 +267,13 @@ func TestALeafTypedWhereItDoesNotBelongIsRefused(t *testing.T) {
 				"'caramelo context' says where you are"},
 		{name: "member join on a fresh box", where: freshPlace, args: []string{"member", "join", "box:4021"},
 			want: "member join runs on a hub or a member, and this box has no config at all; " +
-				"run 'sudo caramelo hub setup' to make this machine a hub"},
+				"run 'sudo caramelo fleet setup' to make this machine a hub"},
 		{name: "member join on a commander", where: commanderPlace, args: []string{"member", "join", "box:4021"},
 			want: "member join runs on a hub or a member, and this machine is a commander; " +
-				"run 'sudo caramelo hub setup' to make this machine a hub"},
+				"run 'sudo caramelo fleet setup' to make this machine a hub"},
 		{name: "env sync on a fresh box", where: freshPlace, args: []string{"env", "sync", "feat-x"},
 			want: "env sync runs on a hub or a member, and this box has no config at all; " +
-				"run 'sudo caramelo hub setup' to make this machine a hub"},
+				"run 'sudo caramelo fleet setup' to make this machine a hub"},
 		{name: "commander init on a member", where: memberPlace, args: []string{"commander", "init"},
 			want: "commander init runs on a box with no config at all or a commander, " +
 				"and this machine is a member; 'caramelo context' says where you are"},
@@ -402,7 +402,7 @@ func TestTheHelpOfALeafThatDoesNotHoldHereStillPrints(t *testing.T) {
 		{name: "hub run on a commander", where: commanderPlace,
 			args: []string{"hub", "run"}, want: "caramelod"},
 		{name: "member join on a fresh box", where: freshPlace,
-			args: []string{"member", "join"}, want: "caramelo hub setup"},
+			args: []string{"member", "join"}, want: "caramelo fleet setup"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			tc.where(t)
@@ -763,12 +763,12 @@ func TestTheServerListCoversWhatASetupTypesOnTheBox(t *testing.T) {
 		{name: "the caramelod smoke test", args: []string{"status"},
 			site: "internal/setup/steps_caramelod.go:518, on every setup, and " +
 				"internal/vpnclient/client.go:278 through the shellControl of " +
-				"internal/cli/hub_setup_target.go:473"},
+				"internal/cli/fleet_setup_target.go:473"},
 		{name: "the join step", args: []string{"member", "join"},
 			site: "internal/setup/steps_fleet.go:53, on a setup that joins a fleet"},
 		{name: "the peer step admits the commander", args: []string{"peer", "add"},
 			site: "internal/setup/steps_vpn.go:138, and internal/vpnclient/client.go:294 " +
-				"through the shellControl of internal/cli/hub_setup_target.go:473"},
+				"through the shellControl of internal/cli/fleet_setup_target.go:473"},
 		{name: "the peer step reads the peers", args: []string{"peer", "list"},
 			site: "internal/setup/steps_vpn.go:157"},
 	} {
@@ -793,7 +793,7 @@ func TestTheCommanderListCoversTheSetupOfABareBox(t *testing.T) {
 	t.Setenv(experimentalEnv, "")
 	root := conditionalRoot(t)
 	c := canonicalOf(t, place.CanonicalFresh)
-	for _, args := range [][]string{{"commander", "init"}, {"hub", "setup"}} {
+	for _, args := range [][]string{{"commander", "init"}, {"fleet", "setup"}} {
 		cmd, _, err := root.Find(args)
 		if err != nil {
 			t.Fatalf("caramelo %s: %v", strings.Join(args, " "), err)

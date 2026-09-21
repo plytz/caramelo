@@ -232,7 +232,7 @@ func TestResolveTransportWithNothingConfigured(t *testing.T) {
 		t.Fatal("want an error when there is no socket and no machine")
 	}
 	msg := err.Error()
-	for _, want := range []string{"hub setup", "--machine", "fleet add"} {
+	for _, want := range []string{"fleet setup", "--machine", "fleet add"} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("error %q does not mention %q; it must name both fixes", msg, want)
 		}
