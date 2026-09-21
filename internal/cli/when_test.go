@@ -464,8 +464,8 @@ func TestADormantLeafIsRefusedNamingTheSwitch(t *testing.T) {
 		args  []string
 		want  string
 	}{
-		{name: "context on a commander", where: commanderPlace, args: []string{"context"},
-			want: "context is not approved on a commander yet; " +
+		{name: "fleet list on a commander", where: commanderPlace, args: []string{"fleet", "list"},
+			want: "fleet list is not approved on a commander yet; " +
 				"set CARAMELO_EXPERIMENTAL=1 to run a dormant command"},
 		{name: "hub status on a hub", where: hubPlace, args: []string{"hub", "status"},
 			want: "hub status is not approved on a hub or a member yet; " +
@@ -609,12 +609,12 @@ func TestEveryLeafResolvesToExactlyOneList(t *testing.T) {
 				t.Errorf("the canonical %s is judged by %q; the place picks the list", name, ap.where)
 			}
 			for _, cmd := range cmds {
-				if isMachinery(cmd) {
+				if isMachinery(cmd) || ap.covers(leafName(cmd)) {
 					continue
 				}
 				got, dormant := dormantHere(cmd, c)
 				if !dormant {
-					t.Errorf("%s is not dormant on the canonical %s although both lists are empty",
+					t.Errorf("%s is not dormant on the canonical %s although it is on no list there",
 						leafName(cmd), name)
 					continue
 				}
@@ -748,6 +748,78 @@ func TestEveryApprovedNameIsALeafOfTheTree(t *testing.T) {
 			if !known[name] {
 				t.Errorf("%s names %q, which is no leaf of the tree, or is machinery", tc.list, name)
 			}
+		}
+	}
+}
+
+func TestTheServerListCoversWhatASetupTypesOnTheBox(t *testing.T) {
+	t.Setenv(experimentalEnv, "")
+	root := conditionalRoot(t)
+	for _, tc := range []struct {
+		name string
+		args []string
+		site string
+	}{
+		{name: "the caramelod smoke test", args: []string{"status"},
+			site: "internal/setup/steps_caramelod.go:518, on every setup, and " +
+				"internal/vpnclient/client.go:278 through the shellControl of " +
+				"internal/cli/hub_setup_target.go:473"},
+		{name: "the join step", args: []string{"member", "join"},
+			site: "internal/setup/steps_fleet.go:53, on a setup that joins a fleet"},
+		{name: "the peer step admits the commander", args: []string{"peer", "add"},
+			site: "internal/setup/steps_vpn.go:138, and internal/vpnclient/client.go:294 " +
+				"through the shellControl of internal/cli/hub_setup_target.go:473"},
+		{name: "the peer step reads the peers", args: []string{"peer", "list"},
+			site: "internal/setup/steps_vpn.go:157"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cmd, _, err := root.Find(tc.args)
+			if err != nil {
+				t.Fatalf("caramelo %s: %v", strings.Join(tc.args, " "), err)
+			}
+			for _, name := range []string{place.CanonicalHub, place.CanonicalMember} {
+				c := canonicalOf(t, name)
+				if ap, dormant := dormantHere(cmd, c); dormant {
+					t.Errorf("%s is dormant on the canonical %s, judged by %q; the setup types it "+
+						"on the box itself (%s), so the setup dies there",
+						leafName(cmd), name, ap.where, tc.site)
+				}
+			}
+		})
+	}
+}
+
+func TestTheCommanderListCoversTheSetupOfABareBox(t *testing.T) {
+	t.Setenv(experimentalEnv, "")
+	root := conditionalRoot(t)
+	c := canonicalOf(t, place.CanonicalFresh)
+	for _, args := range [][]string{{"commander", "init"}, {"hub", "setup"}} {
+		cmd, _, err := root.Find(args)
+		if err != nil {
+			t.Fatalf("caramelo %s: %v", strings.Join(args, " "), err)
+		}
+		if ap, dormant := dormantHere(cmd, c); dormant {
+			t.Errorf("%s is dormant on a box with no config at all, judged by %q; a bare box is "+
+				"judged by the commander list, and naming a commander and setting a machine up "+
+				"are what is typed on one",
+				leafName(cmd), ap.where)
+		}
+	}
+}
+
+func TestTheCommanderListCoversTheTunnelClient(t *testing.T) {
+	t.Setenv(experimentalEnv, "")
+	root := conditionalRoot(t)
+	c := canonicalOf(t, place.CanonicalCommander)
+	for _, args := range [][]string{{"vpn", "up"}, {"vpn", "down"}, {"vpn", "status"}} {
+		cmd, _, err := root.Find(args)
+		if err != nil {
+			t.Fatalf("caramelo %s: %v", strings.Join(args, " "), err)
+		}
+		if ap, dormant := dormantHere(cmd, c); dormant {
+			t.Errorf("%s is dormant on a commander, judged by %q; the Go WireGuard client is "+
+				"approved on a commander as one set, up, down and status together",
+				leafName(cmd), ap.where)
 		}
 	}
 }

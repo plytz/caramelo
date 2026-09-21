@@ -342,31 +342,52 @@ func TestHelpLeavesTheTreeAsItFoundIt(t *testing.T) {
 	}
 }
 
-func leavesThatAreNotMachinery(t *testing.T) []string {
+func hiddenHereCount(t *testing.T, c place.Context) int {
 	t.Helper()
-	var names []string
+	ap, judged := approvalFor(c)
+	if !judged {
+		t.Fatalf("the canonical %s is judged by no list", c.Role)
+	}
+	hidden := 0
 	for _, cmd := range leaves(conditionalRoot(t)) {
 		if isMachinery(cmd) {
 			continue
 		}
-		if _, ok := whenOf(cmd); !ok {
+		w, held := whenOf(cmd)
+		if !held {
 			continue
 		}
-		names = append(names, leafName(cmd))
+		if w.ok(c) && ap.covers(leafName(cmd)) {
+			continue
+		}
+		hidden++
 	}
-	return names
+	return hidden
 }
 
 func TestADormantLeafIsLeftOutOfTheListAndCounted(t *testing.T) {
 	t.Setenv(experimentalEnv, "")
 	c := canonicalOf(t, place.CanonicalCommander)
 	out := helpIn(t, c, "")
-	for _, name := range []string{"fleet", "vpn", "env", "deploy", "context"} {
-		if lists(out, name) {
-			t.Errorf("%s is listed on a commander although nothing is approved:\n%s", name, out)
+	for _, name := range []string{"commander", "hub", "vpn", "context", "manual", "version"} {
+		if !lists(out, name) {
+			t.Errorf("%s is left out on a commander although a command under it is approved:\n%s", name, out)
 		}
 	}
-	want := len(leavesThatAreNotMachinery(t))
+	for _, name := range []string{"fleet", "env", "deploy", "member"} {
+		if lists(out, name) {
+			t.Errorf("%s is listed on a commander although nothing under it is approved:\n%s", name, out)
+		}
+	}
+	add, _, err := conditionalRoot(t).Find([]string{"member", "add"})
+	if err != nil {
+		t.Fatalf("caramelo member add: %v", err)
+	}
+	if _, dormant := dormantHere(add, c); !dormant {
+		t.Error("member add is not dormant on a commander; under the initial set, " +
+			"adding a member needs CARAMELO_EXPERIMENTAL=1 until someone approves it")
+	}
+	want := hiddenHereCount(t, c)
 	line := strconv.Itoa(want) +
 		" commands are hidden here; 'caramelo manual --role all' lists every command of every role."
 	if !strings.HasSuffix(out, "\n"+line+"\n") {
@@ -374,7 +395,34 @@ func TestADormantLeafIsLeftOutOfTheListAndCounted(t *testing.T) {
 	}
 }
 
-func TestGoldenHelpOfACommanderWithNothingApproved(t *testing.T) {
+func TestADormantLeafIsLeftOutOfAHubsListAndCounted(t *testing.T) {
+	t.Setenv(experimentalEnv, "")
+	c := canonicalOf(t, place.CanonicalHub)
+	out := helpIn(t, c, "")
+	for _, name := range []string{"hub", "member", "peer", "status", "context", "manual", "version"} {
+		if !lists(out, name) {
+			t.Errorf("%s is left out on a hub although a command under it is approved:\n%s", name, out)
+		}
+	}
+	for _, name := range []string{"fleet", "env", "deploy"} {
+		if lists(out, name) {
+			t.Errorf("%s is listed on a hub although nothing under it is approved:\n%s", name, out)
+		}
+	}
+	want := hiddenHereCount(t, c)
+	line := strconv.Itoa(want) +
+		" commands are hidden here; 'caramelo manual --role all' lists every command of every role."
+	if !strings.HasSuffix(out, "\n"+line+"\n") {
+		t.Errorf("help does not end with %q:\n%s", line, out)
+	}
+}
+
+func TestGoldenHelpOfACommanderWithOnlyTheSetupApproved(t *testing.T) {
 	t.Setenv(experimentalEnv, "")
 	checkGolden(t, "help-dormant-commander", helpIn(t, canonicalOf(t, place.CanonicalCommander), ""))
+}
+
+func TestGoldenHelpOfAHubWithOnlyTheSetupApproved(t *testing.T) {
+	t.Setenv(experimentalEnv, "")
+	checkGolden(t, "help-dormant-hub", helpIn(t, canonicalOf(t, place.CanonicalHub), ""))
 }

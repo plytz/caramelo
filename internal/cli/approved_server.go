@@ -1,3 +1,12 @@
 package cli
 
-var approvedOnServer = []string{}
+var approvedOnServer = []string{
+	"context",
+	"hub setup",
+	"manual",
+	"member join",
+	"peer add",
+	"peer list",
+	"status",
+	"version",
+}

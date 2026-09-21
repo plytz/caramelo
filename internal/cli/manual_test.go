@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -596,15 +597,60 @@ func firstLines(s string, n int) string {
 	return strings.Join(lines, "\n")
 }
 
+func sortedPaths(paths []string) []string {
+	out := append([]string(nil), paths...)
+	slices.Sort(out)
+	return out
+}
+
+func pathAndItsGroups(cmd *cobra.Command) []string {
+	var out []string
+	for c := cmd; c != nil && c.HasParent(); c = c.Parent() {
+		out = append(out, c.CommandPath())
+	}
+	return out
+}
+
+func documentedHere(t *testing.T, c place.Context) []string {
+	t.Helper()
+	ap, judged := approvalFor(c)
+	if !judged {
+		t.Fatalf("the canonical %s is judged by no list", c.Role)
+	}
+	seen := map[string]bool{}
+	var out []string
+	for _, cmd := range leaves(manualRoot(t)) {
+		if isMachinery(cmd) {
+			continue
+		}
+		w, held := whenOf(cmd)
+		if !held || !w.ok(c) || !ap.covers(leafName(cmd)) {
+			continue
+		}
+		for _, path := range pathAndItsGroups(cmd) {
+			if seen[path] {
+				continue
+			}
+			seen[path] = true
+			out = append(out, path)
+		}
+	}
+	return out
+}
+
 func TestTheManualOfThisMachineLeavesOutADormantCommand(t *testing.T) {
 	t.Setenv(experimentalEnv, "")
 	m, s := manualHere(t, place.CanonicalCommander)
-	if paths := manualPaths(m); len(paths) != 0 {
-		t.Errorf("the manual of a commander documents %v although nothing is approved", paths)
+	c := canonicalOf(t, place.CanonicalCommander)
+	got, documented := sortedPaths(manualPaths(m)), sortedPaths(documentedHere(t, c))
+	if !slices.Equal(got, documented) {
+		t.Errorf("the manual of a commander documents %v, want the approved commands that hold there "+
+			"and the groups they sit under, %v", got, documented)
 	}
-	want := len(leavesThatAreNotMachinery(t))
+	want := hiddenHereCount(t, c)
 	if s.hidden != want {
-		t.Errorf("the manual left out %d commands, want the %d that are not machinery", s.hidden, want)
+		t.Errorf("the manual left out %d commands, want the %d that hold here and are on no list",
+			s.hidden, want)
 	}
 	if m.note != hiddenHere(want) {
 		t.Errorf("the note = %q, want %q", m.note, hiddenHere(want))
@@ -613,19 +659,19 @@ func TestTheManualOfThisMachineLeavesOutADormantCommand(t *testing.T) {
 
 func TestTheManualOfARoleIsScopedByThatRolesList(t *testing.T) {
 	t.Setenv(experimentalEnv, "")
-	want := len(leavesThatAreNotMachinery(t))
 	for _, role := range manualRoles() {
 		if role == manualRoleAll {
 			continue
 		}
 		t.Run(role, func(t *testing.T) {
 			m, s := manualOfRole(t, role)
-			if paths := manualPaths(m); len(paths) != 0 {
-				t.Errorf("the manual of a canonical %s documents %v although nothing is approved", role, paths)
+			got, documented := sortedPaths(manualPaths(m)), sortedPaths(documentedHere(t, s.ctx))
+			if !slices.Equal(got, documented) {
+				t.Errorf("the manual of a canonical %s documents %v, want %v", role, got, documented)
 			}
-			if s.hidden != want {
-				t.Errorf("the manual of a canonical %s left out %d commands, want the %d that are not machinery",
-					role, s.hidden, want)
+			if want := hiddenHereCount(t, s.ctx); s.hidden != want {
+				t.Errorf("the manual of a canonical %s left out %d commands, want the %d that hold there "+
+					"and are on no list", role, s.hidden, want)
 			}
 		})
 	}
@@ -680,8 +726,14 @@ func TestTheManualNamesTheExperimentalSwitch(t *testing.T) {
 	}
 }
 
-func TestGoldenManualOfACommanderWithNothingApproved(t *testing.T) {
+func TestGoldenManualOfACommanderWithOnlyTheSetupApproved(t *testing.T) {
 	t.Setenv(experimentalEnv, "")
 	m, _ := manualHere(t, place.CanonicalCommander)
 	checkGolden(t, "manual-dormant-commander", manualOutline(t, renderPlain(m)))
+}
+
+func TestGoldenManualOfAHubWithOnlyTheSetupApproved(t *testing.T) {
+	t.Setenv(experimentalEnv, "")
+	m, _ := manualHere(t, place.CanonicalHub)
+	checkGolden(t, "manual-dormant-hub", manualOutline(t, renderPlain(m)))
 }
