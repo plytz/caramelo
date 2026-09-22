@@ -109,6 +109,7 @@ func serverFields(f *ui.Fields, c place.Context) {
 	f.Add("secrets", "%s", s.Paths.Secrets)
 	f.Add("caramelod", "%s", socketLine(s.Services.Daemon))
 	f.Add("edge", "%s", edgeLine(s.Services.Edge))
+	f.Add("vpn mode", "%s", strOrDash(s.Services.VPNMode))
 	f.Add("vpn listen", "%s", strOrDash(s.Services.VPNListen))
 	f.Add("api listen", "%s", strOrDash(s.Services.APIListen))
 }

@@ -11,6 +11,7 @@ box, hub of fleet home · /etc/caramelo/config.yaml · caramelod socket /run/car
   secrets     /run/caramelo/secrets
   caramelod   socket /run/caramelo/caramelod.sock
   edge        on, socket /run/caramelo/edge.sock
+  vpn mode    userspace
   vpn listen  0.0.0.0:4021
   api listen  vpn
   directory   /root

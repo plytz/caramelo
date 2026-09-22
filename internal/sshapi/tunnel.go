@@ -128,6 +128,7 @@ func startTunnel(ctx context.Context, cfg serverconfig.Config, logw io.Writer, s
 	opts := vpn.Options{
 		Subnet:         subnet,
 		Listen:         cfg.VPNListen,
+		Mode:           vpn.Mode(cfg.VPNMode),
 		PrivateKeyPath: cfg.VPNKeyPath(),
 		Log:            logw,
 	}

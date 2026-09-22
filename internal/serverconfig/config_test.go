@@ -23,7 +23,8 @@ func TestDefault(t *testing.T) {
 		StateDir: "/var/lib/caramelo", DataDir: "/mnt/caramelo", RunDir: "/run/caramelo",
 		SSHPort: 4022, Bind: "0.0.0.0",
 		VPNSubnet: "10.86.0.0/16", VPNListen: "0.0.0.0:4021", APIListen: "vpn",
-		Edge: false, TLS: "acme", HTTP3: true,
+		VPNMode: "userspace",
+		Edge:    false, TLS: "acme", HTTP3: true,
 		Reserve: Reserve{MemoryBytes: 256 << 20, CPU: 0.25},
 		Swap:    Swap{Backend: "file", SizeBytes: 4 << 30, Swappiness: 10},
 	}
@@ -140,7 +141,7 @@ func TestSaveLoadRoundTrip(t *testing.T) {
 	if err := yaml.Unmarshal(b, &raw); err != nil {
 		t.Fatalf("unmarshal written config: %v", err)
 	}
-	for _, key := range []string{"name", "role", "hub", "user", "group", "state_dir", "data_dir", "run_dir", "ssh_port", "bind", "reserve", "swap", "vpn_subnet", "vpn_listen", "api_listen"} {
+	for _, key := range []string{"name", "role", "hub", "user", "group", "state_dir", "data_dir", "run_dir", "ssh_port", "bind", "reserve", "swap", "vpn_subnet", "vpn_listen", "api_listen", "vpn_mode"} {
 		if _, ok := raw[key]; !ok {
 			t.Errorf("written config has no %q key: %s", key, b)
 		}
@@ -223,6 +224,19 @@ func TestLoadWithoutASwapKeyKeepsTheDefault(t *testing.T) {
 	}
 	if want := "/srv/state.swapfile"; got.SwapFilePath() != want {
 		t.Errorf("SwapFilePath = %q, want %q", got.SwapFilePath(), want)
+	}
+}
+
+func TestLoadWithoutAVPNModeKeepsTheDefault(t *testing.T) {
+	dir := t.TempDir()
+
+	write(t, dir, "name: box\nrole: hub\nhub:\n  fleet: box\nvpn_listen: 0.0.0.0:4021\n")
+	got, err := Load(dir)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if got.VPNMode != VPNModeUserspace {
+		t.Errorf("vpn_mode = %q, want the default %q", got.VPNMode, VPNModeUserspace)
 	}
 }
 
@@ -342,6 +356,11 @@ func TestValidate(t *testing.T) {
 		c.Swap = s
 		return c
 	}
+	vpnMode := func(mode string) Config {
+		c := hubConfig("box")
+		c.VPNMode = mode
+		return c
+	}
 
 	tests := []struct {
 		name string
@@ -402,6 +421,11 @@ func TestValidate(t *testing.T) {
 			want: []string{"swap.swappiness -1 out of range"},
 		},
 		{
+			name: "unknown vpn_mode",
+			cfg:  vpnMode("kernel"),
+			want: []string{`vpn_mode "kernel": want one of userspace`},
+		},
+		{
 			name: "everything wrong is reported at once",
 			cfg:  Config{},
 			want: []string{
@@ -460,6 +484,9 @@ func TestVPNDefaultsAndPaths(t *testing.T) {
 	if c.APIListen != APIListenVPN {
 		t.Errorf("api_listen default = %q, want %q", c.APIListen, APIListenVPN)
 	}
+	if c.VPNMode != VPNModeUserspace {
+		t.Errorf("vpn_mode default = %q, want %q", c.VPNMode, VPNModeUserspace)
+	}
 	c.StateDir = "/state"
 	if got, want := c.VPNKeyPath(), "/state/vpn/private.key"; got != want {
 		t.Errorf("VPNKeyPath = %q, want %q", got, want)
@@ -513,6 +540,8 @@ func TestValidateVPNKeys(t *testing.T) {
 		{"listen is empty", func(c *Config) { c.VPNListen = "" }, "vpn_listen"},
 		{"api_listen is unknown", func(c *Config) { c.APIListen = "everywhere" }, "api_listen"},
 		{"api_listen is empty", func(c *Config) { c.APIListen = "" }, "api_listen"},
+		{"vpn_mode is unknown", func(c *Config) { c.VPNMode = "kernel" }, "vpn_mode"},
+		{"vpn_mode is empty", func(c *Config) { c.VPNMode = "" }, "vpn_mode"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -538,6 +567,13 @@ func TestValidateVPNKeys(t *testing.T) {
 		c.APIListen = v
 		if err := c.Validate(); err != nil {
 			t.Errorf("api_listen %q rejected: %v", v, err)
+		}
+	}
+	for _, v := range VPNModeValues {
+		c := hubConfig("box")
+		c.VPNMode = v
+		if err := c.Validate(); err != nil {
+			t.Errorf("vpn_mode %q rejected: %v", v, err)
 		}
 	}
 }

@@ -53,6 +53,63 @@ func TestNewDeviceChecksItsOptions(t *testing.T) {
 	}
 }
 
+func TestADeviceReportsWhichTunnelItRuns(t *testing.T) {
+	ctx := context.Background()
+
+	down, _ := newTestDevice(t)
+	down.stk = nil
+	st, err := down.Status(ctx)
+	if err != nil {
+		t.Fatalf("Status: %v", err)
+	}
+	if st.Mode != ModeUserspace {
+		t.Errorf("a device built with no mode reports %q while down, want %q", st.Mode, ModeUserspace)
+	}
+
+	priv, err := GenerateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	keyPath := filepath.Join(t.TempDir(), "vpn", "private.key")
+	if err := WritePrivateKey(keyPath, priv); err != nil {
+		t.Fatal(err)
+	}
+	up, err := newDevice(Options{
+		Subnet:         mustSubnet(t, DefaultSubnet),
+		Listen:         "127.0.0.1:0",
+		PrivateKeyPath: keyPath,
+	})
+	if err != nil {
+		t.Fatalf("newDevice: %v", err)
+	}
+	if err := up.Up(ctx); err != nil {
+		t.Fatalf("Up: %v", err)
+	}
+	t.Cleanup(func() { _ = up.Down(context.Background()) })
+	st, err = up.Status(ctx)
+	if err != nil {
+		t.Fatalf("Status: %v", err)
+	}
+	if !st.Up {
+		t.Fatalf("status = %+v, want the device up", st)
+	}
+	if st.Mode != ModeUserspace {
+		t.Errorf("a device built with no mode reports %q while up, want %q", st.Mode, ModeUserspace)
+	}
+}
+
+func TestNewRefusesAModeItCannotRun(t *testing.T) {
+	_, err := New(Options{Subnet: mustSubnet(t, DefaultSubnet), Listen: DefaultListen, Mode: "kernel"})
+	if err == nil {
+		t.Fatal("New accepted a mode this build cannot run")
+	}
+	for _, want := range []string{`"kernel"`, string(ModeUserspace)} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("err = %v, want it to name %s", err, want)
+		}
+	}
+}
+
 func TestStatusOfADeviceThatIsDown(t *testing.T) {
 	d, _ := newTestDevice(t)
 	d.stk = nil

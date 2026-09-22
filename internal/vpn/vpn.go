@@ -104,12 +104,18 @@ func (f Forward) Addr() string {
 	return netip.AddrPortFrom(netip.AddrFrom4([4]byte{127, 0, 0, 1}), uint16(f.Port)).String()
 }
 
+type Mode string
+
+const ModeUserspace Mode = "userspace"
+
 type Status struct {
 	Up bool `json:"up"`
 
 	PublicKey string `json:"public_key,omitempty"`
 
 	Listen string `json:"listen,omitempty"`
+
+	Mode Mode `json:"mode,omitempty"`
 
 	Subnet netip.Prefix `json:"subnet"`
 
@@ -203,6 +209,8 @@ type Options struct {
 	Subnet netip.Prefix
 
 	Listen string
+
+	Mode Mode
 
 	PrivateKeyPath string
 

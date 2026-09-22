@@ -99,9 +99,12 @@ func TestContextOnAServerReadsThatMachinesConfig(t *testing.T) {
 	if c.Server.Fleet != "home" || c.Server.Paths.Config != dir {
 		t.Errorf("server = %+v, want fleet home read from %s", c.Server, dir)
 	}
+	if c.Server.Services.VPNMode != serverconfig.VPNModeUserspace {
+		t.Errorf("services = %+v, want vpn_mode %q", c.Server.Services, serverconfig.VPNModeUserspace)
+	}
 
 	_, stdout, _ := run(t, "context")
-	for _, want := range []string{"box, hub of fleet home", "caramelod", "vpn dir", "api listen"} {
+	for _, want := range []string{"box, hub of fleet home", "caramelod", "vpn dir", "vpn mode", "api listen"} {
 		if !strings.Contains(stdout, want) {
 			t.Errorf("stdout lacks %q:\n%s", want, stdout)
 		}

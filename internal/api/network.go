@@ -249,6 +249,7 @@ func (n *Network) VPNStatus(ctx context.Context) (*VPNStatus, error) {
 	st.Enabled = ds.Up
 	st.PublicKey = ds.PublicKey
 	st.Listen = strOr(ds.Listen, n.Listen)
+	st.Mode = string(ds.Mode)
 	st.Resolver = ds.Resolver
 	st.Routes = ds.Routes
 	if ds.Subnet.IsValid() {

@@ -39,6 +39,12 @@ func newDevice(opts Options) (*wgDevice, error) {
 	if mtu <= 0 {
 		mtu = MTU
 	}
+	switch opts.Mode {
+	case "", ModeUserspace:
+		opts.Mode = ModeUserspace
+	default:
+		return nil, fmt.Errorf("vpn: mode %q: want %s", opts.Mode, ModeUserspace)
+	}
 	return &wgDevice{
 		opts:       opts,
 		subnet:     subnet,
@@ -235,6 +241,7 @@ func (d *wgDevice) Status(ctx context.Context) (Status, error) {
 		Subnet:   d.subnet,
 		IP:       d.machineIP,
 		Listen:   d.opts.Listen,
+		Mode:     d.opts.Mode,
 		Peers:    len(d.peers),
 		Routes:   len(d.relays),
 		Machines: len(d.machines),

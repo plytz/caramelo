@@ -87,6 +87,8 @@ type VPNStatus struct {
 	Listen   string `json:"listen,omitempty"`
 	Endpoint string `json:"endpoint,omitempty"`
 
+	Mode string `json:"mode,omitempty"`
+
 	Subnet  string `json:"subnet,omitempty"`
 	Address string `json:"address,omitempty"`
 

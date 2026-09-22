@@ -153,7 +153,7 @@ func Run(ctx context.Context, cfg serverconfig.Config, configDir, version string
 		case err == nil:
 			tun = t
 			st, _ := t.Device.Status(ctx)
-			logf("tunnel: api at %s, device on %s, %d peers, %d routes", t.Addr, cfg.VPNListen, st.Peers, st.Routes)
+			logf("tunnel: %s, api at %s, device on %s, %d peers, %d routes", st.Mode, t.Addr, cfg.VPNListen, st.Peers, st.Routes)
 		case cfg.APIListensPublic():
 
 			daemon.SetDevice(nil)
