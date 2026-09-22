@@ -46,7 +46,8 @@ func (s *SummaryStep) Check(ctx context.Context, env *Env) (bool, string, error)
 	ip := primaryIP(ctx, env)
 	target := fmt.Sprintf("%s@%s", cfg.User, strOr(ip, "<this-machine>"))
 
-	logf(env, "network: %s on %s (udp), api_listen: %s", cfg.VPNSubnet, cfg.VPNListen, cfg.APIListen)
+	logf(env, "network: %s on %s (udp), vpn_mode: %s, api_listen: %s",
+		cfg.VPNSubnet, cfg.VPNListen, cfg.VPNMode, cfg.APIListen)
 	logf(env, "fleet: %s", describeFleet(cfg))
 	s.reportPorts(ctx, env, ip)
 

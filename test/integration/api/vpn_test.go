@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -175,6 +176,9 @@ func TestVPNStatusOfTheMachine(t *testing.T) {
 	}
 	if st.VPN.Resolver == "" {
 		t.Error("no resolver address: .internal has to be answered somewhere")
+	}
+	if !slices.Contains(serverconfig.VPNModeValues, st.VPN.Mode) {
+		t.Errorf("mode = %q, want one of %s", st.VPN.Mode, strings.Join(serverconfig.VPNModeValues, ", "))
 	}
 	switch st.VPN.APIListen {
 	case serverconfig.APIListenVPN, serverconfig.APIListenPublic, serverconfig.APIListenBoth:

@@ -28,6 +28,9 @@ func TestSummaryTellsTheOperatorHowToConnect(t *testing.T) {
 	if !strings.Contains(out, "authorized keys: alice@laptop") {
 		t.Errorf("log %q does not list the seeded keys", out)
 	}
+	if !strings.Contains(out, "vpn_mode: userspace") {
+		t.Errorf("log %q does not say which tunnel the machine runs", out)
+	}
 	if !strings.Contains(out, "try: ssh -p 4022 caramelo@192.168.121.135 status") {
 		t.Errorf("log %q does not print the command to try", out)
 	}

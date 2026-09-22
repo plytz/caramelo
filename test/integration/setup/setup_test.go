@@ -356,6 +356,7 @@ func TestServerStatus(t *testing.T) {
 			APIListen    string `json:"api_listen"`
 			VPNPort      int    `json:"vpn_port"`
 			VPNListening bool   `json:"vpn_listening"`
+			VPNMode      string `json:"vpn_mode"`
 		} `json:"port"`
 		Swap struct {
 			TotalBytes int64  `json:"total_bytes"`
@@ -389,6 +390,9 @@ func TestServerStatus(t *testing.T) {
 	if wantPublic := st.Port.APIListen != serverconfig.APIListenVPN; st.Port.Listening != wantPublic {
 		t.Errorf("tcp %d listening=%v with api_listen %q, want %v",
 			st.Port.Port, st.Port.Listening, st.Port.APIListen, wantPublic)
+	}
+	if st.Port.VPNMode != serverconfig.DefaultVPNMode {
+		t.Errorf("vpn_mode = %q, want the default %q", st.Port.VPNMode, serverconfig.DefaultVPNMode)
 	}
 	if st.Port.VPNPort != vpn.DefaultListenPort || !st.Port.VPNListening {
 		t.Errorf("tunnel port = %d listening=%v, want %d listening: it is the one port a "+

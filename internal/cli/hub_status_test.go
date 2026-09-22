@@ -2,6 +2,8 @@ package cli
 
 import (
 	"bytes"
+	"context"
+	"encoding/json"
 	"net"
 	"strconv"
 	"strings"
@@ -18,13 +20,14 @@ func TestServerStatusExplainsAClosedPublicPort(t *testing.T) {
 			Port: 4022, Listening: false,
 			APIListen: serverconfig.APIListenVPN,
 			VPNPort:   4021, VPNListening: true,
+			VPNMode: serverconfig.VPNModeUserspace,
 		},
 	}
 	if err := writeHubStatus(&b, st); err != nil {
 		t.Fatal(err)
 	}
 	out := b.String()
-	for _, want := range []string{"port 4022", "api_listen vpn", "answers inside the tunnel", "udp 4021", "listening"} {
+	for _, want := range []string{"port 4022", "api_listen vpn", "answers inside the tunnel", "udp 4021", "vpn_mode userspace", "listening"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output does not mention %q:\n%s", want, out)
 		}
@@ -98,6 +101,34 @@ func TestServerStatusSaysHowMuchSwapThereIsAndWhoMadeIt(t *testing.T) {
 				t.Errorf("swap row = %q, want it to say %q", line, tc.want)
 			}
 		})
+	}
+}
+
+func TestServerStatusCarriesTheConfiguredVPNMode(t *testing.T) {
+	dir := t.TempDir()
+	cfg := serverconfig.Default()
+	cfg.Name, cfg.Hub.Fleet = "box", "home"
+	if err := serverconfig.Save(dir, cfg, 0o640); err != nil {
+		t.Fatal(err)
+	}
+
+	st := hubStatusOf(context.Background(), stubRunner{}, dir)
+	if st.Port.VPNMode != serverconfig.VPNModeUserspace {
+		t.Errorf("vpn_mode = %q, want the configured %q", st.Port.VPNMode, serverconfig.VPNModeUserspace)
+	}
+	var b bytes.Buffer
+	if err := writeHubStatus(&b, st); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(b.String(), "vpn_mode userspace") {
+		t.Errorf("the udp row does not name the tunnel this machine runs:\n%s", b.String())
+	}
+	doc, err := json.Marshal(st)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(doc), `"vpn_mode":"userspace"`) {
+		t.Errorf("--json does not carry vpn_mode:\n%s", doc)
 	}
 }
 

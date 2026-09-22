@@ -65,6 +65,14 @@ const (
 var APIListenValues = []string{APIListenVPN, APIListenPublic, APIListenBoth}
 
 const (
+	VPNModeUserspace = "userspace"
+
+	DefaultVPNMode = VPNModeUserspace
+)
+
+var VPNModeValues = []string{VPNModeUserspace}
+
+const (
 	SwapFile = "file"
 
 	SwapZram = "zram"
@@ -98,6 +106,8 @@ type Config struct {
 	VPNListen string `yaml:"vpn_listen"`
 
 	APIListen string `yaml:"api_listen"`
+
+	VPNMode string `yaml:"vpn_mode"`
 
 	Edge bool `yaml:"edge"`
 
@@ -138,7 +148,8 @@ func Default() Config {
 		StateDir: DefaultStateDir, DataDir: DefaultDataDir, RunDir: DefaultRunDir,
 		SSHPort: DefaultSSHPort, Bind: DefaultBind,
 		VPNSubnet: DefaultVPNSubnet, VPNListen: DefaultVPNListen, APIListen: DefaultAPIListen,
-		Edge: DefaultEdge, TLS: DefaultTLS, HTTP3: DefaultHTTP3,
+		VPNMode: DefaultVPNMode,
+		Edge:    DefaultEdge, TLS: DefaultTLS, HTTP3: DefaultHTTP3,
 		Reserve: Reserve{MemoryBytes: 256 << 20, CPU: 0.25},
 		Swap:    Swap{Backend: SwapFile, SizeBytes: DefaultSwapSizeBytes, Swappiness: DefaultSwappiness},
 	}
@@ -279,6 +290,9 @@ func validateVPN(c Config) []error {
 	if c.APIListen != "" && !slices.Contains(APIListenValues, c.APIListen) {
 		errs = append(errs, fmt.Errorf("api_listen %q: want one of %s", c.APIListen, strings.Join(APIListenValues, ", ")))
 	}
+	if c.VPNMode != "" && !slices.Contains(VPNModeValues, c.VPNMode) {
+		errs = append(errs, fmt.Errorf("vpn_mode %q: want one of %s", c.VPNMode, strings.Join(VPNModeValues, ", ")))
+	}
 	return errs
 }
 
@@ -362,7 +376,7 @@ func Save(dir string, c Config, mode os.FileMode) error {
 
 func (c Config) Validate() error {
 	var errs []error
-	for name, v := range map[string]string{"user": c.User, "group": c.Group, "state_dir": c.StateDir, "data_dir": c.DataDir, "run_dir": c.RunDir, "bind": c.Bind, "vpn_subnet": c.VPNSubnet, "vpn_listen": c.VPNListen, "api_listen": c.APIListen} {
+	for name, v := range map[string]string{"user": c.User, "group": c.Group, "state_dir": c.StateDir, "data_dir": c.DataDir, "run_dir": c.RunDir, "bind": c.Bind, "vpn_subnet": c.VPNSubnet, "vpn_listen": c.VPNListen, "api_listen": c.APIListen, "vpn_mode": c.VPNMode} {
 		if v == "" {
 			errs = append(errs, fmt.Errorf("%s must not be empty", name))
 		}

@@ -162,8 +162,8 @@ about the fleet.
 
 `caramelo context` prints that place in full: the machine's name and role, the config file that
 says so, the paths and services a server holds — state, data, run, apps, edge, vpn and secrets
-directories, the caramelod socket, whether the edge is on and where it answers, `vpn_listen` and
-`api_listen`, and for a member the hub it joined — or the fleets, the identity key and the tunnel
+directories, the caramelod socket, whether the edge is on and where it answers, `vpn_mode`, `vpn_listen`
+and `api_listen`, and for a member the hub it joined — or the fleets, the identity key and the tunnel
 records a commander holds, then the fleet a command typed here would talk to and why, and the app
 and the environment the working directory names. `CARAMELO_APP` and `CARAMELO_ENV` override those
 last two, `--fleet` and `--machine` change the answer to what a command would talk to, and `--json`

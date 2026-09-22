@@ -13,6 +13,7 @@ func vpnStatusFixture() *api.VPNStatus {
 		Enabled:   true,
 		PublicKey: "Nq0Xw2mS8VbZ1YtR7dK3jL5pQ9cF4hG6uI8oP0aB2wE=",
 		Listen:    "0.0.0.0:4021",
+		Mode:      "userspace",
 		Subnet:    "10.86.0.0/16",
 		Address:   "10.86.0.1",
 		Resolver:  "10.86.0.1:53",
@@ -31,7 +32,7 @@ func TestStatusShowsTheTunnel(t *testing.T) {
 		t.Fatalf("exit = %d", code)
 	}
 	for _, want := range []string{
-		"tunnel", "10.86.0.1 on 0.0.0.0:4021 (udp)", "subnet 10.86.0.0/16", "resolver 10.86.0.1:53",
+		"tunnel", "userspace, 10.86.0.1 on 0.0.0.0:4021 (udp)", "subnet 10.86.0.0/16", "resolver 10.86.0.1:53",
 		"2, 3 environment(s) addressed, 7 relayed port(s)",
 
 		"Nq0Xw2mS8VbZ1YtR7dK3jL5pQ9cF4hG6uI8oP0aB2wE=",
@@ -87,5 +88,8 @@ func TestStatusJSONCarriesTheTunnel(t *testing.T) {
 	}
 	if got.VPN.Subnet != "10.86.0.0/16" || got.VPN.Listen != "0.0.0.0:4021" {
 		t.Errorf("vpn = %+v", got.VPN)
+	}
+	if got.VPN.Mode != "userspace" {
+		t.Errorf("vpn mode = %q, want the tunnel this machine runs", got.VPN.Mode)
 	}
 }

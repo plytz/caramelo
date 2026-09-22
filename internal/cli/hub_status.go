@@ -76,6 +76,8 @@ type portStatus struct {
 
 	VPNPort      int  `json:"vpn_port,omitempty"`
 	VPNListening bool `json:"vpn_listening"`
+
+	VPNMode string `json:"vpn_mode,omitempty"`
 }
 
 func (a *app) hubStatusCmd() *cobra.Command {
@@ -131,6 +133,7 @@ func hubStatusOf(ctx context.Context, run runner.Runner, configDir string) hubSt
 	if port := vpnListenPort(cfg.VPNListen); port > 0 {
 		st.Port.VPNPort = port
 		st.Port.VPNListening = udpBound(port)
+		st.Port.VPNMode = cfg.VPNMode
 	}
 	st.Swap = swapStatus{Backend: cfg.Swap.Backend, SizeBytes: cfg.Swap.SizeBytes}
 	st.Swap.TotalBytes, st.Swap.Managed = machine.ReadSwap(ctx, run, cfg.SwapFilePath())
@@ -229,8 +232,8 @@ func writeHubStatus(w io.Writer, st hubStatus) error {
 	fmt.Fprintf(tw, "socket\t%s\n", describeSocket(st.Socket))
 	fmt.Fprintf(tw, "port %d\t%s\n", st.Port.Port, describeAPIPort(st.Port))
 	if st.Port.VPNPort > 0 {
-		fmt.Fprintf(tw, "udp %d\t%s (the machine's network)\n", st.Port.VPNPort,
-			yesNo(st.Port.VPNListening, "listening", "not listening"))
+		fmt.Fprintf(tw, "udp %d\tvpn_mode %s, %s (the machine's network)\n", st.Port.VPNPort,
+			strOrDash(st.Port.VPNMode), yesNo(st.Port.VPNListening, "listening", "not listening"))
 	}
 	return tw.Flush()
 }

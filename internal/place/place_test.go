@@ -215,6 +215,9 @@ func TestAServerCarriesItsPathsAndServices(t *testing.T) {
 		t.Errorf("services = %+v, want vpn_listen %q and api_listen %q",
 			c.Server.Services, cfg.VPNListen, cfg.APIListen)
 	}
+	if c.Server.Services.VPNMode != cfg.VPNMode || cfg.VPNMode == "" {
+		t.Errorf("services = %+v, want vpn_mode %q", c.Server.Services, cfg.VPNMode)
+	}
 	if c.TalksTo.Kind != TalksSocket || c.TalksTo.Socket != cfg.SocketPath() {
 		t.Errorf("talks to = %+v, want the socket of this machine", c.TalksTo)
 	}

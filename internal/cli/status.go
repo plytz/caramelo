@@ -172,7 +172,7 @@ func describeVPNStatus(v *api.VPNStatus) string {
 		}
 		return s
 	}
-	s := fmt.Sprintf("%s on %s (udp)", strOr(v.Address, "?"), strOr(v.Listen, "?"))
+	s := fmt.Sprintf("%s, %s on %s (udp)", strOr(v.Mode, "?"), strOr(v.Address, "?"), strOr(v.Listen, "?"))
 	if v.Subnet != "" {
 		s += ", subnet " + v.Subnet
 	}

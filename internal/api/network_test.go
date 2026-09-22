@@ -182,6 +182,7 @@ func newDevice() *fakeDevice {
 		peers: map[string]vpn.Peer{},
 		status: vpn.Status{
 			Up:        true,
+			Mode:      vpn.ModeUserspace,
 			PublicKey: "bWFjaGluZS1rZXktYmFzZTY0LXBhZGRpbmctaGVyZS0xMjM0NTY=",
 			Listen:    "0.0.0.0:4021",
 			Subnet:    netip.MustParsePrefix("10.86.0.0/16"),
@@ -494,6 +495,9 @@ func TestVPNStatus(t *testing.T) {
 	}
 	if st.Resolver != "10.86.0.1:53" || st.Listen != "0.0.0.0:4021" || st.APIListen != "both" {
 		t.Errorf("status = %+v", st)
+	}
+	if st.Mode != string(vpn.ModeUserspace) {
+		t.Errorf("mode = %q, want %q: the device's mode must reach the status a machine reports", st.Mode, vpn.ModeUserspace)
 	}
 	if st.Peers != 1 || st.Envs != 1 || st.Routes != 3 {
 		t.Errorf("counts = %d peers, %d envs, %d routes", st.Peers, st.Envs, st.Routes)

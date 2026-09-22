@@ -57,6 +57,7 @@ file:
       - "vpn_subnet: 10.86.0.0/16"
       - "vpn_listen: 0.0.0.0:4021"
       - "api_listen: vpn"
+      - "vpn_mode: userspace"
       - "edge: false"
       - "tls: acme"
       - "http3: true"

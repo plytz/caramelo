@@ -12,6 +12,7 @@ worker, member of fleet home (hub box at box.example.com:4021) · /etc/caramelo/
   secrets     /run/caramelo/secrets
   caramelod   socket /run/caramelo/caramelod.sock
   edge        off
+  vpn mode    userspace
   vpn listen  0.0.0.0:4021
   api listen  vpn
   directory   /root

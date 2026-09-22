@@ -177,6 +177,8 @@ type Services struct {
 	VPNListen string `json:"vpn_listen,omitempty"`
 
 	APIListen string `json:"api_listen,omitempty"`
+
+	VPNMode string `json:"vpn_mode,omitempty"`
 }
 
 type Socket struct {
@@ -332,6 +334,7 @@ func serverOf(cfg serverconfig.Config, dir string, exists func(string) bool) *Se
 			Edge:      Edge{Enabled: cfg.Edge, Socket: socketAt(cfg.EdgeSocketPath(), exists)},
 			VPNListen: cfg.VPNListen,
 			APIListen: cfg.APIListen,
+			VPNMode:   cfg.VPNMode,
 		},
 	}
 	if cfg.IsMember() {
